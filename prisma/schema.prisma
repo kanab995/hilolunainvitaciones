@@ -1,0 +1,715 @@
+// Esquema de base de datos de Hilo Luna (PostgreSQL + Prisma). Fuente de diseño: docs/DATABASE_SCHEMA.md
+// (§ "Implementación real" registra las diferencias) y docs/ARCHITECTURE.md D-22.
+//
+// Reglas del modelo:
+//  - Contenido y plantilla son independientes: `Template` no guarda nada del usuario e `Invitation`
+//    solo apunta a su plantilla con `templateId` (cambiarla no toca ninguna otra fila; regla 16/17).
+//  - La fecha y la zona horaria viven SOLO en `Event`.
+//  - El contenido con identidad y orden (sedes, itinerario, galería, mesa de regalos, música) tiene
+//    su tabla, colgada de `Event`; el orden/visibilidad/encabezados de las secciones, en `InvitationSection`.
+//  - Los JSON (`settings`, `content`, `styleOverrides`…) se validan al leer (server/mappers/json.ts).
+//  - Borrar un `Event` elimina en cascada todo lo suyo; nunca una `Template`.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────── Enums ─────────
+
+enum EventType {
+  WEDDING
+  QUINCEANERA
+  BAPTISM
+  BIRTHDAY
+  BABY_SHOWER
+  KIDS
+  /// Graduación y «Otro»: tipos de evento del onboarding (D-28). `KIDS` sigue siendo la categoría de plantillas infantiles.
+  GRADUATION
+  OTHER
+}
+
+/// Ciclo de vida del evento (no confundir con la publicación de la invitación: `InvitationStatus`).
+enum EventStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum InvitationStatus {
+  DRAFT
+  PUBLISHED
+  UNPUBLISHED
+}
+
+/// Madurez del DISEÑO de una plantilla (docs/ARCHITECTURE.md §4.9). Independiente de la publicación.
+enum TemplateDesignStatus {
+  IMPLEMENTED
+  CONCEPT
+  COMING_SOON
+}
+
+/// Visibilidad comercial de una plantilla en el catálogo. Independiente de la madurez del diseño.
+enum TemplatePublicationStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum TemplateStyle {
+  FLORAL
+  ROMANTIC
+  MINIMAL
+  ELEGANT
+  RUSTIC
+  MODERN
+  DESTINATION
+  THEMED
+  KIDS
+}
+
+enum TemplateFeature {
+  MUSIC
+  RSVP
+  GALLERY
+  COUNTDOWN
+  LOCATION
+  GIFTS
+}
+
+/// Bloques de la invitación (nombres de DATABASE_SCHEMA §3). `DATE` y `MUSIC` de la propuesta no
+/// existen como bloque en el producto: la fecha es de `Event` y la música es `MusicSettings`.
+enum BlockType {
+  COVER
+  STORY
+  COUNTDOWN
+  LOCATION
+  ITINERARY
+  GALLERY
+  DRESS_CODE
+  GIFTS
+  RSVP
+  CLOSING
+}
+
+enum LocationKind {
+  CEREMONY
+  RECEPTION
+  OTHER
+}
+
+enum TimelineIcon {
+  CEREMONY
+  COCKTAIL
+  DINNER
+  PARTY
+  TOAST
+  OTHER
+}
+
+enum MusicSourceType {
+  LIBRARY
+  UPLOAD
+  EXTERNAL
+}
+
+/// "Tal vez" (MAYBE) cuenta como pendiente en las métricas (CLAUDE.md, decisión 8).
+enum RsvpStatus {
+  PENDING
+  ATTENDING
+  DECLINED
+  MAYBE
+}
+
+/// Clasificación de un archivo gestionado. Solo imágenes por ahora (audio queda preparado, sin implementar).
+enum MediaType {
+  IMAGE
+}
+
+/// PENDING = se emitió la URL de subida pero el archivo aún no se verificó (nunca se referencia);
+/// READY = verificado en el servidor; DELETED = retirado (el registro se conserva como constancia).
+enum MediaStatus {
+  PENDING
+  READY
+  DELETED
+}
+
+/// Proveedor de cobro. Solo STRIPE está implementado (D-31); MERCADO_PAGO reserva el valor para el futuro sin acoplar el dominio.
+enum BillingProvider {
+  STRIPE
+  MERCADO_PAGO
+}
+
+/// Plan comercial (D-31). Los planes son PRODUCTO, no contenido: su configuración (features y límites) vive en código
+/// (lib/billing/plans.ts); aquí solo se guarda QUÉ plan tiene contratado una cuenta y el plan mínimo de una plantilla.
+enum Plan {
+  FREE
+  ESSENTIAL
+  PREMIUM
+}
+
+/// LEGACY (D-31, reemplazado por D-32): estados de la suscripción mensual anterior. Solo los usa la tabla `Subscription`, que ya no se lee ni se escribe.
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+}
+
+/// LEGACY (D-31, reemplazado por D-32): intervalo de la suscripción anterior.
+enum BillingInterval {
+  MONTH
+  YEAR
+}
+
+/// Estado de una compra por evento (D-32). Solo `PAID` concede el plan; el resto nunca lo concede.
+enum PurchaseStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  CANCELED
+}
+
+/// `INITIAL` = primera compra del evento (Gratis → Esencial o Premium); `UPGRADE` = Esencial → Premium (solo la diferencia).
+enum PurchaseKind {
+  INITIAL
+  UPGRADE
+}
+
+enum RsvpQuestionType {
+  TEXT
+  CHOICE
+  BOOLEAN
+}
+
+/// Rol INTERNO de una cuenta (D-33). `ADMIN` da acceso a la consola de operación (`/admin/**`). Vive SOLO en PostgreSQL: nunca
+/// se deduce del email, del dominio, de un parámetro ni de metadatos de Clerk enviados por el cliente. Nadie se asciende desde la
+/// aplicación: se asigna a mano (docs/ADMIN.md).
+enum UserRole {
+  USER
+  ADMIN
+}
+
+// ───────── Cuenta ─────────
+
+/// Perfil interno de la aplicación (propiedad de los eventos). La IDENTIDAD (credenciales, sesiones,
+/// recuperación de acceso) es de Clerk: aquí solo se guarda su id estable (`clerkUserId`) y datos de
+/// perfil. Nunca contraseñas, hashes ni tokens. `clerkUserId` es nulo solo para el usuario demo del seed.
+model User {
+  id          String   @id @default(cuid())
+  /// Id del usuario en Clerk: la identidad externa estable. El email NO es la identidad.
+  clerkUserId String?  @unique
+  email       String   @unique
+  name        String?
+  /// Rol interno (D-33). Todo usuario nace `USER`; `ADMIN` se concede manualmente y solo lo lee `requireAdmin()`.
+  role        UserRole @default(USER)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  events           Event[]
+  mediaAssets      MediaAsset[]
+  billingCustomers BillingCustomer[]
+  /// LEGACY (D-31): no se usa. Ver `Subscription`.
+  subscription     Subscription?
+  purchases        EventPurchase[]
+  /// Acciones de administración hechas por esta cuenta (D-34). `Restrict`: el registro de auditoría no se borra en cascada.
+  adminAuditLogs   AdminAuditLog[]
+
+  @@index([createdAt])
+}
+
+/// REGISTRO DE AUDITORÍA MÍNIMO de las acciones de administración que MODIFICAN algo (D-34): hoy, visibilidad y plan mínimo de una plantilla.
+/// Guarda quién (`adminUserId`), qué (`action`, `entityType`, `entityId`) y el antes/después de SOLO los campos cambiados (JSON mínimo, sin datos
+/// personales ni secretos). Solo se INSERTA (nunca se edita ni se borra desde la aplicación).
+model AdminAuditLog {
+  id          String   @id @default(cuid())
+  adminUserId String
+  action      String
+  entityType  String
+  entityId    String
+  before      Json
+  after       Json
+  createdAt   DateTime @default(now())
+
+  admin User @relation(fields: [adminUserId], references: [id], onDelete: Restrict)
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@index([adminUserId])
+}
+
+// ───────── Facturación (D-32: un pago único por evento) ─────────
+
+/// Cliente del proveedor de cobro para un usuario (creado de forma perezosa al iniciar el primer checkout). Es la
+/// ÚNICA tabla que guarda la referencia al cliente del proveedor (no se duplica en `User` ni en `EventPurchase`). Un cliente
+/// del proveedor se reutiliza en todas las compras de la persona. Nunca guarda datos de tarjeta: eso vive solo en el proveedor.
+model BillingCustomer {
+  id                 String          @id @default(cuid())
+  userId             String
+  provider           BillingProvider
+  providerCustomerId String
+  createdAt          DateTime        @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@unique([provider, providerCustomerId])
+}
+
+/// LEGACY — suscripción mensual del modelo anterior (D-31), REEMPLAZADO por `EventPurchase` (D-32). NO se lee ni se escribe: el
+/// plan ya no es de la cuenta sino de cada evento. Se conserva la tabla (y sus filas de prueba, si las hay) para no destruir
+/// datos en silencio ni forzar un borrado; no se convierte en compras porque no sabemos a qué evento correspondería. Se puede
+/// eliminar con una migración explícita cuando se confirme que está vacía (docs/DATABASE_SCHEMA.md §17).
+model Subscription {
+  id                     String             @id @default(cuid())
+  userId                 String             @unique
+  provider               BillingProvider
+  providerSubscriptionId String
+  plan                   Plan
+  interval               BillingInterval
+  status                 SubscriptionStatus
+  currentPeriodStart     DateTime?          @db.Timestamptz
+  currentPeriodEnd       DateTime?          @db.Timestamptz
+  cancelAtPeriodEnd      Boolean            @default(false)
+  providerEventAt        DateTime           @db.Timestamptz
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerSubscriptionId])
+}
+
+/// COMPRA de un plan para UN evento (D-32): pago único, sin renovación. El plan efectivo de un evento es el MAYOR plan de sus
+/// compras `PAID` (`getEffectiveEventPlan`); sin compras pagadas = FREE. El historial se conserva: una mejora Esencial → Premium
+/// es una SEGUNDA compra (`UPGRADE`, solo la diferencia), nunca una sobrescritura de la primera. `plan` es el plan que la compra
+/// concede; `amount` va en unidades menores (centavos) y `currency` en ISO 4217. Se escribe SOLO desde el webhook verificado (o el
+/// alta `PENDING` al iniciar el checkout). Pertenece al evento y a su propietario. Nunca guarda datos de tarjeta.
+/// Las relaciones son `Restrict`: el historial financiero no se borra en cascada con el evento o la cuenta.
+model EventPurchase {
+  id                        String          @id @default(cuid())
+  eventId                   String
+  userId                    String
+  provider                  BillingProvider
+  /// Sesión de pago del proveedor: identifica la compra (única) y hace el webhook idempotente.
+  providerCheckoutSessionId String
+  providerPaymentIntentId   String?
+  plan                      Plan
+  kind                      PurchaseKind
+  status                    PurchaseStatus  @default(PENDING)
+  amount                    Int
+  currency                  String
+  paidAt                    DateTime?       @db.Timestamptz
+  accessStartsAt            DateTime?       @db.Timestamptz
+  accessEndsAt              DateTime?       @db.Timestamptz
+  createdAt                 DateTime        @default(now())
+  updatedAt                 DateTime        @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([provider, providerCheckoutSessionId])
+  /// Un pago del proveedor pertenece a UNA sesión de cobro (los NULL no chocan entre sí).
+  @@unique([provider, providerPaymentIntentId])
+  @@index([eventId, status])
+  @@index([userId])
+  /// Listado de la consola (orden por fecha).
+  @@index([createdAt])
+}
+
+/// Eventos de webhook ya procesados (idempotencia): el mismo evento nunca se aplica dos veces. Solo guarda el id y
+/// el tipo del evento, jamás el cuerpo (puede traer datos personales).
+model WebhookEvent {
+  id              String          @id @default(cuid())
+  provider        BillingProvider
+  externalEventId String
+  type            String
+  processedAt     DateTime        @default(now()) @db.Timestamptz
+
+  @@unique([provider, externalEventId])
+  /// Listado de la consola (más recientes primero).
+  @@index([processedAt])
+}
+
+// ───────── Evento ─────────
+
+model Event {
+  id               String      @id @default(cuid())
+  ownerId          String
+  /// Referencia legible y única del evento (URL interna del panel: /dashboard/events/[id|slug]).
+  slug             String      @unique
+  type             EventType
+  title            String
+  status           EventStatus @default(DRAFT)
+  /// Fuente de verdad de la fecha y hora (cuenta regresiva, dashboard, invitación).
+  startsAt         DateTime    @db.Timestamptz
+  endsAt           DateTime?   @db.Timestamptz
+  timezone         String      @default("America/Mexico_City")
+  /// Fin del acceso de un evento de PAGO (D-32): `max(compra + 30 días, fecha del evento + 30 días)`. Solo crece (mover el evento
+  /// hacia adelante lo extiende; hacia atrás nunca lo acorta). Nulo = evento Gratis. Hoy solo se persiste: la expiración de la
+  /// invitación pública se prepara (`isEventAccessActive`) pero aún no se aplica y nunca borra datos.
+  paidAccessEndsAt DateTime?   @db.Timestamptz
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  owner         User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  invitation    Invitation?
+  locations     Location[]
+  timelineItems TimelineItem[]
+  galleryImages GalleryImage[]
+  giftRegistry  GiftRegistry[]
+  music         MusicSettings?
+  guestGroups   GuestGroup[]
+  guests        Guest[]
+  rsvps         Rsvp[]
+  rsvpQuestions RsvpQuestion[]
+  mediaAssets   MediaAsset[]
+  purchases     EventPurchase[]
+
+  @@index([ownerId])
+  /// Resumen de la consola: eventos de pago por vencer / vencidos.
+  @@index([paidAccessEndsAt])
+}
+
+// ───────── Catálogo de plantillas ─────────
+
+/// Metadatos del catálogo. El TEMA visual vive en código (lib/invitation/templates): esta tabla no
+/// guarda colores ni layouts, y nunca datos de una invitación.
+model Template {
+  id                String                    @id @default(cuid())
+  slug              String                    @unique
+  name              String
+  eventType         EventType
+  style             TemplateStyle
+  secondaryStyles   TemplateStyle[]
+  description       String
+  premium           Boolean                   @default(false)
+  /// Plan mínimo para USAR la plantilla (D-31). Independiente de `designStatus` (madurez del diseño) y de
+  /// `publicationStatus` (visibilidad en el catálogo). Magnolia: FREE.
+  minimumPlan       Plan                      @default(FREE)
+  designStatus      TemplateDesignStatus
+  publicationStatus TemplatePublicationStatus @default(DRAFT)
+  features          TemplateFeature[]
+  /// Imagen de la tarjeta de galería. Sin `thumbnailSrc` se dibuja el placeholder del `thumbnailTone`.
+  thumbnailSrc      String?
+  thumbnailAlt      String
+  thumbnailTone     String
+  /// Invitación de muestra de la vista previa ([03]) y pantallas de las miniaturas.
+  previewSample     Json
+  previewScreens    Json
+  sortOrder         Int                       @default(0)
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+
+  invitations Invitation[]
+
+  @@index([eventType, publicationStatus])
+}
+
+// ───────── Invitación ─────────
+
+model Invitation {
+  id                String           @id @default(cuid())
+  eventId           String           @unique
+  /// ÚNICA referencia a la plantilla visual. Sin cascada: borrar una plantilla con invitaciones se rechaza.
+  templateId        String
+  /// Identificador público de la URL `/i/[slug]`.
+  slug              String           @unique
+  status            InvitationStatus @default(DRAFT)
+  contentVersion    Int              @default(1)
+  /// Nombres de los anfitriones o festejados, en orden.
+  names             String[]
+  /// { [templateSlug]: { accent?, fonts? } } — personalizaciones por plantilla (ARCHITECTURE §4.4).
+  styleOverrides    Json             @default("{}")
+  /// Foto de portada PROPIA (referencia a un MediaAsset). Sin ella, la portada usa el fondo de la plantilla.
+  coverMediaId      String?
+  coverAlt          String           @default("")
+  /// BORRADOR vs PUBLICADO (D-29). Las tablas del evento son el borrador; lo público es una `InvitationPublication`.
+  /// `draftRevision` sube con cada cambio del borrador (guardado del editor, imágenes) y protege contra escrituras
+  /// fuera de orden; `publishedRevision` es la revisión del borrador que se publicó (cambios sin publicar =
+  /// `draftRevision > publishedRevision`); `publishedVersion` cuenta las publicaciones (0 = nunca publicada).
+  draftRevision     Int              @default(1)
+  publishedRevision Int              @default(0)
+  publishedVersion  Int              @default(0)
+  publishedAt       DateTime?
+  lastPublishedAt   DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  event        Event                   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  template     Template                @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  coverMedia   MediaAsset?             @relation("InvitationCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
+  sections     InvitationSection[]
+  publications InvitationPublication[]
+
+  @@index([templateId])
+}
+
+/// Versión PUBLICADA de una invitación: un snapshot autocontenido (contenido + plantilla + referencias a
+/// archivos) que es lo ÚNICO que lee la página pública. Se conserva cada versión (base para un futuro rollback);
+/// solo la vigente (`isCurrent`) protege sus archivos de ser borrados. Nunca guarda propietario, correo,
+/// ids de Clerk ni datos de invitados. El RSVP vivo (invitados y respuestas) no forma parte del snapshot.
+model InvitationPublication {
+  id            String   @id @default(cuid())
+  invitationId  String
+  version       Int
+  isCurrent     Boolean  @default(false)
+  /// Slug de la plantilla usada (también dentro del snapshot; aquí para consultas).
+  templateSlug  String
+  snapshot      Json
+  /// `MediaAsset.id` referenciados por el snapshot (retención de archivos, D-29).
+  mediaAssetIds String[]
+  createdAt     DateTime @default(now())
+
+  invitation Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+
+  @@unique([invitationId, version])
+  @@index([invitationId, isCurrent])
+}
+
+/// Orden y visibilidad de una sección, sus encabezados (`settings`) y el contenido de los bloques
+/// de un solo elemento (`content`: portada, historia, código de vestimenta, cierre, RSVP y encabezado
+/// de la mesa de regalos). Ocultar (`isVisible = false`) nunca borra el contenido.
+model InvitationSection {
+  id           String    @id @default(cuid())
+  invitationId String
+  type         BlockType
+  position     Int
+  isVisible    Boolean   @default(true)
+  /// { eyebrow?, title?, subtitle?, align?, overlay? } — ajustes del usuario, agnósticos de plantilla.
+  settings     Json      @default("{}")
+  content      Json      @default("{}")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  invitation Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+
+  @@index([invitationId, position])
+}
+
+// ───────── Contenido del evento ─────────
+
+model Location {
+  id           String       @id @default(cuid())
+  eventId      String
+  type         LocationKind
+  name         String
+  /// Líneas de dirección separadas por salto de línea.
+  address      String
+  time         String?
+  mapUrl       String?
+  imagePath    String?
+  imageAlt     String?
+  imageWidth   Int?
+  imageHeight  Int?
+  /// Imagen PROPIA de la sede (MediaAsset). Si existe, `imagePath` y sus medidas se ignoran.
+  mediaAssetId String?
+  position     Int
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  event      Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  mediaAsset MediaAsset? @relation("LocationMedia", fields: [mediaAssetId], references: [id], onDelete: SetNull)
+
+  @@index([eventId, position])
+}
+
+model TimelineItem {
+  id          String       @id @default(cuid())
+  eventId     String
+  time        String
+  title       String
+  icon        TimelineIcon @default(OTHER)
+  description String?
+  position    Int
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, position])
+}
+
+/// Referencias a imágenes (no guarda archivos: siguen en /public por ahora).
+model GalleryImage {
+  id           String   @id @default(cuid())
+  eventId      String
+  /// Imagen ESTÁTICA (asset de la plantilla en /public). Nula si la imagen es un MediaAsset.
+  src          String?
+  /// Imagen PROPIA subida por el usuario. Exactamente una de `src` y `mediaAssetId` está presente.
+  mediaAssetId String?
+  alt          String
+  width        Int?
+  height       Int?
+  caption      String?
+  position     Int
+  createdAt    DateTime @default(now())
+
+  event      Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  mediaAsset MediaAsset? @relation("GalleryMedia", fields: [mediaAssetId], references: [id], onDelete: SetNull)
+
+  @@index([eventId, position])
+}
+
+/// Una fila por tienda o enlace de la mesa de regalos (sin logos de terceros).
+model GiftRegistry {
+  id        String   @id @default(cuid())
+  eventId   String
+  name      String
+  url       String
+  position  Int
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, position])
+}
+
+/// Configuración de la música (arquitectura solamente: sin reproducción real ni proveedores).
+model MusicSettings {
+  id                       String          @id @default(cuid())
+  eventId                  String          @unique
+  sourceType               MusicSourceType
+  trackUrl                 String?
+  externalUrl              String?
+  title                    String
+  artist                   String?
+  autoplayAfterInteraction Boolean         @default(false)
+  volume                   Float           @default(0.6)
+  loop                     Boolean         @default(true)
+  libraryTrackId           String?
+  uploadAssetId            String?
+  updatedAt                DateTime        @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+// ───────── Archivos gestionados ─────────
+
+/// METADATOS de un archivo subido por una persona. El binario vive en el almacenamiento de objetos
+/// (`server/storage`), nunca en PostgreSQL. No se guarda ninguna URL: se deriva de `storageKey`
+/// (opaca y aleatoria) con la base pública configurada, para poder cambiar de dominio sin migrar datos.
+model MediaAsset {
+  id               String      @id @default(cuid())
+  ownerId          String
+  eventId          String?
+  type             MediaType   @default(IMAGE)
+  /// Clave del objeto: `users/<userId>/events/<eventId>/<aleatorio>.<ext>`. Sin nombre del archivo ni datos personales.
+  storageKey       String      @unique
+  mimeType         String
+  /// Solo informativo (nombre sanitizado que dio el navegador); nunca se usa en rutas.
+  originalFilename String
+  sizeBytes        Int
+  width            Int?
+  height           Int?
+  status           MediaStatus @default(PENDING)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  owner         User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  event         Event?         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  coverOf       Invitation[]   @relation("InvitationCover")
+  galleryImages GalleryImage[] @relation("GalleryMedia")
+  locations     Location[]     @relation("LocationMedia")
+
+  @@index([ownerId])
+  @@index([eventId, status])
+  /// Detección de huérfanos (subidas PENDING antiguas / READY sin referencias).
+  @@index([status, createdAt])
+}
+
+// ───────── Invitados y RSVP ─────────
+
+model GuestGroup {
+  id        String   @id @default(cuid())
+  eventId   String
+  name      String
+  createdAt DateTime @default(now())
+
+  event  Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  guests Guest[]
+
+  @@index([eventId])
+}
+
+model Guest {
+  id            String     @id @default(cuid())
+  eventId       String
+  groupId       String?
+  name          String
+  email         String?
+  phone         String?
+  /// Identificador PÚBLICO y opaco del enlace personalizado (`/i/<slug>?guest=<token>`): aleatorio
+  /// (192 bits), único y sin relación con `id`. Se genera en el servidor y no se regenera.
+  inviteToken   String     @unique
+  /// Acompañantes permitidos además del invitado (0 = solo el invitado).
+  maxCompanions Int        @default(0)
+  /// Respuesta vigente (copia de `Rsvp.status`); base de las métricas del dashboard.
+  status        RsvpStatus @default(PENDING)
+  /// Primera vez que abrió su invitación (actividad "está revisando su invitación").
+  firstViewedAt DateTime?  @db.Timestamptz
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  event Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  group GuestGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  rsvp  Rsvp?
+
+  @@index([eventId, status])
+  @@index([groupId])
+}
+
+/// Respuesta de un invitado (una vigente por invitado; responder de nuevo la actualiza).
+/// Todavía no la escribe el RSVP público (sigue en demo).
+model Rsvp {
+  id            String     @id @default(cuid())
+  eventId       String
+  guestId       String     @unique
+  status        RsvpStatus
+  /// "Confirmó 3 invitados" (mockup 05).
+  attendeeCount Int?
+  message       String?
+  dietaryNotes  String?
+  submittedAt   DateTime   @default(now()) @db.Timestamptz
+
+  event   Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  guest   Guest        @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  answers RsvpAnswer[]
+
+  @@index([eventId, status])
+}
+
+model RsvpQuestion {
+  id        String           @id @default(cuid())
+  eventId   String
+  label     String
+  type      RsvpQuestionType @default(TEXT)
+  required  Boolean          @default(false)
+  options   String[]
+  position  Int
+  createdAt DateTime         @default(now())
+
+  event   Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  answers RsvpAnswer[]
+
+  @@index([eventId, position])
+}
+
+model RsvpAnswer {
+  id         String   @id @default(cuid())
+  rsvpId     String
+  questionId String
+  value      String
+  createdAt  DateTime @default(now())
+
+  rsvp     Rsvp         @relation(fields: [rsvpId], references: [id], onDelete: Cascade)
+  question RsvpQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([rsvpId, questionId])
+}

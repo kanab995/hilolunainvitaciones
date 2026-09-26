@@ -1,0 +1,141 @@
+# CLAUDE.md — Contrato permanente del proyecto "Hilo Luna"
+
+> **Hilo Luna** es el nombre del producto y **hiloluna.com** su dominio oficial (URL canónica `https://hiloluna.com`). Nombre, dominio y URL viven en un único lugar (`siteConfig`, `lib/site-config.ts`), nunca hardcodeados en componentes ni en copy suelto; las URLs se construyen con `getSiteUrl()` / `getPublicInvitationUrl()` (`lib/site-url.ts`, variable `NEXT_PUBLIC_SITE_URL`). *Lunaria* fue el nombre provisional anterior: solo se conserva donde es historia (p. ej. la migración `init_lunaria`). El prefijo `--lu-*` de los tokens del producto es un **namespace técnico histórico** (tokens de diseño de Hilo Luna): no se renombra, igual que `--inv-*` (invitaciones).
+
+Hilo Luna es una plataforma SaaS para crear, personalizar, publicar y compartir **invitaciones digitales** (bodas, XV años, bautizos, cumpleaños, baby showers, infantiles), con RSVP, lista de invitados, música, galería, cuenta regresiva, ubicación y mesa de regalos.
+
+Este archivo es un **contrato**. Si una petición lo contradice, no la ejecutes en silencio: señala la contradicción y pregunta.
+
+---
+
+## 1. Fuentes de verdad (en orden de prioridad)
+
+1. **Mockups** en `design/reference/` — autoridad visual, de UX y de UI. Vienen de ChatGPT; **yo no decido el diseño**.
+2. `design/*.md` — traducción escrita de los mockups (tokens, componentes, responsive, animaciones).
+3. `docs/*.md` — alcance, arquitectura, rutas y modelo de datos.
+4. Este archivo.
+
+Si un documento contradice un mockup, gana el mockup y se corrige el documento. Si dos mockups se contradicen, **se pregunta** (ver `docs/PROJECT_SPEC.md` §Contradicciones abiertas); no se elige por criterio propio.
+
+Mockups (los archivos reales tienen doble extensión `.png.png`):
+
+| Archivo | Cubre |
+|---|---|
+| `01-homepage.png.png` | Home de marketing |
+| `02-templates.png.png` | Galería de plantillas |
+| `03-templates-detail.png.png` | Detalle de plantilla (Magnolia) |
+| `04-editor.png.png` | Editor (sección Portada) |
+| `05-dashboard.png.png` | Dashboard de un evento |
+| `06-invitation-magnolia.png.png` | Invitación pública (móvil) |
+
+Los mockups son **referencia**, no assets de producción: nunca se copian a `public/` ni se sirven (ver `docs/ASSET_LICENSES.md` §1.4).
+
+### Decisiones vigentes del propietario (prevalecen sobre lo que digan los mockups)
+
+Cuando una de estas contradice un mockup, gana la decisión y se anota como desviación consciente.
+
+1. **URL pública de invitaciones: `/i/[slug]`.** (El mockup 05 muestra `lunaria.com/andrea-fernando`, con el nombre y la forma anteriores; el componente de compartir muestra `<base>/i/<slug>`, p. ej. `hiloluna.com/i/andrea-y-fernando` en producción y `localhost:3000/i/andrea-y-fernando` en desarrollo.)
+2. **Tipografía.** Solo fuentes de código abierto con uso comercial permitido. Display: **Cormorant Garamond**. UI: **Inter**. Auto-alojadas con `next/font`. Prohibidas fuentes de pago o propietarias sin aprobación explícita. Toda fuente (incluidas las del selector del editor) se registra en `docs/ASSET_LICENSES.md`.
+3. **Prueba social omitida.** No se muestran "parejas", estrellas, valoraciones ni avatares hasta que sean datos reales.
+4. **Assets.** Originales generados para Hilo Luna (ChatGPT bajo dirección del propietario), fotografía propia del usuario o stock con licencia. **Prohibido** copiar/raspar de competidores, Pinterest, Instagram, Google Imágenes u otros sitios. Todo activo de terceros se documenta en `docs/ASSET_LICENSES.md` (nombre, fuente, autor/proveedor, licencia, URL, fecha) **antes** de incorporarse.
+5. **Música.** Sin Spotify Web Playback SDK, sin streaming de Spotify, sin reproductores ocultos de YouTube. Reproducción de fondo solo con biblioteca licenciada de Hilo Luna o audio subido con derechos confirmados; los enlaces externos son solo enlaces. La reproducción solo empieza tras una interacción del usuario ("Abrir invitación"). **Solo se prepara la arquitectura; no se implementan proveedores.**
+6. **Ubicación** = un bloque `LOCATION` con lista de sedes.
+7. **`DRESS_CODE` y `CLOSING`** existen en el editor y en "Agregar sección".
+8. **RSVP "Tal vez"** cuenta como **Pendiente** en las métricas.
+
+---
+
+## 2. Reglas de diseño (fidelidad)
+
+1. **No rediseñar interfaces.** Se traduce el mockup a código con la mayor fidelidad posible.
+2. **No cambiar colores por criterio propio.** Solo tokens de `design/DESIGN_SYSTEM.md`.
+3. **No introducir gradientes** que no estén en los diseños. Los desvanecidos de foto a fondo de los mockups son parte de la imagen/máscara, no gradientes de UI.
+4. **No sustituir tipografías** sin necesidad técnica documentada.
+5. **No añadir componentes visuales** que no existan en la especificación.
+6. **No convertir el producto en un dashboard SaaS genérico.** Es un producto editorial, cálido y romántico.
+7. **Las invitaciones públicas tienen un lenguaje visual independiente** del producto (marketing/dashboard/editor). No comparten tokens de UI ni estilos.
+8. **Mobile-first** para invitaciones públicas.
+9. **Desktop-first responsive** para dashboard y editor.
+
+## 3. Reglas de ingeniería
+
+10. **Componentes reutilizables.** Antes de crear uno, buscar si ya existe uno equivalente (`Grep`/`Glob` en `components`, `invitation`). Extender > duplicar.
+11. **TypeScript estricto.** `strict`, `noUncheckedIndexedAccess`; sin `any` ni `@ts-ignore` sin comentario justificado; validación de datos en las fronteras (Zod propuesto; se aprueba en el scaffold, ver `docs/ARCHITECTURE.md` §11).
+12. **Evitar duplicación de código.** Tres repeticiones → extraer.
+13. **Separar UI, lógica de negocio y acceso a datos.** Prisma solo se importa desde `server/repositories`. Las reglas de negocio viven en `server/services`. Los componentes y páginas no conocen Prisma.
+14. **Verificar existencia** de un componente/util antes de crearlo.
+15. **No crear una página independiente por plantilla.** Existe un único renderizador de invitaciones; las plantillas son configuración (tema + variantes de bloque + decoraciones).
+16. **Los datos de una invitación son independientes de su plantilla visual.**
+17. **Cambiar de plantilla nunca borra contenido.** Tampoco personalizaciones: se conservan (ver `docs/DATABASE_SCHEMA.md`).
+18. **Cada sección de una invitación es un bloque reutilizable** con su esquema, su editor y sus variantes de render.
+19. **No implementar funcionalidades fuera del alcance de la tarea actual.** Si algo falta, se anota; no se adelanta.
+20. **Antes de modificar arquitectura importante, documentar la decisión** (registro de decisiones en `docs/ARCHITECTURE.md` §Registro de decisiones) y esperar aprobación.
+21. **Ninguna query de recursos privados por ID puede ejecutarse sin comprobar la propiedad (`ownerId === usuario actual`).** Las páginas privadas usan `requireAuth()` / `requireOwnedEvent()` y las funciones `getOwned*` (`server/repositories`); un recurso ajeno responde igual que uno inexistente (`notFound()`). Los secretos de Clerk y Prisma solo se usan en servidor.
+22. **Consola interna (D-33): toda página y toda Server Action de `/admin/**` llama a `requireAdmin()`** (el menú oculto no es una barrera; sin privilegios → 404). El rol solo sale de `User.role` en PostgreSQL. La consola nunca modifica el contenido de los clientes ni datos de compras, y entrega solo DTO mínimos (sin PII de invitados).
+23. **Registro y secretos (D-34): el servidor solo escribe en consola mediante `server/observability/logger.ts`** (sin `console.*` directo). Nunca se registran ni se muestran secretos, tokens de invitación completos, correos/teléfonos de invitados ni mensajes/respuestas de RSVP; los errores hacia la interfaz son siempre genéricos.
+24. **Configuración (D-34/D-35): toda variable de entorno nueva se declara en `server/config/env.ts` (obligatoria/opcional en producción) y en `.env.example`; el entorno de despliegue se declara con `APP_ENV` (staging = noindex, solo claves de prueba, recursos propios).** En producción la configuración crítica incompleta impide arrancar. Los endpoints públicos sensibles pasan por el limitador de tasa (`server/security/rate-limit.ts`); el webhook de Stripe nunca.
+
+---
+
+## 4. Stack
+
+Base aprobada: **Next.js (App Router) · React · TypeScript · Tailwind CSS · shadcn/ui · PostgreSQL · Prisma**.
+
+Autenticación: **Clerk** (aprobado, D-24; identidad y sesiones) + perfil interno en `User`. No mezclar otros proveedores.
+
+QR: **`qrcode-generator`** (aprobado, D-30; única dependencia nueva, sin servicios externos: solo calcula la matriz, el dibujo es propio). Calendario: generador `.ics` propio, sin Google Calendar API.
+
+Almacenamiento de imágenes: **S3 compatible (Cloudflare R2) con el SDK de AWS** (aprobado, D-27); sin Cloudinary, UploadThing, Firebase ni Supabase Storage. Las imágenes subidas por usuarios no van en `docs/ASSET_LICENSES.md` (ver `docs/DATABASE_SCHEMA.md` §14.1).
+
+Cobros: **Stripe** con su SDK oficial `stripe` (aprobado, D-31/D-32), detrás de la abstracción `BillingProvider` (`server/billing/`). **Modelo comercial (D-32): UN pago único por evento, sin renovación mensual ni suscripciones**; el plan pertenece al EVENTO, no a la cuenta: el dominio pregunta «¿este evento puede usar esta feature?» (`canUseEventFeature(eventId, …)`, `getEventLimit(eventId, …)`), nunca «¿tiene Stripe?» ni «¿qué plan tiene el usuario?». Planes, precios ($0 / $499 / $799 MXN) y límites por evento en `lib/billing/plans.ts`; compras (`EventPurchase`) escritas solo por el webhook verificado. Guía de configuración y pruebas: `docs/BILLING.md`.
+
+Consola interna (`/admin/**`, D-33): **solo usuarios con `User.role = ADMIN` guardado en PostgreSQL**, comprobado por `requireAdmin()` (`server/auth/admin.ts`) en cada página y Server Action; el rol NUNCA se deduce del correo, dominio, parámetros ni metadatos de Clerk, y no hay forma de ascender a nadie desde la aplicación (bootstrap manual: `docs/ADMIN.md`). La consola es **de solo lectura salvo `Template.publicationStatus` y `Template.minimumPlan`**, lee mediante `server/repositories/admin.ts` y DTO mínimos (`server/admin/`), y **jamás carga datos personales de invitados** (solo conteos), tokens, secretos ni ids del proveedor sin enmascarar. Sin impersonación, borrados, reembolsos ni concesión manual de planes.
+
+**Prohibido instalar o implementar todavía** (salvo tarea posterior explícita): email, Mercado Pago / PayPal, analytics. Hay que *diseñar para* ellos (interfaces, tablas, puntos de extensión) pero no integrarlos.
+
+**Next.js 16.x** difiere de versiones anteriores (p. ej. `params` es una `Promise`). Antes de usar una API de Next, consultar `node_modules/next/dist/docs/` (ver `AGENTS.md`, generado por Next). Versiones exactas en `package.json`.
+
+Cualquier dependencia nueva fuera del stack base requiere una entrada en el registro de decisiones y aprobación previa (incluye librerías de animación, drag & drop, formularios, fechas, testing).
+
+## 5. Idioma y convenciones
+
+- **UI y copy: español** (México/LatAm). **Código, identificadores, commits y nombres de archivo: inglés.**
+- Rutas en **inglés** (`/templates`, `/dashboard/events/[id]/edit`); invitaciones en `/i/[slug]`. Mapa tipado en `lib/routes.ts`; detalle en `docs/ROUTES.md`.
+- Componentes `PascalCase.tsx`; utilidades y hooks `camelCase.ts`; carpetas `kebab-case`.
+- Server Components por defecto; `"use client"` solo donde haya interactividad real (islas).
+- Los textos de UI van en un módulo de copy central por área, no dispersos en JSX (facilita i18n futura sin implementarla).
+- Estilos: clases Tailwind mapeadas a **tokens** (variables CSS). Prohibidos valores mágicos de color/sombra/radio en componentes.
+- Contenido en JSON (secciones) siempre con `contentVersion` y esquema Zod por tipo de bloque.
+- Accesibilidad mínima: contraste AA, foco visible, `alt` real, respeto de `prefers-reduced-motion`, objetivos táctiles ≥ 44 px en móvil.
+
+## 6. Flujo de trabajo obligatorio por tarea
+
+1. Leer este archivo y los documentos relevantes antes de escribir código.
+2. Confirmar el **alcance exacto** de la tarea; lo que quede fuera se anota como pendiente.
+3. Buscar componentes/utilidades existentes antes de crear nuevos.
+4. Implementar contra el mockup y los tokens; comparar visualmente al terminar.
+5. Ejecutar typecheck, lint y build; reportar resultados reales (fallos incluidos).
+6. Si aparece una contradicción, ambigüedad o hueco de diseño: **detenerse y preguntar** o dejarlo registrado en `docs/PROJECT_SPEC.md`.
+7. Actualizar documentación cuando cambie una decisión.
+
+## 7. Qué NO hacer
+
+- No inventar pantallas, estados o componentes sin mockup (pricing, auth, modales, vacíos, errores…) sin aprobación.
+- No hardcodear datos demo como si fueran reales (p. ej. "2,500 parejas", "4.9 estrellas", fechas 2025).
+- No crear rutas/páginas por plantilla ni ramas `if (template === "magnolia")` fuera del registro de plantillas.
+- No guardar estilo dentro del contenido ni contenido dentro del tema.
+- No usar logos de terceros (Liverpool, Amazon, Sears, Spotify…) sin decisión explícita.
+- No incorporar ninguna fuente, imagen, audio o ícono sin su fila en `docs/ASSET_LICENSES.md`. No usar hotlinks a recursos externos.
+- No añadir fuentes de pago/propietarias. No cargar fuentes desde CDN de terceros en tiempo de ejecución.
+- No incrustar reproductores de terceros (Spotify, YouTube) ni reproducir audio antes de una interacción del usuario.
+- No mover, renombrar ni borrar los mockups de `design/reference/`.
+
+## 8. Estado actual
+
+**Fase 2 — Design System implementado.** Scaffold (Next.js, TypeScript estricto, Tailwind 4, shadcn/Radix), tokens definitivos medidos de los mockups (`design/DESIGN_SYSTEM.md`), 25+ componentes reutilizables en `components/ui`, `components/layout`, `components/templates` y `components/dashboard`, ruta interna `/design-system`, redirect `/dashboard` → `/dashboard/events` y 404 personalizado. (Estado de la fase 2; las fases posteriores se resumen a continuación.) Comandos: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run db:migrate`, `npm run db:seed`.
+
+**Billing por evento implementado (D-32, sustituye a D-31):** un pago único por evento (Gratis $0, Esencial $499, Premium $799 MXN; límites por evento 30/5, 100/15, 300/40), sin suscripciones ni mensualidades. `EventPurchase` (una fila por sesión de cobro, historial que no se sobrescribe), `Event.paidAccessEndsAt` (acceso hasta 30 días después del evento, solo crece), servicio de derechos por evento (`getEventEntitlements`, `canUseEventFeature`, `getEventLimit`, `assertEventEntitlement`), Checkout en modo `payment` (el cliente envía `eventId` y `plan`; el servidor comprueba la propiedad y resuelve el precio), mejora Esencial → Premium por la diferencia (precio de Stripe específico), webhook `/api/webhooks/stripe` firmado, idempotente y que verifica precio, importe, moneda, evento y propietario (la metadata nunca basta; ignora `customer.subscription.*`), `/pricing` (no cobra), «Mejorar evento» en el dashboard de cada evento y «Compras y planes» (`/dashboard/billing`). Ya no existe límite de eventos ni plan de cuenta. Bajar o perder un plan nunca borra contenido. La tabla `Subscription` queda LEGACY sin uso. Expiración de la invitación pública preparada (`isEventAccessActive`), no aplicada. Pendiente: enforcement de expiración, impuestos, reembolsos (UI), Mercado Pago. **Admin Console implementada (D-33)**: `/admin` (resumen), `/admin/users`, `/admin/events`, `/admin/templates`, `/admin/purchases`, `/admin/webhooks`; rol `User.role` (`USER`/`ADMIN`) en PostgreSQL, `requireAdmin()`, DTO mínimos sin PII de invitados, compras y webhooks de solo lectura, plantillas con solo visibilidad y plan mínimo editables. Pendiente: gestión de roles desde la interfaz, impersonación (no prevista), borrados y reembolsos desde la consola. **Preproducción implementada (D-34):** validación de entorno con fallo de arranque en producción, cabeceras de seguridad y CSP (sin nonce; excepción documentada), límite de tasa con abstracción y proveedor REST (Upstash-compatible; sin proveedor = aviso), expiración real de eventos de pago (`/i/[slug]`, RSVP y `.ics`; nada se borra), normalización de imágenes (sin EXIF/GPS), herramienta manual de huérfanos, registro con redacción, protección contra doble cobro (idempotencia + reutilización de sesión), auditoría de administración (`AdminAuditLog`, `/admin/audit`), índices y restricciones de base de datos, robots/sitemap, `/privacy` y `/terms` como **borrador legal**, `/api/health`, y `docs/OPERATIONS.md`, `docs/DEPLOYMENT.md`, `docs/SMOKE_TESTS.md`. Pendiente antes de lanzar: textos legales aprobados, impuestos, proveedor de límite de tasa, verificación de CSP con Clerk en staging. **Preparación de staging (D-35):** `APP_ENV` (`development|staging|production`, obligatorio en despliegues), staging 100 % noindex y solo con claves de prueba, `npm run db:seed:staging` (solo plantillas), verificación del Price de Stripe antes de cobrar, `SMOKE_BASE_URL` y `docs/STAGING.md` (checklist y bloqueadores para producción); las pruebas con Clerk, R2, Stripe y Upstash reales se ejecutan en el staging del propietario. **Compartir avanzado, QR y calendario implementados (D-30):** un único `ShareInvitationDialog` (dashboard, editor, lista de eventos) con copiar enlace, Web Share API (si el navegador la soporta), QR generado en local (PNG/SVG descargables) y «Agregar al calendario»; «Ver QR» individual por invitado en el Guest Manager (QR del enlace personalizado, sin mostrar el token). **Solo se comparte lo publicado** (borrador → «Publica tu invitación para poder compartirla.»; con cambios sin publicar se comparte la última versión publicada). `.ics` propio en `/i/[slug]/calendar.ics` (público, solo snapshot publicado, sin datos de invitados). Sin WhatsApp Business API, correo, SMS, QR masivo, Google Calendar API, acortador de URL ni analítica de QR.
+
+**Guardado real y publicación implementados (D-29):** el editor guarda TODO el borrador en PostgreSQL (autosave con debounce, DTO con lista blanca, revisión optimista `draftRevision`) y la invitación se publica de verdad: `/i/[slug]` lee un **snapshot publicado** (`InvitationPublication`, con plantilla y configuración de tema) y nunca el borrador; «Guardado» ≠ «Publicado» ≠ «Cambios sin publicar»; los archivos publicados no se borran físicamente. Pendiente: rollback (UI), despublicar, programar publicación, caché por versión, fusión de ediciones concurrentes. **Alta de eventos implementada (D-28):** `/dashboard/events/new` (`?template=`) crea de verdad, en una transacción, el `Event`, la `Invitation` (borrador, no pública), las 10 secciones y el contenido inicial neutro, y entra al editor; tipos de evento con `GRADUATION` y `OTHER`; solo plantillas `implemented` y compatibles con el tipo (Magnolia = boda). Pendiente: publicación real, idempotencia con clave, persistencia real del texto del editor. **Imágenes persistentes implementadas (D-27):** `MediaAsset` + almacenamiento S3 compatible (variables `S3_*` en `.env.example`; sin ellas la carga se desactiva con un aviso). Portada, galería (alta, baja, orden, texto alternativo) e imagen de sedes guardadas persisten de verdad; la invitación pública las muestra sin cuenta. Deudas: limpieza de huérfanos, borrado de objetos al borrar un evento, EXIF/GPS, cuotas y limitación de tasa (`docs/DATABASE_SCHEMA.md` §14.2). **RSVP público persistente implementado (D-26):** `/i/[slug]?guest=<token>` personaliza el saludo y guarda la respuesta (Server Action pública, sin Clerk; una `Rsvp` por invitado). Pendiente antes de producción: limitación de tasa. **Guest Manager implementado (D-25):** `/dashboard/events/[id]/guests` con invitados reales (Server Actions con propiedad, `Guest.inviteToken` opaco, enlaces personalizados solo preparados); RSVP público persistente, importación y envíos siguen pendientes. **Autenticación implementada (D-24):** Clerk (`/sign-in`, `/sign-up`, cierre de sesión), sesión real, `/dashboard/**` y `/preview/**` protegidos (`proxy.ts`), propiedad de eventos comprobada en cada consulta privada, sincronización Clerk ↔ `User` por `clerkUserId`. Sin claves de Clerk: en desarrollo el panel abre con el usuario demo; fuera de desarrollo, las rutas privadas no son accesibles. Sin webhooks, sin borrado de cuenta, sin creación de eventos. **Persistencia implementada (D-22):** Prisma 6 + PostgreSQL (`prisma/schema.prisma`, migración `init_lunaria`, seed `npm run db:seed`, capa `server/`). Lectura real en dashboard, editor, invitación pública y catálogo `/templates`; escritura todavía simulada (editor, RSVP). Sin `DATABASE_URL` se usan datos de demostración en memoria. Sin auth. **Event Dashboard implementado** en `/dashboard/events/demo` (datos MOCK tipados en `lib/dashboard/mock`, sin BD/auth/analytics; modal de compartir local; Invitados, Confirmaciones, Mensajes y Configuración son marcadores; Guest Manager pendiente). **Editor de invitación implementado** en `/dashboard/events/demo/edit` (borrador con reductor, autoguardado simulado y vista previa con el mismo `InvitationRenderer` en un iframe; `docs/ARCHITECTURE.md` §4.10, D-21; sin BD, auth ni persistencia). **Motor de invitaciones implementado** (DATA / TEMPLATE / SECTIONS / RENDERER, `docs/ARCHITECTURE.md` §4.8, D-19) con plantillas Magnolia (terminada), Ivory y Étoile (provisionales) y datos MOCK de Andrea & Fernando en `/i/demo-magnolia`. Tests con Vitest (`npm test`, D-18). **Homepage (`/`), galería (`/templates`) y detalle de plantilla (`/templates/[slug]`) implementadas** con placeholders de imagen (assets pendientes en `docs/ASSET_LICENSES.md` §5) y catálogo MOCK local (`lib/content/templates.ts`, sin base de datos). El resto de pantallas siguen como placeholders.
+
+Antes de crear un componente: consultar `design/COMPONENTS.md` §0 y `/design-system`. Al añadir un tamaño `text-lu-*`, registrarlo también en `lib/utils.ts`.

@@ -1,0 +1,244 @@
+@import "tailwindcss";
+
+/*
+ * SISTEMA DE INVITACIÓN — tokens --inv-*
+ * Lenguaje visual INDEPENDIENTE del producto (CLAUDE.md regla 7): este archivo no
+ * importa ni referencia ningún token --lu-*, y el CSS del producto no se carga aquí.
+ *
+ * Los valores de abajo son los DEFAULTS de Magnolia [06] (única invitación diseñada),
+ * muestreados de píxeles [M~]. Cuando exista el registro de plantillas, cada plantilla
+ * sobrescribe estas variables sobre [data-template="<slug>"] (docs/ARCHITECTURE.md §4.4).
+ * Contrato del tema: design/DESIGN_SYSTEM.md §5.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Colores del tema [M~] */
+  --inv-bg: #faf6f1;
+  --inv-bg-alt: #f9f5f1;
+  --inv-surface: #f3e6dc;
+  --inv-ink: #492512;          /* cifras y titulares */
+  --inv-ink-muted: #39342f;    /* texto de cuerpo (provisional) */
+  --inv-accent: #907058;       /* editable por el usuario */
+  --inv-line: #d3c9c0;
+  --inv-button-bg: #231a0f;
+  --inv-button-fg: #f7f8f3;
+
+  /* Tipografía (política: Cormorant Garamond + Inter) */
+  --inv-font-display: var(--font-cormorant), Georgia, "Times New Roman", serif;
+  --inv-font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* Foundations móviles.
+     Q-12 (sin diseño de escritorio): columna móvil centrada como decisión provisional. */
+  --inv-column-max: 26.875rem; /* ≈ 430 px */
+  --inv-gutter: 1.25rem;       /* [E] 20 px */
+  --inv-wide-max: 64rem;       /* composiciones fotográficas (sedes, galería…) en pantallas anchas; el texto sigue en --inv-column-max */
+
+  /* Efectos de plantilla (theme.effects). Los valores concretos los aporta cada plantilla. */
+  --inv-paper-texture: none;                 /* url(...) de una textura con licencia registrada; ver ASSET_LICENSES */
+  --inv-paper-size: 40rem;
+  --inv-vignette-color: rgb(73 37 18 / 0.12); /* --inv-ink al 12 % */
+  --inv-vignette-blur: 8rem;
+  --inv-fade-start: 70%;                     /* dónde empieza el desvanecido de foto */
+
+  /* Componentes: la plantilla los sobrescribe en el contenedor (lib/invitation/styles.ts) */
+  --inv-radius-card: 1rem;
+  --inv-radius-image: 0.5rem;
+  --inv-radius-button: 9999px;
+
+  /* Movimiento (ANIMATIONS.md §2, [INF]) */
+  --inv-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --inv-dur-reveal: 700ms;
+  --inv-dur-open: 900ms;
+  --inv-reveal-distance: 16px;
+  --inv-stagger: 90ms;
+}
+
+@theme inline {
+  --color-inv-bg: var(--inv-bg);
+  --color-inv-bg-alt: var(--inv-bg-alt);
+  --color-inv-surface: var(--inv-surface);
+  --color-inv-ink: var(--inv-ink);
+  --color-inv-ink-muted: var(--inv-ink-muted);
+  --color-inv-accent: var(--inv-accent);
+  --color-inv-line: var(--inv-line);
+  --color-inv-button-bg: var(--inv-button-bg);
+  --color-inv-button-fg: var(--inv-button-fg);
+
+  --font-inv-display: var(--inv-font-display);
+  --font-inv-body: var(--inv-font-body);
+  --font-sans: var(--inv-font-body);
+}
+
+/*
+ * EFECTOS DE PLANTILLA — el renderizador aplica estas utilidades según `theme.effects`
+ * (design/DESIGN_SYSTEM.md §5). Son configuración de plantilla, no opciones del usuario.
+ *  - inv-paper:      textura de papel (requiere --inv-paper-texture; sin asset no hace nada)
+ *  - inv-vignette:   viñeta con sombra interior (sin degradados)
+ *  - inv-photo-fade: desvanece la foto hacia el fondo (máscara de la imagen, no gradiente de UI)
+ *  - inv-photo-arch: recorta la foto en forma de arco
+ */
+@utility inv-paper {
+  background-image: var(--inv-paper-texture);
+  background-size: var(--inv-paper-size);
+}
+
+@utility inv-vignette {
+  box-shadow: inset 0 0 var(--inv-vignette-blur) var(--inv-vignette-color);
+}
+
+@utility inv-photo-fade {
+  -webkit-mask-image: linear-gradient(to bottom, #000 var(--inv-fade-start), transparent);
+  mask-image: linear-gradient(to bottom, #000 var(--inv-fade-start), transparent);
+}
+
+/* Desvanecidos laterales de la foto (sedes de mitad imagen / mitad texto, mockup 06). */
+@utility inv-photo-fade-r {
+  -webkit-mask-image: linear-gradient(to right, #000 var(--inv-fade-start), transparent);
+  mask-image: linear-gradient(to right, #000 var(--inv-fade-start), transparent);
+}
+
+@utility inv-photo-fade-l {
+  -webkit-mask-image: linear-gradient(to left, #000 var(--inv-fade-start), transparent);
+  mask-image: linear-gradient(to left, #000 var(--inv-fade-start), transparent);
+}
+
+/* Desvanecido en los bordes laterales (portada centrada en pantallas anchas: la imagen es vertical). */
+@utility inv-fade-x {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent);
+}
+
+@utility inv-photo-arch {
+  overflow: hidden;
+  border-top-left-radius: 9999px;
+  border-top-right-radius: 9999px;
+}
+
+/*
+ * Aparición de las secciones (theme.animations.reveal → [data-reveal] del contenedor).
+ * Solo donde el navegador soporta animation-timeline; sin soporte no se oculta nada.
+ */
+@keyframes inv-rise {
+  from {
+    opacity: 0;
+    transform: translateY(var(--inv-reveal-distance));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes inv-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@supports (animation-timeline: view()) {
+  [data-reveal="rise"] .inv-reveal {
+    animation: inv-rise var(--inv-dur-reveal) var(--inv-ease) both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 35%;
+  }
+
+  [data-reveal="fade"] .inv-reveal {
+    animation: inv-fade var(--inv-dur-reveal) var(--inv-ease) both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 35%;
+  }
+}
+
+/* Entrada de la portada al cargar (CSS puro: sin JS el contenido se ve igual). Escalonado por --inv-i. */
+@utility inv-enter {
+  animation: inv-rise var(--inv-dur-reveal) var(--inv-ease) both;
+  animation-delay: calc(var(--inv-i, 0) * var(--inv-stagger));
+}
+
+/* Las flores aparecen con opacidad y una escala casi imperceptible (ANIMATIONS §6). */
+@keyframes inv-bloom {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@supports (animation-timeline: view()) {
+  [data-reveal="rise"] .inv-decor,
+  [data-reveal="fade"] .inv-decor {
+    animation: inv-bloom calc(var(--inv-dur-reveal) * 1.3) var(--inv-ease) both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 60%;
+  }
+}
+
+/* Al abrir la invitación la tarjeta de la portada se recoge suavemente (transición corta, sin salto). */
+.inv-hero-card {
+  transition:
+    opacity var(--inv-dur-open) var(--inv-ease),
+    transform var(--inv-dur-open) var(--inv-ease);
+}
+
+[data-opened="true"] .inv-hero-card {
+  opacity: 0.94;
+  transform: translateY(-0.25rem);
+}
+
+/* Composiciones anchas: fotografías, sedes y galería; el texto sigue en --inv-column-max. */
+@utility inv-wide {
+  width: 100%;
+  max-width: var(--inv-wide-max);
+  margin-inline: auto;
+  padding-inline: var(--inv-gutter);
+}
+
+/* Columna de invitación: mobile-first, sin scroll horizontal. */
+@utility inv-column {
+  width: 100%;
+  max-width: var(--inv-column-max);
+  margin-inline: auto;
+  padding-inline: var(--inv-gutter);
+}
+
+@media (min-width: 48rem) {
+  :root {
+    --inv-gutter: 2rem;
+  }
+}
+
+@layer base {
+  html {
+    @apply font-sans;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--inv-bg);
+    color: var(--inv-ink-muted);
+    min-height: 100vh;
+    min-height: 100svh;
+    overflow-x: clip;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

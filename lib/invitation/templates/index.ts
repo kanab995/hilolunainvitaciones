@@ -1,0 +1,17 @@
+import { etoileTemplate } from "@/lib/invitation/templates/etoile";
+import { ivoryTemplate } from "@/lib/invitation/templates/ivory";
+import { magnoliaTemplate } from "@/lib/invitation/templates/magnolia";
+import type { InvitationTemplate } from "@/types/invitation-template";
+
+/**
+ * Registro de plantillas de invitación. Único lugar que conoce las plantillas por nombre: el
+ * renderizador y las secciones reciben un `InvitationTemplate` y nunca preguntan cuál es.
+ */
+export const invitationTemplates: readonly InvitationTemplate[] = [magnoliaTemplate, ivoryTemplate, etoileTemplate];
+
+/** Plantilla usada cuando el slug no está registrado (nunca rompe una invitación). */
+export const defaultInvitationTemplate: InvitationTemplate = magnoliaTemplate;
+
+export function getInvitationTemplate(slug: string): InvitationTemplate | undefined {
+  return invitationTemplates.find((template) => template.slug === slug);
+}

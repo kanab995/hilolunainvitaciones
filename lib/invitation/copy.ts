@@ -1,0 +1,72 @@
+/**
+ * Textos GENÉRICOS de la interfaz de la invitación (es-MX): etiquetas de los bloques que no son
+ * contenido del usuario. Los titulares editables viven en `InvitationSection` (datos); estos son
+ * el respaldo y las etiquetas fijas. Módulo de copy central (facilita i18n futura).
+ */
+export const invitationCopy = {
+  sections: {
+    story: "Nuestra historia",
+    countdown: "Faltan",
+    locations: "Ubicación",
+    timeline: "Itinerario",
+    gallery: "Galería",
+    dressCode: "Dress code",
+    giftRegistry: "Mesa de regalos",
+    rsvp: "Confirma tu asistencia",
+  },
+  countdown: { days: "Días", hours: "Horas", minutes: "Minutos", seconds: "Segundos", past: "¡Hoy es el gran día!" },
+  locationKind: { ceremony: "Ceremonia", reception: "Recepción", other: "Lugar" },
+  /** Avisos de secciones vacías: SOLO en la vista previa del editor. */
+  editorEmpty: {
+    story: "Escribe un mensaje para tus invitados",
+    locations: "Agrega una ubicación",
+    timeline: "Agrega los momentos del día",
+    gallery: "Agrega fotos a la galería",
+    dressCode: "Agrega un código de vestimenta",
+  },
+  addToCalendar: "Agregar al calendario",
+  howToGet: "Cómo llegar",
+  moreOptions: "Ver más opciones",
+  rsvp: {
+    cta: "Confirmar asistencia",
+    name: "Tu nombre",
+    attendance: "¿Nos acompañas?",
+    yes: "Asistiré",
+    no: "No podré asistir",
+    maybe: "Tal vez",
+    companions: "Acompañantes",
+    dietary: "Restricciones alimentarias",
+    submit: "Enviar respuesta",
+    cancel: "Cancelar",
+    closed: "El plazo para confirmar ya terminó.",
+    disabled: "La confirmación de asistencia no está disponible.",
+    thanks: "¡Gracias por responder!",
+    demoBadge: "Modo demostración",
+    demoNote: "la respuesta no se guarda",
+  },
+  /** RSVP de una invitación personalizada (`?guest=`): se guarda de verdad. */
+  guestRsvp: {
+    question: "¿Nos acompañas?",
+    yes: "Sí, asistiré",
+    no: "No podré asistir",
+    maybe: "Aún no estoy seguro",
+    attendees: "¿Cuántas personas asistirán?",
+    attendeesHint: "Incluyéndote a ti.",
+    person: (count: number) => `${count} ${count === 1 ? "persona" : "personas"}`,
+    message: "Déjanos un mensaje",
+    messageOptional: "(opcional)",
+    submit: "Confirmar respuesta",
+    submitting: "Confirmando...",
+    cancel: "Cancelar",
+    change: "Cambiar respuesta",
+    currentTitle: "Tu respuesta actual",
+    currentAttending: (count: number | null) => (count && count > 1 ? `✓ Asistirás con ${count} personas` : "✓ Asistirás"),
+    currentDeclined: "No podrás asistir",
+    currentMaybe: "Aún no estás seguro",
+    thanks: (name: string) => `¡Gracias, ${name}!`,
+    invalidToken: "No pudimos identificar esta invitación personalizada.",
+    invalidTokenHelp: "Pide a los anfitriones tu enlace personalizado para confirmar tu asistencia.",
+    yesNo: { yes: "Sí", no: "No" },
+    choose: "Elige una opción",
+  },
+} as const;

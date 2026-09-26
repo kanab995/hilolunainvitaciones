@@ -1,0 +1,27 @@
+"use client";
+
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Heading, Text } from "@/components/ui/typography";
+import { routes } from "@/lib/routes";
+
+/**
+ * Límite de error del panel: problemas inesperados (p. ej. no se pudo sincronizar la cuenta o la base de
+ * datos no responde). Mensaje genérico: nunca muestra trazas ni detalles internos.
+ */
+export default function DashboardError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  return (
+    <div role="alert" className="mx-auto flex min-h-svh max-w-lg flex-col items-center justify-center gap-5 px-6 text-center">
+      <Heading as="h1" size="display-sm">
+        Algo no salió como esperábamos
+      </Heading>
+      <Text size="md">No pudimos cargar tu cuenta o tus eventos. Inténtalo de nuevo en unos instantes.</Text>
+      <div className="flex flex-wrap justify-center gap-3">
+        <Button onClick={reset}>Reintentar</Button>
+        <Button asChild variant="secondary">
+          <Link href={routes.home}>Ir al inicio</Link>
+        </Button>
+      </div>
+    </div>
+  );
+}

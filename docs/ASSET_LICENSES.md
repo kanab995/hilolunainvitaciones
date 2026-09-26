@@ -1,0 +1,192 @@
+# ASSET_LICENSES — Hilo Luna
+
+> Registro de procedencia y licencias de **todo** activo de terceros o generado que llegue a producción (fuentes, imágenes, audio, íconos, ilustraciones).
+> **Regla de oro (CLAUDE.md):** no se introduce ningún activo de terceros sin registrar aquí su licencia **antes** de mergear.
+
+Última revisión: 2026-09-24 · Estado: **2 fuentes, dependencias de código y 10 imágenes de la plantilla Magnolia (§5.1); ningún audio ni ícono propio.** Se eliminaron los SVG de demostración de Next/Vercel y no se incluye favicon.
+
+---
+
+## 1. Políticas vigentes
+
+### 1.1 Tipografía
+- Solo fuentes **de código abierto con uso comercial permitido** (SIL OFL 1.1 o equivalente) durante el MVP.
+- **Display principal:** Cormorant Garamond. **UI principal:** Inter.
+- Auto-alojadas mediante la optimización de fuentes de Next.js (`next/font`), sin peticiones a CDN de terceros en tiempo de ejecución.
+- **Prohibido** añadir fuentes de pago o propietarias sin aprobación explícita.
+- Toda fuente nueva (incluidas las que se ofrezcan al usuario en el selector del editor) se registra en §3 antes de usarse.
+
+### 1.2 Producción de assets visuales
+- La dirección visual y los assets originales los produce ChatGPT bajo dirección del propietario del proyecto.
+1. Preferir assets **originales generados específicamente para Hilo Luna**.
+2. **No** raspar ni copiar imágenes de competidores, Pinterest, Instagram, Google Imágenes ni otros sitios.
+3. La fotografía solo puede provenir de: fotografía propia del usuario · fotografía de stock con licencia adecuada · imaginería original generada.
+4. Todo activo de terceros debe tener derechos de uso comercial **documentados**.
+5. La procedencia se registra en este archivo.
+
+### 1.3 Música
+- No se usa Spotify Web Playback SDK ni se transmite contenido de Spotify dentro de Hilo Luna.
+- No se usan reproductores ocultos de YouTube como audio de fondo.
+- Reproducción de fondo **solo** con: (a) audio de la biblioteca licenciada de Hilo Luna, o (b) audio subido por el usuario que confirme tener los derechos.
+- Enlaces externos (Spotify, YouTube, otra URL) son **solo enlaces**.
+- Detalle técnico: `docs/ARCHITECTURE.md` §10 y `docs/DATABASE_SCHEMA.md` (`MusicTrack`, `MediaAsset.rightsConfirmedAt`).
+
+### 1.4 Los mockups no son assets de producción
+Los archivos de `design/reference/` son **referencia visual**. No se copian a `public/`, no se sirven, no se recortan para producción. Las imágenes que aparecen en ellos (flores, tarjetas, teléfonos, personas) deben **regenerarse/producirse** como assets propios bajo §1.2 y registrarse aquí. Marcas de terceros dentro de los mockups (Liverpool, Amazon, Sears, WhatsApp, Instagram, Spotify, carátula de canción) tampoco se reproducen (ver `PROJECT_SPEC` Q-05).
+
+---
+
+## 2. Formato del registro
+
+Campos obligatorios por activo: **nombre · fuente · autor/proveedor · licencia · URL de origen · fecha de obtención**. Campos adicionales: uso en el proyecto y notas.
+
+Para **imaginería generada**: en "fuente" indicar la herramienta/modelo; en "autor/proveedor" quién la dirigió; en "licencia" los términos de uso comercial del generador vigentes en la fecha; en "URL" el enlace a esos términos; y en notas un identificador del *prompt* o brief (guardado fuera del repo o en `docs/assets-briefs/`).
+
+Estado: `pendiente` (planeado, no incorporado) · `activo` · `retirado`.
+
+---
+
+## 3. Tipografías
+
+| Nombre | Fuente | Autor/proveedor | Licencia | URL de origen | Fecha de obtención | Uso | Estado / notas |
+|---|---|---|---|---|---|---|---|
+| Cormorant Garamond | Google Fonts (vía `next/font/google`, auto-alojada en build) | Christian Thalmann (Catharsis Fonts) | SIL Open Font License 1.1 | https://fonts.google.com/specimen/Cormorant+Garamond | 2026-09-24 (scaffold; descargada en build por `next/font/google`) | Display principal: titulares del producto y de la plantilla Magnolia por defecto | `activo`. **Pendiente:** verificar contra el `OFL.txt` oficial y anotar el copyright exacto |
+| Inter | Google Fonts (vía `next/font/google`, auto-alojada en build) | Rasmus Andersson | SIL Open Font License 1.1 | https://fonts.google.com/specimen/Inter | 2026-09-24 (scaffold; descargada en build por `next/font/google`) | UI principal y cuerpo | `activo`. **Pendiente:** verificar contra el `OFL.txt` oficial y anotar el copyright exacto |
+| Playfair Display | Google Fonts | Claus Eggers Sørensen | SIL Open Font License 1.1 | https://fonts.google.com/specimen/Playfair+Display | *(al incorporarla)* | Opción del selector de fuentes del editor (aparece en el mockup 04) | `pendiente` — solo si se mantiene en el selector |
+| Montserrat | Google Fonts | Julieta Ulanovsky y colaboradores | SIL Open Font License 1.1 | https://fonts.google.com/specimen/Montserrat | *(al incorporarla)* | Opción del selector de fuentes del editor (aparece en el mockup 04) | `pendiente` — solo si se mantiene en el selector |
+
+> Nota: la autoría y el tipo de licencia son los publicados por Google Fonts a la fecha de la última revisión; **deben comprobarse contra el archivo `OFL.txt` y los metadatos reales** al incorporar cada fuente, y corregirse aquí si difieren.
+
+**Obligaciones OFL a respetar:** conservar el aviso de copyright y la licencia con la fuente; no vender la fuente por sí sola; no usar el "Nombre de Fuente Reservado" para versiones modificadas. Auto-alojar en el propio build cumple con el uso permitido.
+
+Fuentes adicionales necesarias para plantillas futuras (Noir, Safari, Riviera…) se añaden a esta tabla antes de usarse, y deben cumplir §1.1.
+
+---
+
+## 4. Íconos y dependencias de UI de terceros
+
+Aunque no son "assets visuales" en sentido estricto, se registran por trazabilidad. Licencias **leídas de los `package.json` instalados** (2026-09-24).
+
+| Nombre | Versión | Fuente | Autor/proveedor | Licencia | URL | Fecha | Estado |
+|---|---|---|---|---|---|---|---|
+| lucide-react (íconos) | 1.48.0 | npm | Eric Fennis / Lucide Contributors | ISC | https://github.com/lucide-icons/lucide | 2026-09-24 | `activo` (instalado con shadcn; aún sin uso) |
+| shadcn (CLI y `shadcn/tailwind.css`) | 4.21.0 | npm | shadcn | MIT | https://github.com/shadcn-ui/ui | 2026-09-24 | `activo` |
+| cn (utilidad de clases) | 0.4.0 | npm | shadcn (mantenedor verificado en npm) | MIT | https://github.com/shadcn-ui/cn | 2026-09-24 | `activo` |
+| radix-ui | 1.6.7 | npm | Radix UI | MIT | https://github.com/radix-ui/primitives | 2026-09-24 | `activo` |
+| class-variance-authority | 0.7.1 | npm | Joe Bell | Apache-2.0 | https://github.com/joe-bell/cva | 2026-09-24 | `activo` |
+| tw-animate-css | 1.4.0 | npm | Luca Bosin | MIT | https://github.com/Wombosvideo/tw-animate-css | 2026-09-24 | `activo` |
+| Next.js / React / React DOM | 16.3.6 / 19.2.8 | npm | Vercel / Meta | MIT | https://github.com/vercel/next.js · https://github.com/react/react | 2026-09-24 | `activo` |
+| Tailwind CSS | 4.3.3 | npm | Tailwind Labs | MIT | https://github.com/tailwindlabs/tailwindcss | 2026-09-24 | `activo` |
+| TypeScript | 5.9.3 | npm | Microsoft | Apache-2.0 | https://github.com/microsoft/TypeScript | 2026-09-24 | `activo` (dev) |
+| ESLint | 9.39.5 | npm | ESLint | MIT | https://github.com/eslint/eslint | 2026-09-24 | `activo` (dev) |
+
+Nota: el código de componentes de shadcn/ui que se copie a `components/ui/` es MIT. El scaffold **no** incluyó ningún componente (se eliminó el `Button` genérico generado porque su estilo no proviene de los mockups).
+
+---
+
+## 5. Imágenes
+
+**Incorporadas: 10 imágenes de Magnolia (§5.1).** Categorías previstas (cada una se registra como fila propia al producirse):
+
+Fuente:
+ChatGPT / OpenAI image generation
+
+Autor/proveedor:
+OpenAI — generado bajo dirección del propietario de Hilo Luna
+
+Términos:
+OpenAI Terms of Use — Output ownership
+
+URL:
+https://openai.com/policies/terms-of-use/
+
+Fecha:
+2026-09-24
+
+| Categoría | Origen previsto | Notas |
+|---|---|---|
+| Héroe de home, banners CTA, escenas de plantilla | Imaginería original generada | Ver §1.2. Registrar herramienta, términos y brief |
+| Tarjetas de categoría (Bodas, XV años, Bautizos…) | Imaginería original generada | Evitar personas reconocibles reales |
+| Miniaturas/escenas por plantilla (tarjeta de galería y detalle) | Imaginería original generada | Una por plantilla |
+| Decoración floral/ornamentos (PNG/WebP con transparencia) | Imaginería original generada o vectores propios | Cuidar coherencia y peso |
+| Fotografías de ejemplo dentro de invitaciones demo | Generadas o stock con licencia comercial | Sin retratos de personas reales sin autorización |
+| Fotos subidas por usuarios | **Propiedad del usuario** | Ver términos de servicio (pendiente): el usuario declara tener derechos |
+
+**Assets pendientes de la Homepage** (`TODO(asset): replace with approved Hilo Luna asset`; hoy son placeholders con escenas difusas hechas con tokens (CSS), sin ningún archivo de imagen en el repo):
+
+| Dónde | Asset esperado | Componente / dato |
+|---|---|---|
+| Hero | Fotografía de fondo: telas y flores claras, luz suave | `Hero` (`MediaSlot` de fondo) |
+| Hero, detalle de plantilla y miniaturas | Flores/decoración de las esquinas y fotografías de las pantallas de la invitación de muestra (portada, historia, detalles, galería) | `preview-screens.tsx` |
+| Categorías (6) | Bodas, XV años, Bautizos, Cumpleaños, Baby Shower, Infantiles | `eventCategories[].imageSrc` en `lib/content/home.ts` |
+| Así de fácil | Miniaturas de invitaciones y foto del editor | `how-it-works-visuals.tsx` |
+| Funciones | Miniaturas de galería, carátula del reproductor, mapa | `feature-demos.tsx` |
+| Plantillas (home y galería `/templates`) | Una escena por plantilla (9): Magnolia, Ivory, Étoile, Tuscany, Noir, Blossom, Riviera, Dream, Safari (Noir en fondo oscuro) | `templates[].thumbnail.src` en `lib/content/templates.ts` |
+| Detalle `/templates/[slug]` | Escena tras el teléfono (flores y piedra), una por plantilla | `TemplateDetail` (`MediaSlot` de fondo, tono de `template.thumbnail`) |
+| Galería `/templates` | Fotografía del héroe: flores y tarjeta de invitación sobre tela | `PageHero` (`MediaSlot` de fondo) |
+| Banner final | Rosas claras sobre tela | `FinalCta` |
+| Invitación (`/i/[slug]`) de Ivory y Étoile | Fondo de portada, decoración y fotografías propias de cada plantilla (hoy placeholders difusos con los colores del tema). **Magnolia ya tiene los suyos (§5.1)** | `lib/invitation/templates/{ivory,etoile}.ts` (`decor`) |
+| Mesa de regalos | **Sin logos de terceros** (Liverpool, Amazon, Sears): se usa texto provisional hasta documentar su licencia (Q-05) | `featureDemo.gifts` |
+| Música | La demo muestra el texto "Perfect · Ed Sheeran" **sin carátula ni reproducción** (indicado por el propietario para la maqueta); sustituir por una pista de la biblioteca propia cuando exista (N-01/N-05) | `featureDemo.music` |
+
+Plantilla de fila:
+
+| Nombre | Fuente | Autor/proveedor | Licencia | URL de origen | Fecha de obtención | Usado en | Estado / notas |
+|
+
+### 5.1 Imágenes incorporadas — plantilla Magnolia (invitación pública `/i/demo-magnolia`)
+
+Registradas **antes** de usarse en código. Archivos originales, sin modificar (no se generan versiones derivadas: Next.js optimiza en tiempo de ejecución con `next/image`). Comprobado por `tests/invitation/assets.test.ts`: todo `/templates/magnolia/*` referenciado existe y está listado aquí.
+
+| Nombre | Fuente | Autor/proveedor | Licencia | URL de origen | Fecha de obtención | Usado en | Estado / notas |
+|---|---|---|---|---|---|---|---|
+| cover-bg.png | ChatGPT / OpenAI image generation | OpenAI — generado bajo dirección del propietario de Hilo Luna | OpenAI Terms of Use — Output ownership | https://openai.com/policies/terms-of-use/ | 2026-09-24 | `lib/invitation/templates/magnolia.ts` → `decor.heroBackdrop`; lo dibuja `HeroSection` (única imagen con `priority`) | `activo` · 941 × 1672 · `public/templates/magnolia/cover-bg.png` · Fondo de la portada de Magnolia: pared cálida con magnolias, hojas y pétalos; centro despejado para el texto |
+| ceremony-chapel.png | ChatGPT / OpenAI image generation | OpenAI — generado bajo dirección del propietario de Hilo Luna | OpenAI Terms of Use — Output ownership | https://openai.com/policies/terms-of-use/ | 2026-09-24 | Datos demo: `locations[ceremony].photo` en `lib/invitation/mock/andrea-fernando.ts` → `LocationSection` | `activo` · 1122 × 1402 · `public/templates/magnolia/ceremony-chapel.png` · Capilla de piedra con arcos y arreglos florales al atardecer |
+| reception-hacienda.png | ChatGPT / OpenAI image generation | OpenAI — generado bajo dirección del propietario de Hilo Luna | OpenAI Terms of Use — Output ownership | https://openai.com/policies/terms-of-use/ | 2026-09-24 | Datos demo: `locations[reception].photo` → `LocationSection` | `activo` · 1122 × 1402 · `public/templates/magnolia/reception-hacienda.png` · Patio de hacienda con mesas, luces cálidas y enredaderas floridas |
+| gallery-couple.png | ChatGPT / OpenAI image generation | OpenAI — generado bajo dirección del propietario de Hilo Luna | OpenAI Terms of Use — Output ownership | https://openai.com/policies/terms-of-use/ | 2026-09-24 | Datos demo: `gallery[0]` → `GallerySection` | `activo` · 1122 × 1402 · `public/templates/magnolia/gallery-couple.png` · Pareja de espaldas caminando por una calle empedrada entre flores (personas generadas, no reales) |
+| gallery-bouquet.png | ChatGPT / OpenAI image generation | OpenAI — generado bajo dirección del propietario de Hilo Luna | OpenAI Terms of Use — Output ownership | https://openai.com/policies/terms-of-use/ | 2026-09-24 | Datos demo: `gallery[1]` → `GallerySection` | `activo` · 1122 × 1402 · `public/templates/magnolia/gallery-bouquet.png` · Ramo de magnolias y rosas |
+| gallery-rings.png | ChatGPT / OpenAI image generation | OpenAI — generado bajo dirección del propietario de Hilo Luna | OpenAI Terms of Use — Output ownership | https://openai.com/policies/terms-of-use/ | 2026-09-24 | Datos demo: `gallery[2]` → `GallerySection` | `activo` · 1122 × 1402 · `public/templates/magnolia/gallery-rings.png` · Anillos dorados sobre una piedra con pétalos |
+| gallery-table.png | ChatGPT / OpenAI image generation | OpenAI — generado bajo dirección del propietario de Hilo Luna | OpenAI Terms of Use — Output ownership | https://openai.com/policies/terms-of-use/ | 2026-09-24 | Datos demo: `gallery[3]` → `GallerySection` | `activo` · 1122 × 1402 · `public/templates/magnolia/gallery-table.png` · Mesa con vajilla, velas y flores |
+| dress-code.png | ChatGPT / OpenAI image generation | OpenAI — generado bajo dirección del propietario de Hilo Luna | OpenAI Terms of Use — Output ownership | https://openai.com/policies/terms-of-use/ | 2026-09-24 | Datos demo: `dressCode.illustration` → `DressCodeSection` | `activo` · 1122 × 1402 · `public/templates/magnolia/dress-code.png` · Ilustración de acuarela de una pareja con vestimenta formal (ilustración, no fotografía real; rostros sin rasgos) |
+| gift-registry.png | ChatGPT / OpenAI image generation | OpenAI — generado bajo dirección del propietario de Hilo Luna | OpenAI Terms of Use — Output ownership | https://openai.com/policies/terms-of-use/ | 2026-09-24 | Datos demo: `giftRegistry.photo` → `GiftRegistrySection` | `activo` · 1122 × 1402 · `public/templates/magnolia/gift-registry.png` · Caja de regalo con moño rosa y magnolias |
+| decor-corners.png | ChatGPT / OpenAI image generation | OpenAI — generado bajo dirección del propietario de Hilo Luna | OpenAI Terms of Use — Output ownership | https://openai.com/policies/terms-of-use/ | 2026-09-24 | `lib/invitation/templates/magnolia.ts` → `decor.section*` (fragmentos `tl` `tr` `bl` `br`) → `Decor` | `activo` · 1254 × 1254 (PNG con transparencia) · `public/templates/magnolia/decor-corners.png` · Cuatro esquinas florales (magnolias) en una sola hoja; se usan fragmentos por posicionamiento CSS, sin crear archivos nuevos |
+
+Notas comunes: generadas por ChatGPT (OpenAI) bajo dirección del propietario de Hilo Luna; los términos de OpenAI vigentes a la fecha asignan la titularidad de la salida al usuario (verificar de nuevo si cambian). Los *briefs/prompts* no se guardan en el repo. Las personas de `gallery-couple.png` y `dress-code.png` son generadas (no retratos reales) y `dress-code.png` es una ilustración. Los archivos pesan ~2 MB cada uno (PNG); `next/image` sirve versiones WebP redimensionadas.
+
+---|---|---|---|---|---|---|---|
+| — | — | — | — | — | — | — | — |
+
+---
+
+## 6. Audio
+
+Ninguno incorporado. **Biblioteca licenciada de Hilo Luna**: el proveedor/licencia está **pendiente de decidir** (pregunta abierta N-01 en `PROJECT_SPEC`); hasta entonces no existe pista alguna en el repo ni en producción.
+
+| Nombre | Fuente | Autor/proveedor | Licencia | URL de origen | Fecha de obtención | Cobertura de licencia (comercial, territorio, sincronización, plazo) | Estado |
+|---|---|---|---|---|---|---|---|
+| — | — | — | — | — | — | — | — |
+
+Cada pista de la biblioteca debe tener además su registro en la tabla `MusicTrack` (ver `DATABASE_SCHEMA.md`) con los mismos datos de licencia. **Sin licencia documentada no hay pista.**
+
+Audio subido por usuarios: no es un asset de Hilo Luna; se guarda con `rightsConfirmedAt` (aceptación explícita del usuario de que tiene los derechos). Hilo Luna debe contar con términos de servicio y un procedimiento de retirada por reclamación (**pendiente**, requiere revisión legal).
+
+---
+
+## 7. Marcas y contenido de terceros vistos en mockups
+
+| Elemento | Dónde aparece | Tratamiento |
+|---|---|---|
+| Logos Liverpool / Amazon / Sears | Mockups 01 y 06 | **No reproducir.** Enlaces genéricos con ícono neutro hasta decisión legal (Q-05) |
+| Logos WhatsApp / Instagram | Mockups 01 y 05 | Uso de marcas de terceros: seguir sus guías de marca al integrarlas; hasta entonces íconos genéricos de "compartir" |
+| Carátula y "Perfect · Ed Sheeran" (reproductor) | Mockup 01 | **No reproducir.** La maqueta de marketing usará una pista/portada propia o placeholder neutro |
+| Personas (avatares, novios, pareja en galería) | Mockups 01, 03, 05, 06 | Son imágenes de demostración; se regeneran/sustituyen por imaginería original sin personas reales identificables |
+
+---
+
+## 8. Proceso al incorporar un activo
+
+1. Confirmar que cumple §1.
+2. Añadir la fila correspondiente aquí (todos los campos obligatorios).
+3. Guardar el archivo en la ruta prevista (`public/templates/<slug>/…`, `public/brand/…`) y referenciarlo por código; **nunca** enlazar hotlinks externos.
+4. Referenciar la entrada en la descripción del PR.
+5. Si la licencia exige atribución, añadirla al lugar visible que indique la licencia.

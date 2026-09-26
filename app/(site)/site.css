@@ -1,0 +1,475 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/*
+ * SISTEMA DE PRODUCTO — tokens --lu-*  (marketing, dashboard, editor)
+ * Valores DEFINITIVOS: derivados de mediciones sobre los mockups (ver design/DESIGN_SYSTEM.md §0 y §3).
+ * Regla 7: este archivo NO se carga en las invitaciones públicas.
+ * No hay modo oscuro (DESIGN_SYSTEM I-6): `.dark` nunca se aplica; la variante existe
+ * solo porque los componentes de shadcn/ui la referencian.
+ */
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  color-scheme: light;
+
+  /* ───────── Color: superficies ───────── */
+  --lu-canvas: #fdfbf8;          /* fondo de página */
+  --lu-surface: #fefdfa;         /* tarjetas, barra superior, inputs */
+  --lu-surface-muted: #faf9f7;   /* rail del editor, sidebar */
+  --lu-surface-tint: #f7f3ef;    /* paneles teñidos, skeletons */
+  --lu-selected: #f2eee8;        /* fila activa, hover suave */
+  --lu-nav-active: #f6efe8;      /* ítem activo del sidebar */
+  --lu-section-band: #f4f0ea;    /* bandas de sección */
+
+  /* ───────── Color: tinta y texto ───────── */
+  --lu-ink: #21170d;             /* botón primario, chip activo */
+  --lu-on-ink: #f7f8f3;          /* texto sobre tinta */
+  --lu-text: #1a1410;            /* titulares y texto principal */
+  --lu-text-secondary: #555149;  /* párrafos */
+  --lu-text-muted: #6e6867;      /* metadatos */
+  --lu-text-subtle: #837d7c;     /* placeholders, contadores */
+  --lu-eyebrow: #775e53;
+
+  /* ───────── Color: marca / acento ───────── */
+  --lu-brown-400: #907058;       /* acento por defecto */
+  --lu-brown-500: #846951;       /* numerales, cifras */
+  --lu-brown-600: #725641;       /* foco, toggle, selección */
+  --lu-brown-900: #513624;       /* borde de fila activa */
+  --lu-blush: #dcb5ad;           /* acento secundario (muestra rosa del selector de color) */
+  --lu-blush-soft: #f8d9cd;      /* fondo blush suave (= declined-bg) */
+  --lu-sage: #9d977d;            /* muestra salvia del selector de color */
+
+  /* ───────── Color: bordes ───────── */
+  --lu-border-subtle: #efece7;   /* tarjetas, chips, separadores */
+  --lu-border: #e3e0dc;          /* inputs */
+  --lu-border-outline: #cdbbaa;  /* botón secundario */
+  --lu-border-strong: #d3c9c0;   /* divisores, dropzone discontinua */
+
+  /* ───────── Color: estados (RSVP) ───────── */
+  --lu-success: #7b9f7e;
+  --lu-success-bg: #dbe3d5;
+  --lu-pending: #dec8ad;
+  --lu-pending-bg: #f7ebd8;
+  --lu-declined-bg: #f8d9cd;
+
+  /* ───────── Feedback funcional (SOLO errores/validación; nunca decorativo) ───────── */
+  --lu-error: #a44a45;           /* texto, borde e ícono de error (≈ 5:1 sobre --lu-canvas) */
+  --lu-error-bg: #faedec;        /* fondo de campo/mensaje con error */
+
+  /* ───────── Radios ───────── */
+  --lu-radius-xs: 0.25rem;       /* 4  · checkbox, badges cuadrados */
+  --lu-radius-input: 0.5rem;     /* 8  · inputs, selects, textarea */
+  --lu-radius-button: 0.625rem;  /* 10 · botón sm/md */
+  --lu-radius-button-lg: 0.75rem;/* 12 · botón lg */
+  --lu-radius-button-xl: 1rem;   /* 16 · botón xl */
+  --lu-radius-image: 0.625rem;   /* 10 · fotos dentro de tarjetas */
+  --lu-radius-card: 0.875rem;    /* 14 · tarjetas, dropdowns */
+  --lu-radius-modal: 1rem;       /* 16 · diálogos */
+  --lu-radius-banner: 1.25rem;   /* 20 · banners grandes */
+  --lu-radius-pill: 9999px;      /* chips de filtro, segmented, badges y CTA primario de la navbar (excepción intencional) */
+
+  /* ───────── Bordes ───────── */
+  --lu-border-width: 1px;
+  --lu-border-width-strong: 2px; /* opción seleccionada */
+
+  /* ───────── Sombras ───────── */
+  --lu-shadow-card: 0 1px 2px rgb(60 40 20 / 0.04), 0 6px 20px rgb(60 40 20 / 0.05);
+  --lu-shadow-card-hover: 0 1px 2px rgb(60 40 20 / 0.05), 0 10px 28px rgb(60 40 20 / 0.08);
+  --lu-shadow-float: 0 4px 8px rgb(60 40 20 / 0.05), 0 16px 40px rgb(60 40 20 / 0.1);
+  --lu-shadow-modal: 0 24px 64px rgb(40 25 10 / 0.18);
+  --lu-shadow-device: 0 30px 60px rgb(40 25 10 / 0.18);
+
+  /* ───────── Alturas de control ───────── */
+  --lu-h-sm: 2.5rem;   /* 40 */
+  --lu-h-md: 2.75rem;  /* 44 · botón md, input, select */
+  --lu-h-lg: 3.375rem; /* 54 */
+  --lu-h-xl: 4rem;     /* 64 */
+  --lu-h-chip: 3rem;   /* 48 */
+
+  /* ───────── Espaciado semántico (base 4 px; ver DESIGN_SYSTEM §3.4) ───────── */
+  --lu-space-card: 1.25rem;      /* 20 · padding de tarjeta */
+  --lu-space-card-lg: 1.5rem;    /* 24 */
+  --lu-space-modal: 1.75rem;     /* 28 */
+  --lu-gap-grid: 1rem;           /* 16 · hueco entre tarjetas */
+  --lu-gap-grid-lg: 1.5rem;      /* 24 */
+  --lu-gap-field: 1.5rem;        /* 24 · entre campos de formulario */
+  --lu-gap-label: 0.5rem;        /* 8  · etiqueta → control */
+  --lu-space-section: 2.375rem;  /* por lado: 38 → 44 (md) → 50 (xl): 76 → 100 px entre secciones (aireado sin dispersarse) */
+  --lu-space-heading: 2rem;      /* 32 · encabezado → contenido */
+
+  /* ───────── Anchos ───────── */
+  --lu-page-max: 90rem;          /* 1440 */
+  --lu-prose-max: 32rem;         /* 512 · párrafos */
+  --lu-modal-sm: 26rem;          /* 416 */
+  --lu-modal-md: 32rem;          /* 512 */
+  --lu-modal-lg: 40rem;          /* 640 */
+  --lu-header-h: 5.5rem;         /* 88 · navbar de marketing (el hero se extiende por debajo) */
+  --lu-sidebar-w: 16rem;         /* 256 · dashboard */
+  --lu-topbar-h: 3.25rem;        /* 52  · dashboard */
+  --lu-editor-topbar-h: 4.75rem; /* 76 */
+  --lu-editor-rail-w: 22rem;     /* 352 */
+  --lu-editor-preview-w: 29rem;  /* 464 */
+  --lu-gutter: 1rem;             /* 16 → 24 (md) → 32 (lg) → 64 (xl) */
+
+  /* ───────── Tipografía ───────── */
+  --lu-font-display: var(--font-cormorant), Georgia, "Times New Roman", serif;
+  --lu-font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* ───────── Movimiento (ANIMATIONS.md §2) ───────── */
+  --lu-ease-standard: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --lu-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+  --lu-dur-instant: 90ms;
+  --lu-dur-fast: 150ms;
+  --lu-dur-base: 240ms;
+  --lu-dur-slow: 420ms;
+
+  /* ───────── shadcn/ui → tokens del producto ───────── */
+  --background: var(--lu-canvas);
+  --foreground: var(--lu-text);
+  --card: var(--lu-surface);
+  --card-foreground: var(--lu-text);
+  --popover: var(--lu-surface);
+  --popover-foreground: var(--lu-text);
+  --primary: var(--lu-ink);
+  --primary-foreground: var(--lu-on-ink);
+  --secondary: var(--lu-surface-tint);
+  --secondary-foreground: var(--lu-text);
+  --muted: var(--lu-surface-muted);
+  --muted-foreground: var(--lu-text-muted);
+  --accent: var(--lu-selected);
+  --accent-foreground: var(--lu-text);
+  /* Errores: tokens de feedback funcional (DESIGN_SYSTEM §3.1). */
+  --destructive: var(--lu-error);
+  --border: var(--lu-border);
+  --input: var(--lu-border);
+  --ring: var(--lu-brown-600);
+  --radius: var(--lu-radius-button);
+  --chart-1: var(--lu-success);
+  --chart-2: var(--lu-pending);
+  --chart-3: var(--lu-declined-bg);
+  --chart-4: var(--lu-brown-400);
+  --chart-5: var(--lu-brown-600);
+  --sidebar: var(--lu-surface-muted);
+  --sidebar-foreground: var(--lu-text);
+  --sidebar-primary: var(--lu-ink);
+  --sidebar-primary-foreground: var(--lu-on-ink);
+  --sidebar-accent: var(--lu-nav-active);
+  --sidebar-accent-foreground: var(--lu-text);
+  --sidebar-border: var(--lu-border-subtle);
+  --sidebar-ring: var(--lu-brown-600);
+}
+
+@media (min-width: 48rem) {
+  :root {
+    --lu-gutter: 1.5rem;
+    --lu-space-section: 2.75rem;
+  }
+}
+
+@media (min-width: 64rem) {
+  :root {
+    --lu-gutter: 2rem;
+  }
+}
+
+@media (min-width: 80rem) {
+  :root {
+    --lu-gutter: 4rem;
+    --lu-space-section: 3.125rem;
+  }
+}
+
+/* ───────── Utilidades de Tailwind sobre los tokens ───────── */
+@theme inline {
+  --color-lu-canvas: var(--lu-canvas);
+  --color-lu-surface: var(--lu-surface);
+  --color-lu-surface-muted: var(--lu-surface-muted);
+  --color-lu-surface-tint: var(--lu-surface-tint);
+  --color-lu-selected: var(--lu-selected);
+  --color-lu-nav-active: var(--lu-nav-active);
+  --color-lu-section-band: var(--lu-section-band);
+  --color-lu-ink: var(--lu-ink);
+  --color-lu-on-ink: var(--lu-on-ink);
+  --color-lu-text: var(--lu-text);
+  --color-lu-text-secondary: var(--lu-text-secondary);
+  --color-lu-text-muted: var(--lu-text-muted);
+  --color-lu-text-subtle: var(--lu-text-subtle);
+  --color-lu-eyebrow: var(--lu-eyebrow);
+  --color-lu-brown-400: var(--lu-brown-400);
+  --color-lu-brown-500: var(--lu-brown-500);
+  --color-lu-brown-600: var(--lu-brown-600);
+  --color-lu-brown-900: var(--lu-brown-900);
+  --color-lu-blush: var(--lu-blush);
+  --color-lu-blush-soft: var(--lu-blush-soft);
+  --color-lu-sage: var(--lu-sage);
+  --color-lu-border-subtle: var(--lu-border-subtle);
+  --color-lu-border: var(--lu-border);
+  --color-lu-border-outline: var(--lu-border-outline);
+  --color-lu-border-strong: var(--lu-border-strong);
+  --color-lu-success: var(--lu-success);
+  --color-lu-success-bg: var(--lu-success-bg);
+  --color-lu-pending: var(--lu-pending);
+  --color-lu-pending-bg: var(--lu-pending-bg);
+  --color-lu-declined-bg: var(--lu-declined-bg);
+  --color-lu-error: var(--lu-error);
+  --color-lu-error-bg: var(--lu-error-bg);
+
+  --radius-lu-xs: var(--lu-radius-xs);
+  --radius-lu-input: var(--lu-radius-input);
+  --radius-lu-button: var(--lu-radius-button);
+  --radius-lu-button-lg: var(--lu-radius-button-lg);
+  --radius-lu-button-xl: var(--lu-radius-button-xl);
+  --radius-lu-image: var(--lu-radius-image);
+  --radius-lu-card: var(--lu-radius-card);
+  --radius-lu-modal: var(--lu-radius-modal);
+  --radius-lu-banner: var(--lu-radius-banner);
+  --radius-lu-pill: var(--lu-radius-pill);
+
+  --shadow-lu-card: var(--lu-shadow-card);
+  --shadow-lu-card-hover: var(--lu-shadow-card-hover);
+  --shadow-lu-float: var(--lu-shadow-float);
+  --shadow-lu-modal: var(--lu-shadow-modal);
+  --shadow-lu-device: var(--lu-shadow-device);
+
+  --font-lu-display: var(--lu-font-display);
+  --font-lu-sans: var(--lu-font-sans);
+
+  --ease-lu-standard: var(--lu-ease-standard);
+  --ease-lu-emphasized: var(--lu-ease-emphasized);
+
+  /*
+   * ESCALA TIPOGRÁFICA (DESIGN_SYSTEM §3.2). Serif = Cormorant Garamond 500; sans = Inter.
+   * Cada token fija tamaño + interlineado + tracking (+ peso en la serif).
+   */
+  --text-lu-display-xl: clamp(4rem, 6.5vw, 6rem);   /* 64 → 96 (93,6 @1440) · título de plantilla / galería */
+  --text-lu-display-xl--line-height: 0.95;
+  --text-lu-display-xl--letter-spacing: -0.01em;
+  --text-lu-display-xl--font-weight: 500;
+  --text-lu-display-lg: clamp(3.25rem, 5vw, 4.5rem);    /* 52 → 72 (72 @1440) · título de página del dashboard */
+  --text-lu-display-lg--line-height: 1;
+  --text-lu-display-lg--letter-spacing: -0.01em;
+  --text-lu-display-lg--font-weight: 500;
+  --text-lu-display-sm: clamp(1.625rem, 2.4vw, 2.125rem);   /* 34 @1440 · subtítulo serif del héroe de la galería [02] (≈ 609 px de ancho la línea) */
+  --text-lu-display-sm--line-height: 1.15;
+  --text-lu-display-sm--font-weight: 500;
+  --text-lu-display-md: clamp(2.5rem, 4.1667vw, 3.75rem);   /* 60 @1440 · hero del home */
+  --text-lu-display-md--line-height: 1.05;
+  --text-lu-display-md--letter-spacing: -0.01em;
+  --text-lu-display-md--font-weight: 500;
+  --text-lu-title-xl: clamp(2rem, 3.3333vw, 3rem);        /* 48 @1440 · título del panel del editor */
+  --text-lu-title-xl--line-height: 1.05;
+  --text-lu-title-xl--font-weight: 500;
+  --text-lu-h2: clamp(1.75rem, 2.7778vw, 2.5rem);            /* 40 @1440 · título de sección */
+  --text-lu-h2--line-height: 1.15;
+  --text-lu-h2--font-weight: 500;
+  --text-lu-h3: clamp(1.5rem, 1.9444vw, 1.75rem);           /* 28 @1440 */
+  --text-lu-h3--line-height: 1.2;
+  --text-lu-h3--font-weight: 500;
+  --text-lu-title-lg: 1.625rem;    /* 26 · nombre de plantilla */
+  --text-lu-title-lg--line-height: 1.2;
+  --text-lu-title-lg--font-weight: 500;
+  --text-lu-title-md: 1.375rem;    /* 22 · título de tarjeta */
+  --text-lu-title-md--line-height: 1.25;
+  --text-lu-title-md--font-weight: 500;
+  --text-lu-title-sm: 1.25rem;     /* 20 · filas, etiquetas y valores serif (cap 13 px medido en inputs) */
+  --text-lu-title-sm--line-height: 1.3;
+  --text-lu-title-sm--font-weight: 500;
+  --text-lu-numeral-lg: clamp(3.5rem, 5.5556vw, 5rem);   /* 56 → 80 @1440 · 01/02/03 (medido ≈ 86) */
+  --text-lu-numeral-lg--line-height: 1;
+  --text-lu-numeral-lg--font-weight: 500;
+  --text-lu-wordmark: 2.25rem;     /* 36 · "Hilo Luna" */
+  --text-lu-wordmark--line-height: 1;
+  --text-lu-wordmark--font-weight: 500;
+  --text-lu-numeral: 2.5rem;       /* 40 · métricas */
+  --text-lu-numeral--line-height: 1;
+  --text-lu-numeral--font-weight: 500;
+
+  --text-lu-lg: 1.125rem;          /* 18/28 · lead */
+  --text-lu-lg--line-height: 1.55;
+  --text-lu-md: 1rem;              /* 16/26 · párrafo de marketing */
+  --text-lu-md--line-height: 1.625;
+  --text-lu-base: 0.9375rem;       /* 15/22 · cuerpo, nav de marketing, inputs */
+  --text-lu-base--line-height: 1.45;
+  --text-lu-ui: 0.875rem;          /* 14/20 · botones md */
+  --text-lu-ui--line-height: 1.4;
+  --text-lu-sm: 0.8125rem;         /* 13/18 · UI del workspace, etiquetas */
+  --text-lu-sm--line-height: 1.4;
+  --text-lu-xs: 0.75rem;           /* 12/16 · captions (mínimo por accesibilidad) */
+  --text-lu-xs--line-height: 1.35;
+  --text-lu-caps: 0.75rem;      /* 12/16 · MAYÚSCULAS */
+  --text-lu-caps--line-height: 1.3;
+  --text-lu-caps--letter-spacing: 0.14em;
+  --text-lu-caps--font-weight: 500;
+
+  /* ── Puente shadcn/ui ── */
+  --font-sans: var(--lu-font-sans);
+  --font-heading: var(--lu-font-display);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* Contenedor de página: máx. 1440 con gutters 16/24/32/64 → 1312 de contenido en escritorio. */
+@utility lu-container {
+  width: 100%;
+  max-width: var(--lu-page-max);
+  margin-inline: auto;
+  padding-inline: var(--lu-gutter);
+}
+
+/* Ritmo vertical entre secciones de marketing. */
+@utility lu-section {
+  padding-block: var(--lu-space-section);
+}
+
+/*
+ * Efectos de imagen del producto: desvanecido hacia el fondo (máscara de la FOTO, no gradiente
+ * de UI; DESIGN_SYSTEM §1). Usados por el hero y el banner final de la home.
+ */
+@utility lu-fade-left {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 32%);
+  mask-image: linear-gradient(to right, transparent, #000 32%);
+}
+
+/* Desvanecido a la izquierda y abajo a la vez (fondo del hero): intersección de dos máscaras. */
+@utility lu-fade-left-bottom {
+  -webkit-mask-image:
+    linear-gradient(to right, transparent, #000 32%), linear-gradient(to bottom, #000 76%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to right, transparent, #000 32%), linear-gradient(to bottom, #000 76%, transparent);
+  mask-composite: intersect;
+}
+
+/* Desvanecido a la derecha y abajo a la vez (escena del detalle de plantilla [03]). */
+@utility lu-fade-right-bottom {
+  -webkit-mask-image:
+    linear-gradient(to left, transparent, #000 32%), linear-gradient(to bottom, #000 78%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to left, transparent, #000 32%), linear-gradient(to bottom, #000 78%, transparent);
+  mask-composite: intersect;
+}
+
+/* Desvanecido arriba y abajo (fondo del hero en móvil). */
+@utility lu-fade-y {
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 34%, #000 74%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 34%, #000 74%, transparent);
+}
+
+@utility lu-fade-top {
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 38%);
+  mask-image: linear-gradient(to bottom, transparent, #000 38%);
+}
+
+/*
+ * Movimiento sutil (ANIMATIONS.md): fundido + translateY(12px), una sola vez.
+ *  - lu-enter:  al cargar (hero). Usa --lu-dur-slow y --lu-ease-emphasized.
+ *  - lu-reveal: al entrar en pantalla, solo donde el navegador soporta animation-timeline.
+ *    Sin soporte no hay animación y el contenido queda visible (nada se oculta por defecto).
+ * Con prefers-reduced-motion ninguno anima.
+ */
+@keyframes lu-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility lu-enter {
+  animation: lu-rise var(--lu-dur-slow) var(--lu-ease-emphasized) both;
+}
+
+@utility lu-reveal {
+  @supports (animation-timeline: view()) {
+    animation: lu-rise linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 28%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lu-enter,
+  .lu-reveal {
+    animation: none !important;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply font-sans;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    min-height: 100vh;
+    min-height: 100svh;
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* Selección de texto coherente con la marca (sin color nuevo). */
+  ::selection {
+    background: var(--lu-blush-soft);
+    color: var(--lu-text);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
