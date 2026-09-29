@@ -4,6 +4,7 @@ import type { TemplatePublicationValue } from "@/lib/admin/options";
 import type { UserRoleId } from "@/lib/admin/roles";
 import { planLabel, type PlanId } from "@/lib/billing/plans";
 import type { EventAccessState, PurchaseKindId, PurchaseStatusId } from "@/lib/billing/purchase";
+import type { EmailDeliveryKindId, EmailDeliveryStatusId } from "@/lib/email/delivery";
 import type { PublicationState } from "@/types/published";
 
 /**
@@ -66,6 +67,24 @@ export function RoleBadge({ role }: { role: UserRoleId }) {
 }
 
 const visibilityTone: Record<TemplatePublicationValue, "success" | "neutral" | "declined"> = { PUBLISHED: "success", DRAFT: "neutral", ARCHIVED: "declined" };
+
+const emailTone: Record<EmailDeliveryStatusId, "success" | "pending" | "declined" | "neutral"> = { SENT: "success", PENDING: "pending", FAILED: "declined", SKIPPED: "neutral" };
+
+export function EmailStatusBadge({ status }: { status: EmailDeliveryStatusId }) {
+  return (
+    <Badge tone={emailTone[status]} dot data-email-status={status}>
+      {adminCopy.emails.statusLabel[status]}
+    </Badge>
+  );
+}
+
+export function EmailKindBadge({ kind }: { kind: EmailDeliveryKindId }) {
+  return (
+    <Badge tone="outline" data-email-kind={kind}>
+      {adminCopy.emails.kindLabel[kind]}
+    </Badge>
+  );
+}
 
 export function TemplateVisibilityBadge({ status }: { status: TemplatePublicationValue }) {
   return (

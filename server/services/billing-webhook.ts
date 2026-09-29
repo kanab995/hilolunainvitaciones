@@ -1,8 +1,10 @@
 import { getBillingProviderState } from "@/server/billing";
 import { WebhookSignatureError, type BillingProviderState, type NormalizedWebhookEvent, type ProviderPayment } from "@/server/billing/provider";
 import { isTransientDatabaseError, StoreUnavailableError } from "@/server/db/errors";
+import { sendPurchaseConfirmation, sendUpgradeConfirmation } from "@/server/email/service";
+import { runAfterResponse } from "@/server/email/run-after";
 import { prismaBillingStore, type BillingStore } from "@/server/repositories/billing";
-import { closePayment, confirmPayment, refundPayment } from "@/server/services/purchase-sync";
+import { closePayment, confirmPayment, refundPayment, type GrantedPurchase } from "@/server/services/purchase-sync";
 import { logger } from "@/server/observability/logger";
 
 /**
@@ -53,15 +55,37 @@ export async function handleBillingWebhook(input: { rawBody: string; signature: 
       payment = event.checkoutSessionId ? await provider.getPayment(event.checkoutSessionId) : event.paymentIntentId ? await provider.findPaymentByIntent(event.paymentIntentId) : undefined;
     }
 
+    // Se rellena SOLO si `confirmPayment` concede el plan de verdad (nunca en `already_paid` ni en un webhook repetido): dispara el
+    // correo de confirmación DESPUÉS de que la transacción de abajo haya confirmado (D-36). `provider.id` se captura aparte: `provider`
+    // (con el SDK) no debe cruzar a `after()`.
+    let granted: GrantedPurchase | undefined;
+    const providerId = provider.id;
+
     const result = await deps.store.recordEventAndApply({ provider: provider.id, externalEventId: event.id, type: event.type }, async (ops) => {
       if (event.action === "confirm_payment") {
-        if (payment) await confirmPayment(ops, provider, payment, event.createdAt);
+        if (payment) await confirmPayment(ops, provider, payment, event.createdAt, (info) => (granted = info));
       } else if (event.action === "close_payment") {
         await closePayment(ops, provider.id, { outcome: event.outcome, checkoutSessionId: event.checkoutSessionId, paymentIntentId: event.paymentIntentId, metadata: event.metadata });
       } else if (event.action === "refund_payment") {
         await refundPayment(ops, provider.id, event.paymentIntentId);
       }
     });
+
+    if (granted) {
+      const purchase = granted;
+      runAfterResponse(() =>
+        (purchase.kind === "UPGRADE" ? sendUpgradeConfirmation : sendPurchaseConfirmation)({
+          eventId: purchase.eventId,
+          provider: providerId,
+          checkoutSessionId: purchase.checkoutSessionId,
+          plan: purchase.plan,
+          amountMinor: purchase.amountMinor,
+          currency: purchase.currency,
+          paidAt: purchase.paidAt,
+          accessEndsAt: purchase.accessEndsAt,
+        }),
+      );
+    }
     return { status: 200, body: { received: true, ...(result === "duplicate" ? { duplicate: true } : {}) } };
   } catch (error) {
     if (error instanceof StoreUnavailableError) return { status: 503, body: { error: "store_unavailable" } };

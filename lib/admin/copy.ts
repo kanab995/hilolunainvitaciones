@@ -15,7 +15,7 @@ export const adminCopy = {
   closeMenu: "Cerrar menú",
   navLabel: "Administración",
 
-  nav: { overview: "Resumen", users: "Usuarios", events: "Eventos", templates: "Plantillas", purchases: "Compras", webhooks: "Webhooks", audit: "Auditoría" },
+  nav: { overview: "Resumen", users: "Usuarios", events: "Eventos", templates: "Plantillas", purchases: "Compras", webhooks: "Webhooks", emails: "Correos", audit: "Auditoría" },
 
   common: {
     search: "Buscar",
@@ -270,6 +270,21 @@ export const adminCopy = {
     state: "Estado",
     processed: "Procesado",
     note: "Solo se guardan los eventos procesados (id, tipo y fecha). Los ignorados o con error no se registran, y nunca se guarda el contenido ni la firma.",
+  },
+
+  emails: {
+    title: "Correos",
+    description: "Notificaciones transaccionales enviadas a los anfitriones (RSVP, compras y mejoras).",
+    searchLabel: "Buscar",
+    caption: "Envíos de correo transaccional",
+    kind: "Tipo",
+    kindLabel: { RSVP_NOTIFICATION: "Nuevo RSVP", PURCHASE_CONFIRMATION: "Confirmación de compra", UPGRADE_CONFIRMATION: "Confirmación de mejora" } satisfies Record<"RSVP_NOTIFICATION" | "PURCHASE_CONFIRMATION" | "UPGRADE_CONFIRMATION", string>,
+    recipient: "Destinatario",
+    status: "Estado",
+    statusLabel: { PENDING: "Pendiente", SENT: "Enviado", FAILED: "Fallido", SKIPPED: "Omitido" } satisfies Record<"PENDING" | "SENT" | "FAILED" | "SKIPPED", string>,
+    event: "Evento",
+    date: "Fecha",
+    note: "El destinatario se muestra enmascarado y nunca se guarda el asunto ni el cuerpo del correo. «Omitido» significa que no se intentó a propósito (sin proveedor configurado, o fuera de la lista de staging), no que haya fallado.",
   },
 
   audit: {

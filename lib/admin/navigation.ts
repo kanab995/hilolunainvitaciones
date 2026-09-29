@@ -5,7 +5,7 @@ import { routes } from "@/lib/routes";
  * Navegación lateral de la consola (D-33). Todas las rutas EXISTEN: la navegación visible nunca lleva a un 404.
  * El elemento activo sale de la ruta actual (las páginas de detalle activan su lista).
  */
-export type AdminNavId = "overview" | "users" | "events" | "templates" | "purchases" | "webhooks" | "audit";
+export type AdminNavId = "overview" | "users" | "events" | "templates" | "purchases" | "webhooks" | "emails" | "audit";
 
 export interface AdminNavItem {
   id: AdminNavId;
@@ -20,6 +20,7 @@ export const adminNav: readonly AdminNavItem[] = [
   { id: "templates", label: adminCopy.nav.templates, href: routes.adminTemplates },
   { id: "purchases", label: adminCopy.nav.purchases, href: routes.adminPurchases },
   { id: "webhooks", label: adminCopy.nav.webhooks, href: routes.adminWebhooks },
+  { id: "emails", label: adminCopy.nav.emails, href: routes.adminEmails },
   { id: "audit", label: adminCopy.nav.audit, href: routes.adminAudit },
 ];
 

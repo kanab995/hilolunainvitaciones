@@ -2,6 +2,7 @@ import type { UserRoleId } from "@/lib/admin/roles";
 import type { PageWindow } from "@/lib/admin/query";
 import type { PlanId } from "@/lib/billing/plans";
 import type { BillingProviderId, EventAccessState, PurchaseKindId, PurchaseStatusId } from "@/lib/billing/purchase";
+import type { EmailDeliveryKindId, EmailDeliveryStatusId } from "@/lib/email/delivery";
 import type { PublicationState } from "@/types/published";
 
 /**
@@ -139,6 +140,21 @@ export interface AdminWebhookDto {
   maskedExternalEventId: string;
   type: string;
   processedAt: Date;
+}
+
+// ───────── Correo transaccional ─────────
+
+export interface AdminEmailDeliveryDto {
+  id: string;
+  kind: EmailDeliveryKindId;
+  status: EmailDeliveryStatusId;
+  /** `ma••••@ejemplo.com`: nunca el correo completo. */
+  maskedRecipient: string;
+  eventId: string | null;
+  /** Código de error saneado (proveedor o motivo de «omitido»); nunca el mensaje completo. */
+  errorCode: string | null;
+  createdAt: Date;
+  sentAt: Date | null;
 }
 
 // ───────── Auditoría ─────────

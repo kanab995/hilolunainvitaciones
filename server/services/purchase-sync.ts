@@ -1,6 +1,6 @@
 import { maskExternalId } from "@/lib/admin/mask";
-import { isPaidPlanId, planIncludes, PRICING_CURRENCY } from "@/lib/billing/plans";
-import { computePaidAccessEnd, expectedPurchaseAmountMinor, getEffectiveEventPlan, purchaseForPriceKey } from "@/lib/billing/purchase";
+import { isPaidPlanId, planIncludes, PRICING_CURRENCY, type PaidPlanId } from "@/lib/billing/plans";
+import { computePaidAccessEnd, expectedPurchaseAmountMinor, getEffectiveEventPlan, purchaseForPriceKey, type PurchaseKindId } from "@/lib/billing/purchase";
 import type { BillingProvider, ProviderPayment } from "@/server/billing/provider";
 import type { BillingWriteOps } from "@/server/repositories/billing";
 import { logger } from "@/server/observability/logger";
@@ -37,7 +37,27 @@ const reject = (outcome: Exclude<ConfirmOutcome, "granted" | "already_paid" | "n
   return outcome;
 };
 
-export async function confirmPayment(ops: BillingWriteOps, provider: Pick<BillingProvider, "id" | "priceKeyFor">, payment: ProviderPayment, paidAt: Date): Promise<ConfirmOutcome> {
+/** Datos de una compra recién CONCEDIDA (nunca en `already_paid`, rechazos o webhooks repetidos): lo mínimo para disparar su correo (D-36). */
+export interface GrantedPurchase {
+  eventId: string;
+  userId: string;
+  plan: PaidPlanId;
+  kind: PurchaseKindId;
+  checkoutSessionId: string;
+  amountMinor: number;
+  currency: string;
+  paidAt: Date;
+  accessEndsAt: Date;
+}
+
+export async function confirmPayment(
+  ops: BillingWriteOps,
+  provider: Pick<BillingProvider, "id" | "priceKeyFor">,
+  payment: ProviderPayment,
+  paidAt: Date,
+  /** D-36: se invoca SOLO cuando el resultado es `"granted"` (una única vez por compra: ver `EmailDelivery` y su idempotencia). */
+  onGranted?: (granted: GrantedPurchase) => void,
+): Promise<ConfirmOutcome> {
   if (payment.status !== "PAID") return "not_paid";
 
   const { userId, eventId, targetPlan } = payment.metadata;
@@ -86,6 +106,7 @@ export async function confirmPayment(ops: BillingWriteOps, provider: Pick<Billin
     accessEndsAt,
   });
   await ops.setPaidAccessEnd(eventId, accessEndsAt);
+  onGranted?.({ eventId, userId, plan: purchase.plan, kind: purchase.kind, checkoutSessionId: payment.checkoutSessionId, amountMinor: payment.amountMinor, currency: payment.currency, paidAt, accessEndsAt });
   return "granted";
 }
 

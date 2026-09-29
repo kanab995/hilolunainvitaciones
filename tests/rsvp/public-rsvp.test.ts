@@ -96,9 +96,10 @@ function world() {
     save: async (t, value) => {
       saves.push(value);
       const existing = rsvps.get(t.guestId);
+      const changed = !existing || existing.status !== value.status || existing.attendeeCount !== value.attendeeCount;
       rsvps.set(t.guestId, { id: existing?.id ?? nextId++, status: value.status, attendeeCount: value.attendeeCount, message: value.message, answers: value.answers });
       guests.get(t.guestId)!.status = value.status;
-      return true;
+      return { ok: true, changed };
     },
     now: () => NOW,
     isUnavailable: () => false,

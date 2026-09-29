@@ -45,6 +45,8 @@ export const routes = {
   adminPurchase: (id: string) => `/admin/purchases/${id}`,
   adminWebhooks: "/admin/webhooks",
   adminAudit: "/admin/audit",
+  /** Envíos de correo transaccional (D-36): solo lectura, destinatario enmascarado. */
+  adminEmails: "/admin/emails",
 
   dashboard: "/dashboard",
   events: "/dashboard/events",

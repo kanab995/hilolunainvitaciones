@@ -154,7 +154,7 @@ describe("la autorización solo sale del rol en PostgreSQL", () => {
 
   it("todas las páginas, el layout y las acciones de /admin llaman a requireAdmin()", () => {
     const files = [...filesUnder(["app/(site)/admin"]).entries()].filter(([file]) => /(page|layout|actions)\.tsx?$/.test(file));
-    expect(files.length).toBe(13);
+    expect(files.length).toBe(14);
     for (const [file, text] of files) expect(text, file).toMatch(/requireAdmin\(\)/);
   });
 

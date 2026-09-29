@@ -18,6 +18,8 @@ const store = vi.hoisted(() => ({
   ] as Record<string, unknown>[],
   calls: [] as { op: string; args: unknown }[],
   invitationRow: undefined as unknown,
+  /** Respuesta ANTERIOR de cada invitado (D-36: base para `changed`). `undefined` = primera respuesta. */
+  previousRsvp: {} as Record<string, { status: string; attendeeCount: number | null } | undefined>,
 }));
 
 vi.mock("@/server/db/client", () => {
@@ -30,7 +32,11 @@ vi.mock("@/server/db/client", () => {
       }),
       updateMany: vi.fn(async (args: unknown) => (log("guest.updateMany", args), { count: 1 })),
     },
-    rsvp: { upsert: vi.fn(async (args: unknown) => (log("rsvp.upsert", args), { id: "r1" })), updateMany: vi.fn(async (args: unknown) => (log("rsvp.updateMany", args), { count: 1 })) },
+    rsvp: {
+      findUnique: vi.fn(async (args: { where: { guestId: string } }) => (log("rsvp.findUnique", args), store.previousRsvp[args.where.guestId] ?? null)),
+      upsert: vi.fn(async (args: unknown) => (log("rsvp.upsert", args), { id: "r1" })),
+      updateMany: vi.fn(async (args: unknown) => (log("rsvp.updateMany", args), { count: 1 })),
+    },
     rsvpAnswer: { deleteMany: vi.fn(async (args: unknown) => (log("answer.deleteMany", args), { count: 0 })), upsert: vi.fn(async (args: unknown) => (log("answer.upsert", args), {})) },
   };
   return {
@@ -59,6 +65,7 @@ beforeEach(() => {
   store.calls.length = 0;
   // Fila de la invitación del evento E1 (reutiliza la forma real del seed).
   store.invitationRow = { ...getDemoRows(new Date()).invitation, eventId: "E1", status: "PUBLISHED" };
+  store.previousRsvp = {};
 });
 afterEach(() => vi.unstubAllEnvs());
 
@@ -124,9 +131,9 @@ describe("Guardado: una transacción, un solo Rsvp por invitado", () => {
   const value = { status: "ATTENDING" as const, attendeeCount: 2, message: "hola", answers: [{ questionId: "q1", value: "Carne" }] };
 
   it("upsert por guestId (restricción única), Guest.status en la misma transacción y respuestas reemplazadas", async () => {
-    expect(await savePublicRsvp(target, value, new Date("2026-09-26T12:00:00Z"))).toBe(true);
+    expect(await savePublicRsvp(target, value, new Date("2026-09-26T12:00:00Z"))).toEqual({ ok: true, changed: true });
     const ops = store.calls.map((call) => call.op);
-    expect(ops).toEqual(["guest.findFirst", "guest.updateMany", "rsvp.upsert", "answer.deleteMany", "answer.upsert"]);
+    expect(ops).toEqual(["guest.findFirst", "rsvp.findUnique", "guest.updateMany", "rsvp.upsert", "answer.deleteMany", "answer.upsert"]);
     const upsert = store.calls.find((call) => call.op === "rsvp.upsert")!.args as { where: unknown; create: Record<string, unknown>; update: Record<string, unknown> };
     expect(upsert.where).toEqual({ guestId: "g1" });
     expect(upsert.create).toMatchObject({ eventId: "E1", guestId: "g1", status: "ATTENDING", attendeeCount: 2, message: "hola" });
@@ -144,13 +151,41 @@ describe("Guardado: una transacción, un solo Rsvp por invitado", () => {
   });
 
   it("si el invitado ya no existe en ese evento, no guarda nada", async () => {
-    expect(await savePublicRsvp({ ...target, eventId: "E2" }, value, new Date())).toBe(false);
+    expect(await savePublicRsvp({ ...target, eventId: "E2" }, value, new Date())).toEqual({ ok: false, changed: false });
     expect(store.calls.some((call) => call.op === "rsvp.upsert")).toBe(false);
   });
 
   it("sin base de datos las escrituras públicas se rechazan con un error de infraestructura", async () => {
     vi.unstubAllEnvs();
     await expect(savePublicRsvp(target, value, new Date())).rejects.toThrow(/DATABASE_URL/);
+  });
+
+  describe("(D-36, 12/47.3) `changed`: solo avisa al anfitrión si el estado o el número de asistentes cambiaron", () => {
+    it("la primera respuesta de un invitado siempre cuenta como cambio", async () => {
+      store.previousRsvp.g1 = undefined;
+      expect(await savePublicRsvp(target, value, new Date())).toMatchObject({ changed: true });
+    });
+
+    it("reenviar EXACTAMENTE la misma respuesta (estado y número de asistentes) no cuenta como cambio", async () => {
+      store.previousRsvp.g1 = { status: "ATTENDING", attendeeCount: 2 };
+      expect(await savePublicRsvp(target, value, new Date())).toMatchObject({ ok: true, changed: false });
+    });
+
+    it("cambiar SOLO el mensaje o las respuestas (mismo estado y mismo número) no cuenta como cambio", async () => {
+      store.previousRsvp.g1 = { status: "ATTENDING", attendeeCount: 2 };
+      const sameCountDifferentMessage = { ...value, message: "otro mensaje", answers: [{ questionId: "q1", value: "Pescado" }] };
+      expect(await savePublicRsvp(target, sameCountDifferentMessage, new Date())).toMatchObject({ changed: false });
+    });
+
+    it("cambiar el ESTADO (Sí → No) cuenta como cambio", async () => {
+      store.previousRsvp.g1 = { status: "ATTENDING", attendeeCount: 2 };
+      expect(await savePublicRsvp(target, { status: "DECLINED", attendeeCount: 0, message: null, answers: [] }, new Date())).toMatchObject({ changed: true });
+    });
+
+    it("cambiar SOLO el número de asistentes (mismo estado) cuenta como cambio", async () => {
+      store.previousRsvp.g1 = { status: "ATTENDING", attendeeCount: 2 };
+      expect(await savePublicRsvp(target, { ...value, attendeeCount: 3 }, new Date())).toMatchObject({ changed: true });
+    });
   });
 });
 

@@ -36,6 +36,7 @@ Convenciones: paths en **inglés**, minúsculas, con guiones. Los nombres de arc
 | `/admin/templates` | `(site)/admin` | — | Dinámico | Catálogo completo; **solo** visibilidad y plan mínimo del evento son editables (con confirmación) |
 | `/admin/purchases` · `/admin/purchases/[id]` | `(site)/admin` | — | Dinámico | Lista con filtros `?status=&kind=&plan=&q=&sort=&page=` y detalle (ids del proveedor enmascarados). **Solo lectura** |
 | `/admin/webhooks` | `(site)/admin` | — | Dinámico | Eventos del proveedor de pagos procesados (id parcial, tipo, fecha). Sin contenido ni firma |
+| `/admin/emails` | `(site)/admin` | — | Dinámico | Correo transaccional (D-36): filtros `?status=&kind=&page=`, destinatario enmascarado. Sin asunto ni cuerpo. **Solo lectura** |
 | `/admin/audit` | `(site)/admin` | — | Dinámico | Auditoría (D-34): últimos cambios de administración (quién, qué, antes → después). Solo lectura |
 | `/privacy` · `/terms` | `(site)/(marketing)` | — | Estático | **BORRADOR legal** (D-34): «DRAFT — requiere revisión legal antes de lanzamiento». Públicas, indexables |
 | `/robots.txt` · `/sitemap.xml` | — (metadata de Next) | — | Estático / ISR 1 h | Solo marketing (home, plantillas, precios, privacidad, términos). Nunca `/i/**`, `/dashboard`, `/admin`, `/preview` |

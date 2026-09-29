@@ -8,7 +8,7 @@ import { writeGuestResponse } from "@/server/repositories/guest-response";
 import { publicMediaOptions } from "@/server/repositories/invitations";
 import { isExpiredRecord, loadPublishedInvitation, type ExpiredRecord } from "@/server/repositories/publishing";
 import { INVITE_TOKEN_PATTERN } from "@/server/services/invite-token";
-import type { RsvpTarget, RsvpTargetQuestion, RsvpValue } from "@/server/services/public-rsvp";
+import type { RsvpSaveResult, RsvpTarget, RsvpTargetQuestion, RsvpValue } from "@/server/services/public-rsvp";
 import type { Invitation } from "@/types/invitation";
 import type { InvitationTemplate } from "@/types/invitation-template";
 import type { PublicCurrentRsvp } from "@/types/public-rsvp";
@@ -126,28 +126,33 @@ export async function resolveRsvpTarget(slug: string, token: string): Promise<Rs
  * Guarda la respuesta en UNA transacción: el invitado sigue siendo del evento, se crea o actualiza su única
  * `Rsvp` (upsert por `guestId`, restricción única: sin duplicados aunque lleguen dos peticiones a la vez) y
  * `Guest.status` se actualiza con ella (escritor único). Las respuestas a preguntas se reemplazan.
- * Devuelve `false` si el invitado ya no existe en ese evento.
+ * `ok: false` si el invitado ya no existe en ese evento. `changed` (D-36): el estado o el número de asistentes son
+ * distintos de lo que había ANTES de este guardado (se lee dentro de la MISMA transacción); solo entonces se avisa
+ * al anfitrión — volver a enviar exactamente la misma respuesta no genera un correo nuevo.
  */
-export async function savePublicRsvp(target: RsvpTarget, value: RsvpValue, submittedAt: Date): Promise<boolean> {
+export async function savePublicRsvp(target: RsvpTarget, value: RsvpValue, submittedAt: Date): Promise<RsvpSaveResult> {
   if (getDataSource() === "demo") throw new StoreUnavailableError();
 
-  const run = () =>
+  const run = (): Promise<RsvpSaveResult> =>
     prisma.$transaction(async (tx) => {
-      if (!(await tx.guest.findFirst({ where: { id: target.guestId, eventId: target.eventId }, select: { id: true } }))) return false;
+      if (!(await tx.guest.findFirst({ where: { id: target.guestId, eventId: target.eventId }, select: { id: true } })))
+        return { ok: false, changed: false };
+      const previous = await tx.rsvp.findUnique({ where: { guestId: target.guestId }, select: { status: true, attendeeCount: true } });
       const { rsvpId } = await writeGuestResponse(tx, {
         eventId: target.eventId,
         guestId: target.guestId,
         status: value.status,
         response: { attendeeCount: value.attendeeCount, message: value.message, submittedAt },
       });
-      if (!rsvpId) return false;
+      if (!rsvpId) return { ok: false, changed: false };
 
       const answered = value.answers.map((answer) => answer.questionId);
       await tx.rsvpAnswer.deleteMany({ where: { rsvpId, ...(answered.length > 0 ? { questionId: { notIn: answered } } : {}) } });
       for (const answer of value.answers) {
         await tx.rsvpAnswer.upsert({ where: { rsvpId_questionId: { rsvpId, questionId: answer.questionId } }, create: { rsvpId, questionId: answer.questionId, value: answer.value }, update: { value: answer.value } });
       }
-      return true;
+      const changed = !previous || previous.status !== value.status || previous.attendeeCount !== value.attendeeCount;
+      return { ok: true, changed };
     });
 
   try {

@@ -133,15 +133,27 @@ export function readPublicRsvpFormData(formData: FormData): { slug: string; toke
   return { slug: text(field("slug")), token: text(field("guest")), raw: { status: field("status"), attendeeCount: field("attendeeCount"), message: field("message"), answers } };
 }
 
+/** Resultado de guardar: `changed` = el estado o el número de asistentes son distintos de lo que había antes (D-36: solo entonces se avisa al anfitrión). */
+export interface RsvpSaveResult {
+  ok: boolean;
+  changed: boolean;
+}
+
 export interface PublicRsvpDeps {
   /** `"expired"`: el acceso del evento terminó (D-34): no se acepta el RSVP. */
   resolveTarget: (slug: string, token: string) => Promise<RsvpTarget | "expired" | null>;
   /** Límite de tasa (opcional en las pruebas). `true` = rechazar el intento. */
   isRateLimited?: (input: { slug: string; token: string }) => Promise<boolean>;
-  save: (target: RsvpTarget, value: RsvpValue, submittedAt: Date) => Promise<boolean>;
+  save: (target: RsvpTarget, value: RsvpValue, submittedAt: Date) => Promise<RsvpSaveResult>;
   now: () => number;
   /** Error de infraestructura "sin base de datos" (se distingue de un fallo genérico). */
   isUnavailable: (error: unknown) => boolean;
+  /**
+   * RSVP guardado con éxito (D-36): side effect opcional (notificar al anfitrión). Se invoca DESPUÉS de guardar y NUNCA
+   * puede hacer fallar el RSVP ni retrasar la respuesta: quien lo implementa (`server/services/public-rsvp-runtime.ts`)
+   * programa el envío tras la respuesta (`after()`) y nunca deja que un error suyo se propague hasta aquí.
+   */
+  onSaved?: (input: { target: RsvpTarget; value: RsvpValue; changed: boolean }) => void;
 }
 
 const messages = {
@@ -178,7 +190,14 @@ export async function submitPublicRsvpFor(input: { slug: string; token: string; 
     const validation = validatePublicRsvp(target, raw, now);
     if (!validation.ok) return validation.code === "closed" ? fail("closed", messages.closed) : fail("invalid", messages.invalid, validation.fieldErrors);
 
-    if (!(await deps.save(target, validation.value, new Date(now)))) return fail("invalid_token", messages.invalidToken);
+    const saved = await deps.save(target, validation.value, new Date(now));
+    if (!saved.ok) return fail("invalid_token", messages.invalidToken);
+    try {
+      deps.onSaved?.({ target, value: validation.value, changed: saved.changed });
+    } catch (error) {
+      // El RSVP ya se guardó: un side effect (p. ej. notificar al anfitrión) nunca debe hacerlo fallar.
+      logger.error("rsvp.on_saved_failed", error);
+    }
     const { status, attendeeCount } = validation.value;
     return { ok: true, status, attendeeCount, message: status === "ATTENDING" ? "Tu asistencia ha sido confirmada." : status === "DECLINED" ? "Gracias por avisarnos." : "Gracias por avisarnos. Puedes cambiar tu respuesta cuando quieras." };
   } catch (error) {

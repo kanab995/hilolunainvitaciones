@@ -2,6 +2,7 @@ import { PRICE_ENV_KEYS } from "@/lib/billing/plans";
 import { siteConfig } from "@/lib/site-config";
 import { resolveStripeConfig } from "@/server/billing/stripe/config";
 import { readAppEnv } from "@/server/config/app-env";
+import { parseStagingAllowlist, resolveEmailConfig } from "@/server/email/config";
 
 /**
  * VALIDACIÓN CENTRAL DEL ENTORNO (preproducción). Lógica pura sobre un objeto de entorno: se prueba sin tocar `process.env`.
@@ -14,7 +15,7 @@ import { readAppEnv } from "@/server/config/app-env";
  *  - Secretos: ninguna variable sin prefijo `NEXT_PUBLIC_` llega al navegador; esta validación solo se ejecuta en el servidor.
  */
 export type EnvSource = Readonly<Record<string, string | undefined>>;
-export type EnvGroup = "app" | "database" | "clerk" | "storage" | "stripe" | "rateLimit";
+export type EnvGroup = "app" | "database" | "clerk" | "storage" | "stripe" | "rateLimit" | "email";
 export type EnvSeverity = "error" | "warning";
 
 export interface EnvProblem {
@@ -142,6 +143,22 @@ export function validateEnv(env: EnvSource, mode: EnvReport["mode"] = env.NODE_E
     problem("rateLimit", required ? "error" : "warning", "RATE_LIMIT_REST_URL", required ? "RATE_LIMIT_REQUIRED está activo pero no hay proveedor de límite de tasa configurado." : "SIN LÍMITE DE TASA: los endpoints públicos (RSVP, enlaces de invitado, subidas) no están protegidos contra abuso. Configura un proveedor (docs/DEPLOYMENT.md).");
   }
   if (rateLimitConfigured && !parseUrl(value(env, "RATE_LIMIT_REST_URL"))) problem("rateLimit", "error", "RATE_LIMIT_REST_URL", "No es una URL http(s) válida.");
+
+  // ───────── Correo transaccional (D-36) ─────────
+  const emailResult = resolveEmailConfig(env);
+  const emailRequired = ["1", "true", "yes"].includes(value(env, "EMAIL_REQUIRED").toLowerCase());
+  if (emailResult.status === "invalid") {
+    for (const message of emailResult.problems) {
+      const named = message.includes("EMAIL_FROM") ? "EMAIL_FROM" : message.includes("EMAIL_REPLY_TO") ? "EMAIL_REPLY_TO" : "RESEND_API_KEY";
+      problem("email", production ? "error" : "warning", named, message);
+    }
+  } else if (emailResult.status === "not_configured" && production) {
+    problem("email", emailRequired ? "error" : "warning", "RESEND_API_KEY", emailRequired ? "EMAIL_REQUIRED está activo pero no hay proveedor de correo configurado." : "SIN CORREO TRANSACCIONAL: no se avisará al anfitrión de RSVP ni de compras confirmadas. Configura Resend (docs/EMAIL.md) o déjalo así a propósito por ahora.");
+  }
+  if (production && staging && emailResult.status === "ready") {
+    const allowlist = parseStagingAllowlist(env);
+    if (allowlist.length === 0) problem("email", "warning", "EMAIL_STAGING_ALLOWLIST", "Sin lista, staging no manda NINGÚN correo (fail-closed): añade los correos de prueba autorizados en Resend.");
+  }
 
   return { mode, problems, ok: !problems.some((item) => item.severity === "error") };
 }

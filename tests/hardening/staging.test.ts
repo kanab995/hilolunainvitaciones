@@ -31,6 +31,9 @@ const STAGING: EnvSource = {
   STRIPE_PRICE_ESSENTIAL_TO_PREMIUM: "price_mejora",
   RATE_LIMIT_REST_URL: "https://limits.example.com",
   RATE_LIMIT_REST_TOKEN: "TOKEN_LIMITADOR_123456",
+  RESEND_API_KEY: "re_STAGING_TOKEN_123456",
+  EMAIL_FROM: "Hilo Luna <notificaciones@hiloluna.com>",
+  EMAIL_STAGING_ALLOWLIST: "owner-de-prueba@example.com",
 };
 
 const problems = (env: EnvSource, severity: "error" | "warning" = "error") => validateEnv(env).problems.filter((item) => item.severity === severity).map((item) => item.variable);
