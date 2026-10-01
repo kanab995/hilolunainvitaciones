@@ -34,6 +34,7 @@ const STAGING: EnvSource = {
   RESEND_API_KEY: "re_STAGING_TOKEN_123456",
   EMAIL_FROM: "Hilo Luna <notificaciones@hiloluna.com>",
   EMAIL_STAGING_ALLOWLIST: "owner-de-prueba@example.com",
+  SENTRY_DSN: "https://clave@o123456.ingest.sentry.io/7654321",
 };
 
 const problems = (env: EnvSource, severity: "error" | "warning" = "error") => validateEnv(env).problems.filter((item) => item.severity === severity).map((item) => item.variable);

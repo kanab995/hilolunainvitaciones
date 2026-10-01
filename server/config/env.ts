@@ -3,6 +3,7 @@ import { siteConfig } from "@/lib/site-config";
 import { resolveStripeConfig } from "@/server/billing/stripe/config";
 import { readAppEnv } from "@/server/config/app-env";
 import { parseStagingAllowlist, resolveEmailConfig } from "@/server/email/config";
+import { resolveMonitoringConfig } from "@/server/observability/monitoring";
 
 /**
  * VALIDACIÓN CENTRAL DEL ENTORNO (preproducción). Lógica pura sobre un objeto de entorno: se prueba sin tocar `process.env`.
@@ -15,7 +16,7 @@ import { parseStagingAllowlist, resolveEmailConfig } from "@/server/email/config
  *  - Secretos: ninguna variable sin prefijo `NEXT_PUBLIC_` llega al navegador; esta validación solo se ejecuta en el servidor.
  */
 export type EnvSource = Readonly<Record<string, string | undefined>>;
-export type EnvGroup = "app" | "database" | "clerk" | "storage" | "stripe" | "rateLimit" | "email";
+export type EnvGroup = "app" | "database" | "clerk" | "storage" | "stripe" | "rateLimit" | "email" | "monitoring";
 export type EnvSeverity = "error" | "warning";
 
 export interface EnvProblem {
@@ -159,6 +160,11 @@ export function validateEnv(env: EnvSource, mode: EnvReport["mode"] = env.NODE_E
     const allowlist = parseStagingAllowlist(env);
     if (allowlist.length === 0) problem("email", "warning", "EMAIL_STAGING_ALLOWLIST", "Sin lista, staging no manda NINGÚN correo (fail-closed): añade los correos de prueba autorizados en Resend.");
   }
+
+  // ───────── Monitoreo de errores (D-37, opcional) ─────────
+  const monitoring = resolveMonitoringConfig(env);
+  if (monitoring.status === "invalid") problem("monitoring", production ? "error" : "warning", "SENTRY_DSN", monitoring.problem);
+  else if (monitoring.status === "not_configured" && production) problem("monitoring", "warning", "SENTRY_DSN", "SIN MONITOREO DE ERRORES: los fallos del servidor solo quedan en los registros del host. Recomendado antes de lanzar (docs/OPERATIONS.md).");
 
   return { mode, problems, ok: !problems.some((item) => item.severity === "error") };
 }

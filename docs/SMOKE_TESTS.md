@@ -15,10 +15,24 @@ Con una invitación publicada de prueba (opcional):
 SMOKE_BASE_URL=https://staging.ejemplo.com SMOKE_INVITE_SLUG=andrea-y-fernando SMOKE_GUEST_TOKEN=<token> npm run smoke
 ```
 
+Contra **staging** (todo noindex, D-35):
+
+```bash
+SMOKE_BASE_URL=https://staging.hiloluna.com SMOKE_EXPECT_STAGING=1 npm run smoke
+```
+
+Contra **producción** (marketing indexable, CSP aplicándose, HSTS, https — D-37):
+
+```bash
+SMOKE_BASE_URL=https://hiloluna.com SMOKE_EXPECT_PRODUCTION=1 npm run smoke
+```
+
 Comprueba: páginas públicas (`/`, `/templates`, `/pricing`, `/privacy`, `/terms`, `/sign-in`), `/api/health` y `/api/health/ready`, `robots.txt` y
 `sitemap.xml` (sin invitaciones), cabeceras de seguridad (CSP, nosniff, X-Frame-Options, Referrer-Policy, HSTS en https), que `/dashboard`, `/admin` y `/preview`
 no devuelven contenido sin sesión, que el webhook rechaza peticiones sin firma, y, si se indica una invitación, que es noindex, sin `Referer`, sin caché
-compartida y que su `.ics` responde. Sale con código 1 si algo falla. No imprime secretos ni el token completo.
+compartida y que su `.ics` responde. En modo producción exige además https, CSP APLICÁNDOSE (nunca Report-Only), HSTS, que la home y `/templates` sean
+indexables y que `robots.txt` NO bloquee el sitio entero. Sale con código 1 si algo falla. No imprime secretos ni el token completo. Sin inicio de
+sesión automatizado en ningún modo (D-37, punto 29): el recorrido con sesión sigue siendo el de la sección B, manual.
 
 ## B. Manuales con sesión (checklist)
 

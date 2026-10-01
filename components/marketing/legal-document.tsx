@@ -1,11 +1,27 @@
-import { Card } from "@/components/ui/card";
 import { Eyebrow, Heading, Text } from "@/components/ui/typography";
-import { LEGAL_DRAFT_EXPLANATION, LEGAL_DRAFT_NOTICE, type LegalDocument } from "@/lib/content/legal";
+import type { LegalBlock, LegalDocument } from "@/lib/content/legal";
 
-/**
- * Documento legal (borrador). Sin mockup: composición mínima con los componentes existentes (tipografía y tarjeta tintada). El aviso
- * «DRAFT — requiere revisión legal antes de lanzamiento» es SIEMPRE visible mientras no haya texto aprobado (un test lo exige).
- */
+function LegalBlocks({ blocks }: { blocks: readonly LegalBlock[] }) {
+  return (
+    <>
+      {blocks.map((block, index) =>
+        block.type === "list" ? (
+          <ul key={index} className="ml-5 flex list-disc flex-col gap-1.5 text-lu-base text-lu-text-secondary">
+            {block.items.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        ) : (
+          <Text key={index} size="base">
+            {block.text}
+          </Text>
+        ),
+      )}
+    </>
+  );
+}
+
+/** Documento legal (texto aprobado). Sin mockup: composición mínima con los componentes existentes (tipografía). */
 export function LegalDocumentView({ document }: { document: LegalDocument }) {
   return (
     <article aria-labelledby={`${document.slug}-title`} data-legal={document.slug} className="lu-container flex max-w-3xl flex-col gap-8 pt-10 pb-20 lg:pt-14">
@@ -20,10 +36,11 @@ export function LegalDocumentView({ document }: { document: LegalDocument }) {
         </Text>
       </header>
 
-      <Card variant="tint" role="note" data-legal-draft className="flex flex-col gap-1.5">
-        <p className="text-lu-base font-medium text-lu-text">{LEGAL_DRAFT_NOTICE}</p>
-        <Text size="sm">{LEGAL_DRAFT_EXPLANATION}</Text>
-      </Card>
+      {document.intro ? (
+        <div className="flex flex-col gap-2.5">
+          <LegalBlocks blocks={document.intro} />
+        </div>
+      ) : null}
 
       <div className="flex flex-col gap-8">
         {document.sections.map((section) => (
@@ -31,18 +48,7 @@ export function LegalDocumentView({ document }: { document: LegalDocument }) {
             <Heading as="h2" id={`${document.slug}-${section.id}`} size="title-lg">
               {section.title}
             </Heading>
-            {section.paragraphs.map((paragraph) => (
-              <Text key={paragraph} size="base">
-                {paragraph}
-              </Text>
-            ))}
-            {section.items ? (
-              <ul className="ml-5 flex list-disc flex-col gap-1.5 text-lu-base text-lu-text-secondary">
-                {section.items.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            ) : null}
+            <LegalBlocks blocks={section.blocks} />
           </section>
         ))}
       </div>

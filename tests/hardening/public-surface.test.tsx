@@ -14,7 +14,7 @@ import PrivacyPage from "@/app/(site)/(marketing)/privacy/page";
 import TermsPage from "@/app/(site)/(marketing)/terms/page";
 import { GET as healthGet } from "@/app/api/health/route";
 import { footerNav } from "@/lib/content/navigation";
-import { LEGAL_DRAFT_NOTICE, privacyDocument, termsDocument } from "@/lib/content/legal";
+import { privacyDocument, termsDocument } from "@/lib/content/legal";
 import { toAuditEntry } from "@/server/admin/audit";
 import { getActiveAdminNavId, adminNav } from "@/lib/admin/navigation";
 import { getReadiness } from "@/server/services/health";
@@ -50,38 +50,52 @@ describe("(34/35) robots y sitemap", () => {
   });
 });
 
-describe("(36/37) páginas legales: borrador claramente marcado", () => {
+describe("(36/37/D-37) páginas legales: texto aprobado, sin borrador ni pendientes", () => {
   const html = (element: React.ReactElement) => renderToStaticMarkup(element);
 
-  it("/privacy y /terms muestran «DRAFT — requiere revisión legal antes de lanzamiento» y los puntos [PENDIENTE] a resolver", () => {
+  it("/privacy y /terms ya no muestran DRAFT, [PENDIENTE] ni placeholders, y tienen la fecha de aprobación", () => {
     for (const page of [PrivacyPage(), TermsPage()]) {
       const markup = html(page);
-      expect(visibleText(markup)).toContain("DRAFT — requiere revisión legal antes de lanzamiento");
-      expect(markup).toContain("data-legal-draft");
-      expect(visibleText(markup)).toContain("[PENDIENTE");
+      const text = visibleText(markup);
+      expect(text).not.toContain("DRAFT");
+      expect(text).not.toContain("[PENDIENTE");
+      expect(markup).not.toMatch(/\[[A-ZÁÉÍÓÚÑ ]+\]/);
+      expect(markup).not.toContain("data-legal-draft");
+      expect(text).toContain("30 de septiembre de 2026");
+      expect(text).toContain("Kanab Domínguez Siliceo");
     }
-    expect(LEGAL_DRAFT_NOTICE).toBe("DRAFT — requiere revisión legal antes de lanzamiento");
   });
 
-  it("la privacidad cubre cuentas, eventos, invitados, RSVP, imágenes, pagos (Stripe), Clerk, almacenamiento y conservación", () => {
+  it("la privacidad cubre cuentas, eventos, invitados, RSVP, imágenes, pagos (Stripe), proveedores, cookies y conservación, con el responsable y el correo de contacto reales", () => {
     const text = visibleText(html(PrivacyPage()));
     const titles = privacyDocument.sections.map((section) => section.title);
-    for (const expected of ["Cuentas", "Eventos e invitaciones", "Personas invitadas", "Confirmaciones (RSVP)", "Imágenes", "Pagos", "Proveedores que tratan datos", "Cookies y analítica", "Conservación"]) expect(titles, expected).toContain(expected);
-    for (const word of ["Clerk", "Stripe", "Cloudflare R2", "EXIF", "no guardamos tu contraseña", "30 días"]) expect(text.toLowerCase(), word).toContain(word.toLowerCase());
+    for (const expected of [
+      "Identidad del responsable",
+      "Datos del evento",
+      "Datos de invitados y RSVP",
+      "Fotografías y archivos",
+      "Datos de pago y compras",
+      "Proveedores tecnológicos",
+      "Cookies y tecnologías similares",
+      "Conservación de datos",
+      "Derechos ARCO",
+    ])
+      expect(titles, expected).toContain(expected);
+    for (const word of ["Clerk", "Stripe", "Cloudflare R2", "EXIF", "30 días", "privacidad@hiloluna.com"]) expect(text, word).toContain(word);
   });
 
-  it("los términos cubren contenido del usuario, compras por evento, ventana de acceso, reembolsos sujetos a política y uso prohibido", () => {
+  it("los términos cubren contenido del usuario, compras por evento, ventana de acceso, reembolsos y uso prohibido, con el correo de soporte real", () => {
     const titles = termsDocument.sections.map((section) => section.title);
-    for (const expected of ["Contenido que subes", "Compras por evento", "Ventana de acceso", "Reembolsos", "Uso prohibido"]) expect(titles, expected).toContain(expected);
+    for (const expected of ["Contenido del usuario", "Modelo de pago", "Acceso temporal del evento", "Reembolsos", "Contenido prohibido"]) expect(titles, expected).toContain(expected);
     const text = visibleText(html(TermsPage()));
-    expect(text).toContain("Los reembolsos están sujetos a la política vigente");
+    expect(text).toContain("soporte@hiloluna.com");
     expect(text).toContain("pago único por evento");
   });
 
-  it("los textos no prometen cosas que el producto no hace (sin analítica externa, sin datos de tarjeta)", () => {
+  it("los textos no prometen cosas que el producto no hace (sin publicidad de terceros, sin datos de tarjeta)", () => {
     const text = JSON.stringify([privacyDocument, termsDocument]);
-    expect(text).toMatch(/No usamos analítica ni publicidad de terceros/);
-    expect(text).toMatch(/no recibe ni guarda datos de tarjeta/);
+    expect(text).toMatch(/vender perfiles publicitarios a terceros/);
+    expect(text).toMatch(/no (son almacenados por Hilo Luna|almacena el número completo de tarjeta)/);
   });
 
   it("el pie enlaza a Términos y Privacidad", () => {

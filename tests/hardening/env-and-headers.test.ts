@@ -224,6 +224,14 @@ describe("(4/5) cabeceras de seguridad y CSP", () => {
     expect(keys).not.toContain("Content-Security-Policy");
   });
 
+  it("(D-37) CSP estricta (aplicándose) es el comportamiento POR DEFECTO en producción: sin CSP_REPORT_ONLY, y también con el valor en false/vacío", () => {
+    for (const env of [prod, { ...prod, CSP_REPORT_ONLY: "false" }, { ...prod, CSP_REPORT_ONLY: "" }]) {
+      const keys = baseSecurityHeaders(env).map((header) => header.key);
+      expect(keys, JSON.stringify(env.CSP_REPORT_ONLY)).toContain("Content-Security-Policy");
+      expect(keys).not.toContain("Content-Security-Policy-Report-Only");
+    }
+  });
+
   it("(34) invitaciones, panel, consola, vista previa, acceso y API: noindex; las invitaciones además sin Referer y sin caché compartida", () => {
     const rules = securityHeaderRules(prod);
     const of = (source: string) => Object.fromEntries((rules.find((rule) => rule.source === source)?.headers ?? []).map((header) => [header.key, header.value]));

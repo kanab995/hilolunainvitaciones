@@ -170,9 +170,20 @@ describe("(20) registro con redacción", () => {
     expect(redacted.nested).toEqual({ password: REDACTED, count: 3 });
   });
 
-  it("por FORMA del valor: claves de Stripe/Clerk, whsec, URLs con credenciales, correos y tokens de 32+ caracteres aunque el campo sea inocente", () => {
-    const text = redactString(`clave sk_live_ABCDEFGHIJKLMN y sk_test_ZZZZZZZZZZ, whsec_QWERTYUIOP12, postgresql://usuario:CLAVE@host/db, ana@example.com, ?guest=${TOKEN}, token ${TOKEN}`);
-    for (const secret of ["sk_live_ABCDEFGHIJKLMN", "sk_test_ZZZZZZZZZZ", "whsec_QWERTYUIOP12", "CLAVE@host", "ana@example.com", TOKEN]) expect(text).not.toContain(secret);
+  it("por FORMA del valor: claves de Stripe/Clerk/Resend, whsec, URLs con credenciales, correos y tokens de 32+ caracteres aunque el campo sea inocente", () => {
+    const text = redactString(`clave sk_live_ABCDEFGHIJKLMN y sk_test_ZZZZZZZZZZ, whsec_QWERTYUIOP12, re_ABCDEFGHIJKLMN, postgresql://usuario:CLAVE@host/db, ana@example.com, ?guest=${TOKEN}, token ${TOKEN}`);
+    for (const secret of ["sk_live_ABCDEFGHIJKLMN", "sk_test_ZZZZZZZZZZ", "whsec_QWERTYUIOP12", "re_ABCDEFGHIJKLMN", "CLAVE@host", "ana@example.com", TOKEN]) expect(text).not.toContain(secret);
+  });
+
+  it("(D-37) un NOMBRE de variable de entorno (MAYUSCULAS_CON_GUION_BAJO) dentro de un aviso NO se enmascara como si fuera un token: hace falta poder leer cuál falta", () => {
+    const message = redactString("Producción está usando una clave de PRUEBA: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY y CLERK_SECRET_KEY.");
+    expect(message).toContain("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY");
+    expect(message).toContain("CLERK_SECRET_KEY");
+    // Pero un token o clave REAL de la misma longitud (mezcla mayúsculas/minúsculas o es aleatorio) se sigue enmascarando.
+    expect(redactString(`sesión ${TOKEN}`)).not.toContain(TOKEN);
+    // Fixture artificial: se arma por partes para evitar falsos positivos de push protection.
+    const fakeStripeKey = ["sk", "live", "FAKEONLYABCDEFGHIJKLMNOPQRSTUVWXYZ0123456"].join("_");
+    expect(redactString(`clave ${fakeStripeKey}`)).toBe("clave [clave]");
   });
 
   it("los errores se reducen a nombre/código/tipo: el mensaje (que puede traer claves o consultas) nunca sale", () => {

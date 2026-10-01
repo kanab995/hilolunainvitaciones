@@ -27,7 +27,8 @@ export function assertProductionEnv(env: EnvSource = process.env, deps: StartupD
   let warnings = formatEnvProblems(report, "warning");
   // La CSP y las imágenes remotas se calculan al BUILD con las variables del build: si difieren de las del servidor hay que reconstruir.
   const built = process.env.HILOLUNA_CSP_FINGERPRINT;
-  if (built && built !== cspFingerprint(env)) warnings += `${warnings ? "\n" : ""}  - [app] APP_ENV / NEXT_PUBLIC_SITE_URL / la clave pública de Clerk / S3_ENDPOINT / S3_PUBLIC_BASE_URL / CSP_REPORT_ONLY: las variables del servidor no coinciden con las del build (la CSP, el noindex de staging, robots y las imágenes remotas se fijan al construir): vuelve a ejecutar npm run build con las mismas variables.`;
+  // (D-37: el nombre de la variable ya no se enmascara como «[token]» — `redactString` distingue un NOMBRE `MAYUSCULAS_CON_GUION_BAJO` de un secreto real.)
+  if (built && built !== cspFingerprint(env)) warnings += `${warnings ? "\n" : ""}  - [app] APP_ENV / NEXT_PUBLIC_SITE_URL / NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY / S3_ENDPOINT / S3_PUBLIC_BASE_URL / CSP_REPORT_ONLY: las variables del servidor no coinciden con las del build (la CSP, el noindex de staging, robots y las imágenes remotas se fijan al construir): vuelve a ejecutar npm run build con las mismas variables.`;
   if (warnings) deps.warn(`[hiloluna] avisos de configuración:\n${warnings}`);
   if (!report.ok) throw new StartupConfigError(report);
   return report;

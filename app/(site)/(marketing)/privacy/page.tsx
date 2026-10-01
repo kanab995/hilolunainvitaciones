@@ -4,7 +4,7 @@ import { privacyDocument } from "@/lib/content/legal";
 
 export const metadata: Metadata = { title: privacyDocument.title, description: privacyDocument.description };
 
-/** Aviso de privacidad (BORRADOR: requiere revisión legal antes del lanzamiento). Estática y pública. */
+/** Aviso de privacidad (texto aprobado, ver lib/content/legal.ts). Estática y pública. */
 export default function PrivacyPage() {
   return <LegalDocumentView document={privacyDocument} />;
 }

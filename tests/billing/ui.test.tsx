@@ -270,8 +270,8 @@ describe("Auditoría de copy: ya no hay modelo mensual ni suscripciones (37, 80)
   it("ningún texto de la interfaz habla de «/mes», «al mes», «mensual», «renovación» ni «suscripción»", () => {
     for (const file of files) {
       const source = readFileSync(file, "utf8");
-      // «mensualidades» solo aparece negado («Sin mensualidades»).
-      expect(source.replace(/[Ss]in mensualidades/g, ""), relative(ROOT, file)).not.toMatch(/\/mes\b|al mes|mensual|renovaci|suscripci|cancelAtPeriodEnd|past_due|PAST_DUE|TRIALING/);
+      // «mensualidades»/«renovación mensual» solo aparecen negadas («Sin mensualidades», «No existe renovación mensual automática»: el aviso legal (D-37) aclara justamente que no hay suscripción).
+      expect(source.replace(/[Ss]in mensualidades|No existe renovaci[óo]n mensual autom[áa]tica/g, ""), relative(ROOT, file)).not.toMatch(/\/mes\b|al mes|mensual|renovaci|suscripci|cancelAtPeriodEnd|past_due|PAST_DUE|TRIALING/);
     }
   });
 

@@ -1,7 +1,7 @@
 # Staging real de Hilo Luna
 
-> Checklist **reproducible** para levantar un entorno de **staging** con servicios reales (Clerk de prueba, PostgreSQL propio, Cloudflare R2 propio, Stripe en modo de prueba, límite de tasa real) y validarlo. Complementa a `docs/DEPLOYMENT.md` (referencia de variables, CSP, R2, límite de tasa), `docs/SMOKE_TESTS.md`, `docs/OPERATIONS.md` y `docs/BILLING.md`.
-> **No contiene valores secretos.** Nunca pegues claves en el repositorio, en issues ni en el chat. Staging **no** implementa correo, analítica, ni el despliegue de producción definitivo, y **no cambia el modelo comercial** (pago único por evento: Esencial 499, Premium 799, mejora 300 MXN).
+> Checklist **reproducible** para levantar un entorno de **staging** con servicios reales (Clerk de prueba, PostgreSQL propio, Cloudflare R2 propio, Stripe en modo de prueba, límite de tasa real, correo con Resend) y validarlo. Complementa a `docs/DEPLOYMENT.md` (referencia de variables, CSP, R2, límite de tasa), `docs/SMOKE_TESTS.md`, `docs/OPERATIONS.md`, `docs/BILLING.md`, `docs/EMAIL.md` y `docs/PRODUCTION_CHECKLIST.md` (bloqueadores y tabla GO/NO-GO).
+> **No contiene valores secretos.** Nunca pegues claves en el repositorio, en issues ni en el chat. Staging **no** implementa correo a invitados, analítica de marketing, ni el despliegue de producción definitivo, y **no cambia el modelo comercial** (pago único por evento: Esencial 499, Premium 799, mejora 300 MXN).
 
 **Estado de esta guía:** la aplicación está preparada (`APP_ENV`, noindex global, seed de staging, smoke con `SMOKE_BASE_URL`), pero **las pruebas con Clerk, R2, Stripe y Upstash reales se ejecutan en tu staging** (requieren tus cuentas y claves). Cada sección termina con el **resultado esperado** y una casilla para anotar el resultado real; el registro de resultados está en §18 y los bloqueadores para producción en §19.
 
@@ -260,36 +260,8 @@ SMOKE_BASE_URL=https://<staging> SMOKE_INVITE_SLUG=<slug publicado> SMOKE_GUEST_
 
 ## 19. Bloqueadores para producción
 
-Clasificación **provisional** a partir de lo verificado hasta ahora (pruebas locales con servicios simulados). **Actualízala con el resultado de §18** cuando ejecutes staging; cualquier fallo real puede añadir o subir de nivel un punto.
-
-### BLOCKER (sin esto no se lanza)
-- **Textos legales aprobados** (`/privacy`, `/terms` son borrador: `docs/OPERATIONS.md`, marca «DRAFT»).
-- **Verificar la CSP con Clerk real, aplicándose** (§6). Un Clerk bloqueado impide iniciar sesión.
-- **Flujo de pago completo probado con Stripe real en modo de prueba y luego configuración live** (§10): precios, webhook firmado, mejora 300 MXN, pago fallido.
-- **Decisión de impuestos / facturación** (Stripe Tax o política fiscal en México).
-- **Proveedor de límite de tasa real en producción** con `RATE_LIMIT_REQUIRED=true` (§11).
-- **Base de datos de producción con copias automáticas y una restauración ensayada** (`docs/OPERATIONS.md` §2).
-- **CORS de R2 de producción sin `localhost`** y dominio de medios propio (§8).
-- **Decisión del alojamiento** y que su paso de build exponga las mismas variables que la ejecución (§4; `docs/DEPLOYMENT.md` §3.2).
-
-### HIGH
-- `'unsafe-inline'` en `script-src` (sin nonce): excepción documentada; revisar si se acepta el coste de renderizado dinámico.
-- **Monitorización y alertas** (5xx, `/api/health/ready`, entregas fallidas del webhook): hoy solo registros JSON en stdout, sin servicio externo.
-- **Procedimiento de reembolsos** (no hay interfaz; `charge.refunded` total se procesa, parciales no): definir el proceso manual.
-- **Direcciones de cliente fiables** para el límite de tasa: el proxy del host debe fijar `x-forwarded-for`/`cf-connecting-ip` y sobrescribir las del cliente (`docs/DEPLOYMENT.md` §8).
-- `npm audit`: 3 vulnerabilidades altas en la cadena del CLI de Prisma (`deepmerge-ts`), el arreglo automático rebajaría Prisma; revisar cuando haya versión corregida.
-
-### MEDIUM
-- **Borrado de cuentas y datos**: solo procedimiento manual (`docs/OPERATIONS.md` §7).
-- `sharp` no está declarado en `package.json` (viene como opcional de Next); fijar el requisito si el host no lo instala (§9).
-- Auditoría de administración solo cubre cambios de plantillas.
-- Una carrera casi imposible en el borde de la ventana de idempotencia del checkout (`docs/BILLING.md` §11).
-- Sin correo transaccional (recibos, avisos): fase posterior.
-- Tabla `Subscription` heredada sin uso (verificar que esté vacía antes de eliminarla).
-- Invitación expirada responde HTTP 200 con página sin contenido (no 410).
-
-### LOW
-- Búsqueda por texto sin índices `trigram`.
-- CSP con nonce y sin `unsafe-inline` en estilos.
-- Fotos anteriores a la normalización pueden conservar metadatos (en producción nueva no aplica).
-- Sin analítica (decisión consciente).
+**Movido a `docs/PRODUCTION_CHECKLIST.md` (D-37)**: la clasificación BLOCKER/REQUIRED/OPTIONAL y la tabla GO/NO-GO por área
+(auth, base de datos, storage, pagos, límite de tasa, correo, CSP, legal, impuestos, copias de seguridad, monitoreo, administración)
+viven ahora en ese documento — es la versión consolidada y vigente; esta sección ya no se actualiza por separado.
+**Actualiza `docs/PRODUCTION_CHECKLIST.md` con el resultado de §18** cuando ejecutes staging: cualquier fallo real puede añadir o
+subir de nivel un punto.

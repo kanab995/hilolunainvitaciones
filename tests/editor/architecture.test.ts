@@ -66,8 +66,8 @@ describe("arquitectura del editor", () => {
     for (const file of editorFiles) expect(code(file), relative(ROOT, file)).not.toMatch(/<iframe[^>]*(spotify|youtube)|new Audio\(|<audio|Spotify\.Player|YT\.Player/i);
   });
 
-  it("las únicas dependencias añadidas al stack base son Prisma (D-22), Clerk (D-24), el SDK de AWS S3 (D-27), el generador de QR (D-30), el SDK oficial de Stripe (D-31) y el de Resend (D-36); ni drag & drop, formularios ni Zod", () => {
+  it("las únicas dependencias añadidas al stack base son Prisma (D-22), Clerk (D-24), el SDK de AWS S3 (D-27), el generador de QR (D-30), el SDK oficial de Stripe (D-31), el de Resend (D-36) y el de Sentry (D-37); ni drag & drop, formularios ni Zod", () => {
     const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as { dependencies: Record<string, string> };
-    expect(Object.keys(pkg.dependencies).sort()).toEqual(["@aws-sdk/client-s3", "@aws-sdk/s3-request-presigner", "@clerk/nextjs", "@prisma/client", "class-variance-authority", "cn", "lucide-react", "next", "prisma", "qrcode-generator", "radix-ui", "react", "react-dom", "resend", "shadcn", "stripe", "tw-animate-css"]);
+    expect(Object.keys(pkg.dependencies).sort()).toEqual(["@aws-sdk/client-s3", "@aws-sdk/s3-request-presigner", "@clerk/nextjs", "@prisma/client", "@sentry/node", "class-variance-authority", "cn", "lucide-react", "next", "prisma", "qrcode-generator", "radix-ui", "react", "react-dom", "resend", "shadcn", "stripe", "tw-animate-css"]);
   });
 });

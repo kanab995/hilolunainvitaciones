@@ -2,7 +2,7 @@
 
 > Guía **neutral al proveedor**: el alojamiento de la aplicación y la base de datos gestionada **no están decididos**. Los pasos valen para cualquier
 > host que ejecute Node.js (`npm run build` + `npm start`). No incluye valores reales; nunca subas secretos al repositorio.
-> Ver también: `docs/STAGING.md` (checklist paso a paso de staging), `docs/OPERATIONS.md` (copias, soporte), `docs/BILLING.md` (Stripe), `docs/SMOKE_TESTS.md` (pruebas de humo).
+> Ver también: `docs/STAGING.md` (checklist paso a paso de staging), `docs/OPERATIONS.md` (copias, soporte), `docs/BILLING.md` (Stripe), `docs/EMAIL.md` (Resend), `docs/SMOKE_TESTS.md` (pruebas de humo) y `docs/PRODUCTION_CHECKLIST.md` (bloqueadores y tabla GO/NO-GO antes de lanzar).
 
 ## 0. Principios
 
@@ -44,6 +44,8 @@ Copia `.env.example` al gestor de secretos del host y rellena **todo lo obligato
 | R2 / S3 | `S3_ENDPOINT`, `S3_REGION` (`auto`), `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_PUBLIC_BASE_URL` | §5. `S3_PUBLIC_BASE_URL=https://media.hiloluna.com` (https, sin barra final). |
 | Stripe | `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ESSENTIAL_ONE_TIME`, `STRIPE_PRICE_PREMIUM_ONE_TIME`, `STRIPE_PRICE_ESSENTIAL_TO_PREMIUM` | §6 y `docs/BILLING.md` |
 | Límite de tasa | `RATE_LIMIT_REST_URL`, `RATE_LIMIT_REST_TOKEN`, `RATE_LIMIT_REQUIRED` | §8 |
+| Correo (Resend) | `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_REPLY_TO`, `EMAIL_REQUIRED`, `EMAIL_STAGING_ALLOWLIST` (solo staging) | §13, `docs/EMAIL.md` |
+| Monitoreo (Sentry, opcional) | `SENTRY_DSN`, `SENTRY_ENVIRONMENT` | §14 |
 | Opcionales | `LOG_LEVEL`, `CSP_REPORT_ONLY` | §9, §7 |
 
 Si algo obligatorio falta, `npm start` termina con un error que **nombra las variables** (nunca sus valores), p. ej. `[stripe] STRIPE_WEBHOOK_SECRET: …`. `/api/health/ready` responde 503 si la configuración o la base de datos no están listas.
@@ -63,11 +65,16 @@ Sin valores secretos. «=» significa «una instancia/recurso propio de ese ento
 | Stripe (`STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_PRICE_*`) | modo de prueba | modo de **prueba** (nunca live) | modo real |
 | `STRIPE_WEBHOOK_SECRET` | el de `stripe listen` | el del endpoint `https://staging…/api/webhooks/stripe` | el del endpoint de producción |
 | `RATE_LIMIT_REST_URL` / `_TOKEN` | vacío (sin límite) | = base Upstash **propia** de staging | = base Upstash de producción |
-| `RATE_LIMIT_REQUIRED` | — | `true` | `true` |
-| `CSP_REPORT_ONLY` | — | `true` en la primera prueba; luego vacío (§7) | vacío (se aplica) |
+| `RATE_LIMIT_REQUIRED` | — | `true` | `true` (**obligatorio**: producción nunca arranca sin proveedor real) |
+| Resend (`RESEND_API_KEY`, `EMAIL_FROM`) | vacío (`DevEmailProvider`, no manda nada) | = cuenta de prueba propia; `EMAIL_STAGING_ALLOWLIST` obligatoria | = cuenta de producción, dominio verificado; **sin** `EMAIL_STAGING_ALLOWLIST` (no aplica fuera de staging) |
+| `EMAIL_REQUIRED` | — | recomendado `true` | `true` |
+| Sentry (`SENTRY_DSN`, opcional) | vacío | = proyecto de prueba propio (recomendado antes de lanzar) | = proyecto de producción propio |
+| `CSP_REPORT_ONLY` | — | `true` en la primera prueba; luego vacío (§7) | vacío (se aplica; **nunca** `true` en un lanzamiento real) |
 | `LOG_LEVEL` | `info` | `info` | `info` o `warn` |
-| Indexación | — | **todo noindex** (cabecera + `robots.txt` + sitemap vacío) | solo marketing |
+| Indexación | — | **todo noindex** (cabecera + `robots.txt` + sitemap vacío) | solo marketing indexable; `/i/**`, panel, consola, vista previa y acceso siguen `noindex` |
 | Seed | `npm run db:seed` | solo `npm run db:seed:staging` (manual, una vez) | solo `npm run db:seed:staging` (manual) |
+
+**Separación de recursos (D-37, punto 18): ningún recurso de producción se reutiliza en staging, nunca al revés.** Antes de lanzar, confirma que production tiene su PROPIA base de datos, su propia instancia de Clerk, su propio bucket de R2, Stripe en modo **live**, su propia base de Upstash, su propio dominio verificado en Resend y (si se usa) su propio proyecto de Sentry — los ocho recursos de la fila de arriba, ninguno compartido con la columna de staging.
 
 ### 3.2 Variables de build vs de ejecución
 
@@ -134,6 +141,21 @@ Al finalizar cada subida el servidor elimina metadatos (EXIF/GPS, IPTC, comentar
 
 `docs/BILLING.md` §5–§7: productos y precios de pago único (499 / 799 / mejora 300 MXN), claves, webhook `https://<dominio>/api/webhooks/stripe` con sus eventos y `STRIPE_WEBHOOK_SECRET`. En staging usa **modo de prueba**; en producción, modo real con precios reales. **Pendiente de decisión: impuestos / Stripe Tax.**
 
+### 6.1 Checklist de Stripe en modo LIVE (antes de vender de verdad)
+
+No se crea nada de esto automáticamente: son pasos manuales en el panel de Stripe, en modo **Live** (interruptor arriba a la izquierda).
+
+1. [ ] Cuenta de Stripe activada para cobrar de verdad (datos fiscales/bancarios verificados por Stripe).
+2. [ ] Tres Prices reales, **de pago único** (no recurrentes), en MXN:
+   - Esencial: **499 MXN** → `STRIPE_PRICE_ESSENTIAL_ONE_TIME`
+   - Premium: **799 MXN** → `STRIPE_PRICE_PREMIUM_ONE_TIME`
+   - Mejora Esencial → Premium: **300 MXN** → `STRIPE_PRICE_ESSENTIAL_TO_PREMIUM`
+   Los importes deben coincidir EXACTAMENTE con `lib/billing/plans.ts`: `server/billing/stripe-provider.ts` (`verifyPrice`, D-35) verifica el Price real contra Stripe antes de cobrar y rechaza el checkout si no coincide.
+3. [ ] Claves **live**: `STRIPE_SECRET_KEY=sk_live_…`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_…` (el arranque rechaza mezclar live con test).
+4. [ ] Webhook real apuntando a `https://hiloluna.com/api/webhooks/stripe`, eventos: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `payment_intent.succeeded`, `payment_intent.payment_failed`, `charge.refunded`. Copia su `whsec_…` real a `STRIPE_WEBHOOK_SECRET`.
+5. [ ] **Decisión de impuestos pendiente** (Stripe Tax u otra): documentar antes de la primera venta real (BLOCKER, `docs/PRODUCTION_CHECKLIST.md`).
+6. [ ] Un pago real de prueba con importe bajo (o el flujo con una tarjeta real propia) antes de anunciar el lanzamiento, si el negocio lo permite.
+
 ## 7. Cabeceras de seguridad y CSP
 
 `next.config.ts` aplica (en todas las rutas): `Content-Security-Policy`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: SAMEORIGIN`, `Permissions-Policy` restrictivo, `Cross-Origin-Opener-Policy: same-origin-allow-popups` y, en producción, `Strict-Transport-Security`. Las invitaciones (`/i/**`), el panel, la consola, la vista previa, el acceso y la API llevan además `X-Robots-Tag: noindex, nofollow`; las invitaciones, `Referrer-Policy: no-referrer` (el token del invitado va en la URL) y `Cache-Control: private, no-store`.
@@ -141,15 +163,28 @@ Al finalizar cada subida el servidor elimina metadatos (EXIF/GPS, IPTC, comentar
 **CSP (versión segura compatible con el stack, sin nonce):** `default-src 'self'`; `script-src 'self' 'unsafe-inline'` + el host exacto de Clerk (derivado de la clave pública) + Cloudflare Turnstile; `connect-src` con Clerk y el endpoint de S3/R2; `img-src` con el dominio de medios; `frame-ancestors 'self'`; `object-src 'none'`; `base-uri 'self'`; `form-action` con `checkout.stripe.com`; `upgrade-insecure-requests` en producción. Sin comodines globales.
 
 **Excepciones documentadas:**
-- `'unsafe-inline'` en `script-src`: Next.js (App Router) emite scripts en línea para hidratar. Una CSP con **nonce** obliga a renderizar todas las páginas de forma dinámica (perdería las páginas estáticas de marketing) y a añadir un proxy con nonce por petición; se descartó por ahora. Es la mitigación restante: `object-src 'none'`, `base-uri 'self'`, sin `unsafe-eval` en producción, sin `script-src *`.
+- `'unsafe-inline'` en `script-src`: Next.js (App Router) emite scripts en línea para hidratar. **Reevaluado en D-37** (fase final de preproducción) con las dos alternativas que documenta Next.js:
+  - **CSP con nonce**: exige generar el nonce en `proxy.ts` (por petición) y renderizar **todas** las páginas de forma dinámica (`docs/next.js` lo advierte explícitamente: «all pages must be dynamically rendered»); las páginas estáticas de marketing (`/`, `/templates`, `/pricing`, `/privacy`, `/terms`) perderían la generación estática y la caché de CDN, y la CSP pasaría a construirse en `proxy.ts` en vez de en `next.config.ts` (cambio de arquitectura, no solo de configuración).
+  - **SRI (Subresource Integrity) sin nonce**: mantiene la generación estática, pero es una función **experimental** de Next 16 (`experimental.sri`) — activar una feature experimental para producción en esta fase, sin ventana de prueba dedicada, no es prudente («NO romper Next.js»).
+  - **Decisión: se mantiene `'unsafe-inline'`, riesgo aceptado para el MVP.** Mitigación existente sin cambios: `object-src 'none'`, `base-uri 'self'`, `frame-ancestors 'self'`, sin `unsafe-eval` en producción, sin `script-src *`. Revisar de nuevo si se recibe un pentest que lo exija o si el coste de mover el marketing a renderizado dinámico deja de importar.
 - `'unsafe-inline'` en `style-src`: Tailwind y estilos en línea de React.
 - **Stripe**: el pago es una **redirección** a Stripe Checkout alojado; el navegador no carga Stripe.js, así que no hay hosts de Stripe en `script-src`. Si algún día se añade Stripe.js/Elements, ampliar la CSP (`js.stripe.com`, `api.stripe.com`, frames de Stripe).
+- **Resend**: no aplica al navegador — el correo se manda desde el servidor (`server/email/resend-provider.ts`), nunca hay un script ni una llamada de Resend en el cliente. No añade nada a la CSP.
 - **Riesgo de compatibilidad con Clerk**: no se ha probado contra una instancia real de Clerk (solo con claves falsas). **Verifica sign-in/sign-up en staging con la consola del navegador abierta.** Procedimiento (detalle en `docs/STAGING.md` §CSP):
   1. Primer despliegue de staging con `CSP_REPORT_ONLY=true` (en el **build** y en la ejecución): la política se envía como `Content-Security-Policy-Report-Only`, no bloquea nada y la consola muestra cada violación («Refused to … because it violates … (report only)»).
   2. Recorre registro, inicio y cierre de sesión, restauración de sesión, subida de imágenes y el redireccionamiento a Stripe Checkout. Anota cada violación y el origen mínimo que la resuelve (nunca un comodín global) en `server/security/csp.ts`.
   3. Sin violaciones: quita `CSP_REPORT_ONLY`, **reconstruye** y repite el recorrido con la CSP aplicándose.
   Diferencia: en Report-Only una violación solo se registra; aplicándose, el navegador **bloquea** el recurso (un Clerk bloqueado = nadie inicia sesión). **No actives producción sin haber completado este recorrido con Clerk real.**
 - **Staging** añade `X-Robots-Tag: noindex, nofollow` a TODAS las respuestas (`APP_ENV=staging`), y su `robots.txt` bloquea el sitio entero.
+
+### 7.1 Validación de CSP estricta hecha en esta fase (D-37)
+
+Verificado con un **build de producción real** (`APP_ENV=production`, sin `CSP_REPORT_ONLY`) contra una base de datos temporal, con claves de Clerk/Stripe/Resend/Sentry **falsas** (sin cuentas reales):
+- La CSP se **aplica** por defecto (cabecera `Content-Security-Policy`, nunca `-Report-Only`, confirmado con `curl` y con `npm run smoke` en modo `SMOKE_EXPECT_PRODUCTION=1`).
+- `HSTS`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `X-Frame-Options` presentes; `X-Powered-By` ausente.
+- `robots.txt`/`sitemap.xml` correctos para producción (marketing indexable, `/i/**`/panel/consola/vista previa/acceso bloqueados).
+- Hidratación de Next.js, 100 peticiones públicas secuenciales y 100 concurrentes sin error ni señal de fuga de memoria (proceso local).
+- **NO verificado** (requiere cuentas reales): que la CSP deje pasar Clerk/Stripe/Resend REALES sin violaciones — sigue siendo el procedimiento manual de arriba, obligatorio antes de activar producción.
 
 ## 8. Límite de tasa
 
@@ -165,9 +200,9 @@ Protege: envío de RSVP, consulta de enlaces con `?guest=` y emisión de URLs de
 
 **Otros proveedores** (Cloudflare KV/D1 u otro Redis): implementa la interfaz `RateLimiter` (`server/security/rate-limit.ts`, método `check(rule, identity)`) y elígela en `createRateLimiter`. **No hay un limitador en memoria a propósito** (no protege con varias instancias).
 
-**Política ante fallos del proveedor:** *fail-open* (se permite el intento y se registra `rate_limit.provider_error`): una caída del limitador no debe impedir que un invitado confirme su asistencia.
+**Política ante fallos del proveedor:** *fail-open* (se permite el intento y se registra `rate_limit.provider_error`): una caída del limitador **ya conectado** no debe impedir que un invitado confirme su asistencia. Esto es distinto de no tener proveedor: con `RATE_LIMIT_REQUIRED=true` (**obligatorio en producción**, D-37 punto 22) la aplicación **no arranca** si falta `RATE_LIMIT_REST_URL`/`_TOKEN` — no hay un modo silencioso donde producción quede sin límite alguno por una configuración incompleta; el fail-open solo cubre la caída **momentánea** de un proveedor que sí estaba configurado.
 
-**Dirección del cliente:** se toma de `cf-connecting-ip`, `x-forwarded-for` (primer valor) o `x-real-ip`. Son fiables **solo** si tu proxy/CDN las fija y sobrescribe las que envíe el cliente; si el host no las sobrescribe, un atacante podría falsificarlas. Configúralo así en el proveedor.
+**Dirección del cliente (D-37, punto 27 — revisado):** se toma de `cf-connecting-ip`, `x-forwarded-for` (primer valor) o `x-real-ip` (`server/security/client-identity.ts`, `pickClientAddress`). Son fiables **solo** si tu plataforma de alojamiento o tu proxy/CDN las fija y **sobrescribe** las que envíe el cliente directamente; si el host no las sobrescribe, cualquiera podría falsificarlas y esquivar el límite (o hacer que dos invitados compartan cubo). Con Cloudflare delante (o R2, ya en uso): `cf-connecting-ip` la fija Cloudflare y no la puede falsificar el cliente si el origen solo acepta tráfico de Cloudflare. Con cualquier otra plataforma (serverless, edge, o un balanceador/proxy propio): confirma en su documentación que ES ELLA quien fija `x-forwarded-for`/`x-real-ip` en el borde (no solo las reenvía) antes de que la petición llegue a la aplicación, y que la aplicación no es alcanzable saltándose ese borde. Verificación práctica (neutral a la plataforma elegida): registra temporalmente la cabecera cruda que llega (con una ruta de prueba, nunca en producción) y compara contra la IP real de quien prueba; nunca confíes en la cabecera sin haber comprobado que el host la sobrescribe. Detalle específico de la plataforma que elijas: `docs/PRODUCTION_CHECKLIST.md`.
 
 ## 9. Registros y salud
 
@@ -209,4 +244,36 @@ Orden **obligatorio** de cada despliegue: **(1) copia de seguridad → (2) `pris
 10. [ ] `npm run smoke` contra el despliegue y el recorrido manual de `docs/SMOKE_TESTS.md`.
 11. [ ] Primer administrador asignado (`docs/ADMIN.md` §2).
 12. [ ] Textos legales `/privacy` y `/terms` **aprobados** (hoy son borrador) y decisión de impuestos tomada.
-13. [ ] Monitoreo de `/api/health/ready` y alertas sobre errores 5xx del webhook en Stripe.
+13. [ ] Monitoreo de `/api/health/ready` y alertas sobre errores 5xx del webhook en Stripe (§14, §15).
+14. [ ] Correo transaccional: dominio verificado en Resend, `EMAIL_REQUIRED=true`, sin `EMAIL_STAGING_ALLOWLIST` (§13).
+15. [ ] Checklist completo y clasificado por bloqueador: `docs/PRODUCTION_CHECKLIST.md` (tabla GO/NO-GO).
+
+## 13. Correo transaccional en producción (Resend)
+
+`docs/EMAIL.md` tiene la arquitectura completa; aquí solo lo específico de producción:
+
+1. [ ] Dominio verificado en Resend (el de producción, `hiloluna.com` o un subdominio de correo dedicado) — SPF y DKIM en verde en su panel.
+2. [ ] DMARC en modo `p=none` como mínimo (sube a `quarantine`/`reject` con el tiempo, `docs/EMAIL.md` §8.2).
+3. [ ] `EMAIL_FROM="Hilo Luna <notificaciones@hiloluna.com>"` con el dominio verificado.
+4. [ ] `EMAIL_REQUIRED=true` (el arranque falla sin la clave: no se puede lanzar en silencio sin avisos al anfitrión).
+5. [ ] **Quita `EMAIL_STAGING_ALLOWLIST`** (o déjala vacía): esa variable solo tiene efecto con `APP_ENV=staging`; en producción no debe existir para no confundir una futura depuración.
+6. [ ] Cuenta de Resend de **producción**, propia (nunca la de staging): claves distintas, remitente propio.
+7. [ ] QA de `docs/EMAIL.md` §9 repetido en producción con un evento y una cuenta reales del propietario (no de prueba) antes de anunciar el lanzamiento.
+
+## 14. Monitoreo de errores en producción (Sentry, opcional)
+
+`server/observability/monitoring.ts` tiene el detalle técnico (qué se envía, qué se sanea). En producción:
+
+1. [ ] Proyecto de Sentry **propio de producción** (nunca el mismo que staging: mezclar entornos hace ilegible la lista de errores).
+2. [ ] `SENTRY_DSN` del proyecto de producción; `SENTRY_ENVIRONMENT=production` (opcional: si no se declara, usa `APP_ENV`).
+3. [ ] Generar un error de prueba controlado ANTES del lanzamiento (p. ej. una ruta temporal que lance una excepción, o forzar un fallo del webhook con una firma inválida) y confirmar que aparece en Sentry con la pila pero sin datos personales.
+4. [ ] Revisar manualmente el primer evento capturado: sin correos, sin tokens, sin cuerpos de petición, sin claves.
+5. [ ] Alertas recomendadas (configúralas en Sentry o en el monitor externo de `/api/health/ready`, §15): tasa de errores 5xx elevada, el webhook de Stripe fallando repetidamente (`billing.webhook_failed` / `billing.webhook_transient_failure`), `/api/health/ready` en `not_ready` de forma sostenida. No hace falta un sistema de guardias (paging) complejo: un canal de Slack/correo del equipo basta para el lanzamiento.
+
+## 15. Salud para un monitor externo (uptime)
+
+`GET /api/health` (vida) y `GET /api/health/ready` (configuración + base de datos) ya existen y no filtran secretos (solo booleanos). Para conectarlos a un monitor externo (UptimeRobot, Better Uptime, o el propio del hosting) basta una comprobación HTTP simple — **no hace falta instalar ningún SDK**:
+
+1. Monitor HTTP(S) a `https://hiloluna.com/api/health` cada 1–5 min, esperando `200` y (opcional) el cuerpo `{"status":"ok"}`.
+2. Monitor HTTP(S) a `https://hiloluna.com/api/health/ready` cada 1–5 min, esperando `200`; una alerta si responde `503` de forma sostenida (más de N minutos, para no avisar por una caída de un segundo).
+3. Alerta adicional recomendada: tasa de 5xx del propio proveedor de hosting (casi todos lo ofrecen sin configuración extra).

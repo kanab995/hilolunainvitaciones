@@ -7,6 +7,9 @@
  *   SMOKE_BASE_URL=https://staging.ejemplo.com node scripts/smoke.mjs
  *   SMOKE_BASE_URL=... SMOKE_INVITE_SLUG=<slug publicado> [SMOKE_GUEST_TOKEN=<token>] node scripts/smoke.mjs
  *   SMOKE_EXPECT_STAGING=1 (o una URL con «staging») → además exige noindex global y robots.txt que bloquea todo.
+ *   SMOKE_EXPECT_PRODUCTION=1 → además exige https, CSP APLICÁNDOSE (nunca Report-Only), HSTS, marketing indexable
+ *     (robots.txt NO bloquea todo, sitemap con entradas, home sin noindex) y /templates y /pricing accesibles. Sin inicio de
+ *     sesión automatizado (D-37, punto 29): el recorrido con sesión sigue siendo manual (docs/SMOKE_TESTS.md).
  * `SMOKE_BASE_URL` es obligatorio (no hay valor por defecto: el script nunca apunta solo a localhost ni a producción).
  *
  * Sale con código 1 si algo falla. No imprime secretos ni el token completo.
@@ -82,6 +85,23 @@ if (stagingMode) {
   check("STAGING: la home responde X-Robots-Tag noindex", /noindex/i.test(header(home, "x-robots-tag")));
   check("STAGING: robots.txt bloquea todo el sitio (Disallow: /)", /Disallow:\s*\/\s*$/m.test(robots.text) && !/Allow:/.test(robots.text));
   check("STAGING: sitemap vacío", !/<loc>/.test(sitemap.text));
+}
+
+// ───────── Producción: https, CSP estricta, indexación correcta ─────────
+const productionMode = process.env.SMOKE_EXPECT_PRODUCTION === "1";
+if (productionMode) {
+  check("PRODUCCIÓN: la URL base es https", base.startsWith("https://"));
+  check("PRODUCCIÓN: CSP se está APLICANDO (nunca Report-Only)", Boolean(header(home, "content-security-policy")) && !header(home, "content-security-policy-report-only"));
+  check("PRODUCCIÓN: HSTS presente", Boolean(header(home, "strict-transport-security")));
+  check("PRODUCCIÓN: la home es indexable (sin X-Robots-Tag noindex)", !/noindex/i.test(header(home, "x-robots-tag")));
+  check("PRODUCCIÓN: robots.txt NO bloquea el sitio entero (el marketing debe indexarse)", !/Disallow:\s*\/\s*$/m.test(robots.text));
+  for (const path of ["/i/", "/dashboard", "/admin", "/preview", "/api/"]) check(`PRODUCCIÓN: robots.txt sigue bloqueando ${path}`, robots.text.includes(`Disallow: ${path}`));
+  check("PRODUCCIÓN: sitemap.xml lista páginas de marketing (no vacío)", /<loc>/.test(sitemap.text));
+  const templatesPage = await get("/templates");
+  check("PRODUCCIÓN: /templates responde 200 y es indexable", templatesPage.status === 200 && !/noindex/i.test(header(templatesPage, "x-robots-tag")));
+  const pricingPage = await get("/pricing");
+  check("PRODUCCIÓN: /pricing responde 200", pricingPage.status === 200);
+  check("PRODUCCIÓN: el HTML público no expone secretos ni ids del proveedor", !LEAK_PATTERN.test(home.text + templatesPage.text + pricingPage.text));
 }
 
 // ───────── Rutas privadas ─────────
