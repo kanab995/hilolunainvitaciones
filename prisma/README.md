@@ -6,7 +6,7 @@ Base de datos de Hilo Luna: PostgreSQL + Prisma 6 (`docs/DATABASE_SCHEMA.md`, `d
 |---|---|
 | `schema.prisma` | Esquema (fuente de verdad de las tablas) |
 | `migrations/` | Migraciones versionadas (`init_lunaria` es la inicial: conserva el nombre anterior de la marca porque una migración aplicada no se renombra) |
-| `seed.ts` | Seed reproducible: 9 plantillas + evento demo Andrea & Fernando |
+| `seed.ts` | Seed reproducible: 10 plantillas + evento demo Andrea & Fernando |
 | `register-alias.mjs`, `alias-hooks.mjs` | Permiten ejecutar el seed con Node (alias `@/…`) sin dependencias extra |
 
 ## Puesta en marcha

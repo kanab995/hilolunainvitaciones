@@ -91,7 +91,7 @@ describe("las secciones son genéricas (sin código por plantilla)", () => {
     expect(files.length).toBeGreaterThan(15);
   });
 
-  it.each(["magnolia", "ivory", "etoile"])("ningún archivo de components/invitation menciona «%s»", (name) => {
+  it.each(["magnolia", "ivory", "etoile", "level-12"])("ningún archivo de components/invitation menciona «%s»", (name) => {
     for (const file of files) {
       expect(relative(ROOT, file).toLowerCase(), "nombre de archivo").not.toContain(name);
       expect(read(file).toLowerCase(), relative(ROOT, file)).not.toContain(name);

@@ -100,7 +100,8 @@ describe("Compatibilidad plantilla ↔ tipo", () => {
 
   it("la lista de candidatas por tipo solo incluye diseños aprobados", () => {
     expect(templatesFor(templates, "wedding").map((t) => t.slug)).toEqual(["magnolia"]);
-    expect(templatesFor(templates, "birthday")).toEqual([]);
+    expect(templatesFor(templates, "birthday").map((t) => t.slug)).toEqual(["level-12"]);
+    expect(templatesFor(templates, "baptism")).toEqual([]);
   });
 });
 

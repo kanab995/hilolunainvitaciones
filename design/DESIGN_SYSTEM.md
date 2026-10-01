@@ -301,10 +301,16 @@ interface InvitationTheme {
   decor: Partial<Record<DecorSlot, DecorAsset>>;
 }
 
-/** Magnolia (la única plantilla diseñada, mockup 06). */
+/** Magnolia (mockup 06). */
 const magnoliaTheme: Pick<InvitationTheme, "layout" | "effects"> = {
   layout: { hero: "centered", locations: "split", gallery: "grid", timeline: "horizontal" },
   effects: { paperTexture: true, photoMask: "fade" },
+};
+
+/** Level 12 (D-38; brief de texto del propietario, sin mockup de imagen — ver docs/ARCHITECTURE.md). Reutiliza enteramente variantes ya implementadas. */
+const level12Theme: Pick<InvitationTheme, "layout" | "effects"> = {
+  layout: { hero: "centered", locations: "stacked", gallery: "grid", timeline: "vertical" },
+  effects: { photoMask: "fade" },
 };
 ```
 
@@ -319,6 +325,8 @@ const magnoliaTheme: Pick<InvitationTheme, "layout" | "effects"> = {
 7. **Independencia del ajuste del usuario.** `settings.align` (izq./centro/der., mockup 04) y `settings.overlay` (velo en imagen) siguen siendo ajustes del usuario por sección; se aplican **encima** del layout/efectos de la plantilla y solo si la variante los soporta.
 
 **Defaults de Magnolia implementados:** `--inv-bg #FAF6F1`, `--inv-bg-alt #F9F5F1`, `--inv-surface #F3E6DC`, `--inv-ink #492512`, `--inv-ink-muted #39342F` (provisional), `--inv-accent #907058`, `--inv-line #D3C9C0`, `--inv-button-bg #231A0F`, `--inv-button-fg #F7F8F3`; fuentes Cormorant + Inter; columna 430; gutter 20.
+
+**Defaults de Level 12 implementados (D-38):** `--inv-bg #0A0E1F`, `--inv-bg-alt #05070F`, `--inv-surface #141B36`, `--inv-ink #F5F7FF`, `--inv-ink-muted #9AA5CC`, `--inv-accent #39E5FF`, `--inv-line #2A3568`, `--inv-button-bg #8B5CF6`, `--inv-button-fg #F8F7FF`; mismas fuentes registradas (Cormorant + Inter, sin fuente nueva); tema oscuro, sin textura de papel ni viñeta (`--inv-vignette-color`/`--inv-vignette-blur` siguen siendo una variable GLOBAL con los valores de Magnolia, sin parametrizar por plantilla — ver D-38).
 
 **Lenguaje observado en [06]:** portada con tarjeta en arco y botón oscuro "Abrir invitación"; secciones en bandas casi iguales con textura de papel y flores en esquinas; títulos serif con palabra en cursiva; cuenta regresiva con cifras marrones separadas por filetes; sedes mitad imagen / mitad texto alternando; itinerario horizontal con íconos; galería en mosaico; cierre con fotografía suave. Escala móvil estimada (col. de 470 px → 390 px): nombres ≈ 34–38, títulos ≈ 26–28, cifras ≈ 36, cuerpo ≈ 13–14. **Sin medir a fondo hasta que se construya la invitación.**
 

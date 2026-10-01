@@ -126,6 +126,9 @@ function mediaIdsOf(invitation: Invitation): string[] {
 export async function publishOwnedInvitation(userId: string, eventId: string, expectedRevision: number | undefined, build: PublishBuild): Promise<PublishOutcome> {
   if (getDataSource() === "demo") throw new StoreUnavailableError();
 
+  // `maxWait`/`timeout` por encima de los valores por defecto de Prisma (2 s / 5 s): esta transacción hace varias
+  // idas y vueltas (hasta 9) y con una base de datos remota que arranca en frío (p. ej. Prisma Postgres) el valor
+  // por defecto puede agotarse antes de terminar, aunque la transacción en sí sea correcta (P2028).
   return prisma.$transaction(async (tx): Promise<PublishOutcome> => {
     const row = await tx.invitation.findFirst({ where: { eventId, event: { ownerId: userId } }, include: invitationInclude });
     if (!row) return { ok: false, code: "not_found" };
@@ -166,7 +169,7 @@ export async function publishOwnedInvitation(userId: string, eventId: string, ex
 
     const previousMediaIds = (previous?.mediaAssetIds ?? []).filter((id) => !built.mediaAssetIds.includes(id));
     return { ok: true, version, alreadyPublished: false, slug: row.slug, previousMediaIds, mediaAssetIds: built.mediaAssetIds, revision: row.draftRevision };
-  }).catch((error: unknown): PublishOutcome => {
+  }, { maxWait: 10_000, timeout: 20_000 }).catch((error: unknown): PublishOutcome => {
     if (error instanceof PublishRejected) return { ok: false, code: "invalid", message: error.message };
     throw error;
   });

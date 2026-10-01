@@ -23,15 +23,16 @@ import { buildDemoAggregate, buildTemplateRows, DEMO_EVENT_ID, DEMO_EVENT_SLUG, 
 const ROOT = process.cwd();
 
 describe("Seed", () => {
-  it("incluye Magnolia (implemented, publicada), Ivory y Étoile (concept) y seis plantillas comingSoon", () => {
+  it("incluye Magnolia y Level 12 (implemented, publicadas), Ivory y Étoile (concept) y seis plantillas comingSoon", () => {
     const rows = buildTemplateRows();
     const by = (slug: string) => rows.find((row) => row.slug === slug);
-    expect(rows).toHaveLength(9);
+    expect(rows).toHaveLength(10);
     expect(by("magnolia")).toMatchObject({ designStatus: "IMPLEMENTED", publicationStatus: "PUBLISHED" });
+    expect(by("level-12")).toMatchObject({ designStatus: "IMPLEMENTED", publicationStatus: "PUBLISHED" });
     expect(by("ivory")?.designStatus).toBe("CONCEPT");
     expect(by("etoile")?.designStatus).toBe("CONCEPT");
     for (const slug of ["tuscany", "noir", "blossom", "riviera", "dream", "safari"]) expect(by(slug)?.designStatus, slug).toBe("COMING_SOON");
-    expect(new Set(rows.map((row) => row.slug)).size).toBe(9);
+    expect(new Set(rows.map((row) => row.slug)).size).toBe(10);
   });
 
   it("el evento demo: usuario, slug, fecha canónica y pocos invitados en estados variados", () => {
@@ -82,8 +83,9 @@ describe("Repositorios (origen de demostración, sin DATABASE_URL)", () => {
     const data = await getOwnedDashboardData(DEMO_USER.id, "demo");
     expect(data?.event).toMatchObject({ id: DEMO_EVENT_ID, title: "Andrea & Fernando" });
     expect(await getOwnedDashboardData(DEMO_USER.id, "nope")).toBeUndefined();
-    expect(await getTemplates()).toHaveLength(9);
+    expect(await getTemplates()).toHaveLength(10);
     expect((await getTemplateBySlug("magnolia"))?.status).toBe("implemented");
+    expect((await getTemplateBySlug("level-12"))?.status).toBe("implemented");
     expect(await getTemplateBySlug("no-existe")).toBeUndefined();
   });
 });

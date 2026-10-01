@@ -195,6 +195,30 @@ export const templates: readonly Template[] = [
     },
   },
   {
+    id: "tpl_level_12",
+    slug: "level-12",
+    name: "Level 12",
+    status: "implemented",
+    eventType: "birthday",
+    style: "themed",
+    thumbnail: { alt: "Plantilla Level 12", tone: "sand" },
+    description:
+      "Una invitación gamer, arcade y llena de neón para celebrar un cumpleaños que sube de nivel. Ideal para festejados de 10 a 13 años que quieren una fiesta con mucha energía.",
+    premium: false,
+    minimumPlan: "FREE",
+    features: standardFeatures,
+    preview: {
+      sample: {
+        eyebrow: "Nivel 12 desbloqueado",
+        names: ["Santiago"],
+        date: "14 de noviembre de 2027",
+        venue: ["Zona Gamer"],
+        button: "Abrir invitación",
+      },
+      screens: standardScreens,
+    },
+  },
+  {
     id: "tpl_tuscany",
     slug: "tuscany",
     name: "Tuscany",

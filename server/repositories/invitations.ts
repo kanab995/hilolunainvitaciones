@@ -131,15 +131,22 @@ export async function createEventWithInvitation(aggregate: NewEventAggregate): P
   if (getDataSource() === "demo") throw new Error("createEventWithInvitation requiere DATABASE_URL: el origen de demostración es de solo lectura.");
   const { owner } = aggregate;
 
-  return prisma.$transaction(async (tx) => {
-    const template = await tx.template.findUnique({ where: { slug: aggregate.templateSlug }, select: { id: true } });
-    if (!template) throw new Error(`La plantilla "${aggregate.templateSlug}" no existe.`);
+  // `maxWait`/`timeout` por encima de los valores por defecto de Prisma (2 s / 5 s): `writeEventAggregate` escribe
+  // TODO el contenido inicial en la misma transacción (evento, invitación, secciones, sedes…) y con una base de
+  // datos remota que arranca en frío (p. ej. Prisma Postgres) el valor por defecto puede agotarse antes de
+  // terminar, aunque la transacción en sí sea correcta (P2028, ver `publishOwnedInvitation`).
+  return prisma.$transaction(
+    async (tx) => {
+      const template = await tx.template.findUnique({ where: { slug: aggregate.templateSlug }, select: { id: true } });
+      if (!template) throw new Error(`La plantilla "${aggregate.templateSlug}" no existe.`);
 
-    // Por `id` (no por email): el usuario demo conserva su identidad si su email cambia (p. ej. el cambio de marca)
-    // y no queda duplicado al repetir el seed.
-    const user = await tx.user.upsert({ where: { id: owner.id }, create: { id: owner.id, email: owner.email, name: owner.name }, update: { email: owner.email, name: owner.name } });
-    return writeEventAggregate(tx, aggregate, template.id, user.id);
-  });
+      // Por `id` (no por email): el usuario demo conserva su identidad si su email cambia (p. ej. el cambio de marca)
+      // y no queda duplicado al repetir el seed.
+      const user = await tx.user.upsert({ where: { id: owner.id }, create: { id: owner.id, email: owner.email, name: owner.name }, update: { email: owner.email, name: owner.name } });
+      return writeEventAggregate(tx, aggregate, template.id, user.id);
+    },
+    { maxWait: 10_000, timeout: 20_000 },
+  );
 }
 
 /** Borra un evento y, en cascada, todo lo suyo. Nunca borra plantillas. Solo con base de datos. */

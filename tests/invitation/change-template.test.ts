@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { changeTemplate, contentFingerprint } from "@/lib/invitation/change-template";
 import { andreaFernandoInvitation } from "@/lib/invitation/mock/andrea-fernando";
-import { getMockInvitation } from "@/lib/invitation/mock";
+import { getMockInvitation, STANDALONE_DEMO_BASES } from "@/lib/invitation/mock";
 import { invitationTemplates } from "@/lib/invitation/templates";
 import type { Invitation } from "@/types/invitation";
 import { deepFreeze } from "./helpers";
@@ -72,13 +72,24 @@ describe("cambiar de plantilla no modifica los datos (regla 17)", () => {
   });
 });
 
-describe("las invitaciones de demostración comparten datos entre plantillas", () => {
-  it("demo-<plantilla> = mismos datos de Andrea & Fernando con otra plantilla", () => {
+describe("las invitaciones de demostración comparten datos entre plantillas de la MISMA base", () => {
+  it("demo-<plantilla> = mismos datos de Andrea & Fernando con otra plantilla (plantillas de boda)", () => {
     const base = contentFingerprint({ ...andreaFernandoInvitation, slug: "x" });
-    for (const template of invitationTemplates) {
+    for (const template of invitationTemplates.filter((t) => !STANDALONE_DEMO_BASES[t.slug])) {
       const demo = getMockInvitation(`demo-${template.slug}`);
       expect(demo?.templateSlug).toBe(template.slug);
       expect(demo && contentFingerprint({ ...demo, slug: "x" })).toBe(base);
+    }
+  });
+
+  it("las plantillas de otro eventType (STANDALONE_DEMO_BASES) tienen su propio contenido, no el de Andrea & Fernando", () => {
+    const andreaBase = contentFingerprint({ ...andreaFernandoInvitation, slug: "x" });
+    for (const [slug, standalone] of Object.entries(STANDALONE_DEMO_BASES)) {
+      const demo = getMockInvitation(`demo-${slug}`);
+      expect(demo?.templateSlug).toBe(slug);
+      expect(demo?.eventType).toBe(standalone.eventType);
+      expect(demo && contentFingerprint({ ...demo, slug: "x" })).toBe(contentFingerprint({ ...standalone, slug: "x" }));
+      expect(demo && contentFingerprint({ ...demo, slug: "x" })).not.toBe(andreaBase);
     }
   });
 
