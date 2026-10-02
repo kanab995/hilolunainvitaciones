@@ -8,9 +8,9 @@ import { HowItWorks } from "@/components/marketing/how-it-works";
 import { siteConfig } from "@/lib/site-config";
 
 export const metadata: Metadata = {
-  title: { absolute: `${siteConfig.name} — Invitaciones digitales para momentos inolvidables` },
+  title: { absolute: `${siteConfig.name} | Invitaciones digitales elegantes para eventos` },
   description:
-    "Crea, personaliza y comparte invitaciones digitales para bodas, XV años, bautizos y fiestas especiales, sin conocimientos de diseño.",
+    "Crea invitaciones digitales para bodas, XV años, bautizos y cumpleaños con RSVP, galería, ubicación, cuenta regresiva y enlace personalizado.",
 };
 
 /** Homepage de marketing (mockup 01). Solo presentación: sin datos de servidor. */

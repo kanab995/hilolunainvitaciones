@@ -1,8 +1,9 @@
+import Image from "next/image";
 import { Calendar, ChevronDown, MapPin, Play } from "lucide-react";
 import { ArrowBadge } from "@/components/ui/icon-button";
 import { MediaSlot } from "@/components/ui/media-slot";
 import { buttonVariants } from "@/components/ui/button";
-import { featureDemo } from "@/lib/content/home";
+import { featureDemo, galleryShowcaseImages } from "@/lib/content/home";
 import { cn } from "@/lib/utils";
 
 /**
@@ -86,9 +87,11 @@ export function GiftsDemo() {
 export function GalleryDemo() {
   return (
     <div className="grid grid-cols-3 gap-2.5">
-      <MediaSlot tone="cream" scene="roses" className="aspect-[3/4] rounded-lu-image" />
-      <MediaSlot tone="blush" scene="petals" flip className="aspect-[3/4] rounded-lu-image" />
-      <MediaSlot tone="sage" scene="roses" flip className="aspect-[3/4] rounded-lu-image" />
+      {galleryShowcaseImages.map((image) => (
+        <div key={image.src} className="relative aspect-[3/4] overflow-hidden rounded-lu-image">
+          <Image src={image.src} alt={image.alt} fill sizes="120px" className="object-cover" />
+        </div>
+      ))}
     </div>
   );
 }

@@ -6,12 +6,20 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { featuredTemplateSlugs, featuredTemplatesCopy } from "@/lib/content/home";
 import { templates } from "@/lib/content/templates";
 import { routes } from "@/lib/routes";
+import { isTemplateReady } from "@/lib/templates/status";
 
 /**
  * "Plantillas que se sienten como tu evento" (mockup 01): titular a la izquierda, botón a la
- * derecha y tres `TemplateCard`. TODO(asset): replace with approved Hilo Luna asset (escenas).
+ * derecha y las plantillas destacadas. Filtra por `isTemplateReady` además de por `slug` (misma
+ * regla que `/templates`, `docs/ARCHITECTURE.md`): aunque `featuredTemplateSlugs` cambie, nunca
+ * puede llegar a destacarse aquí una plantilla `concept`/`comingSoon`.
  */
 export function FeaturedTemplates() {
+  const featured = featuredTemplateSlugs.flatMap((slug) => {
+    const template = templates.find((item) => item.slug === slug);
+    return template && isTemplateReady(template) ? [template] : [];
+  });
+
   return (
     <MarketingSection labelledBy="featured-templates-title">
       <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
@@ -24,15 +32,12 @@ export function FeaturedTemplates() {
           <Link href={routes.templates}>{featuredTemplatesCopy.cta}</Link>
         </Button>
       </div>
-      <ul className="mt-12 grid gap-5 md:grid-cols-3">
-        {featuredTemplateSlugs.map((slug) => {
-          const template = templates.find((item) => item.slug === slug);
-          return template ? (
-            <li key={template.id}>
-              <CatalogTemplateCard template={template} />
-            </li>
-          ) : null;
-        })}
+      <ul className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        {featured.map((template) => (
+          <li key={template.id}>
+            <CatalogTemplateCard template={template} />
+          </li>
+        ))}
       </ul>
     </MarketingSection>
   );

@@ -16,12 +16,12 @@ import { routes } from "@/lib/routes";
 
 export const heroCopy = {
   eyebrow: "Invitaciones digitales para momentos inolvidables",
-  title: "Tu evento merece una invitación *inolvidable.*",
+  title: "Invitaciones digitales que se sienten tan *especiales* como tu evento.",
   description:
-    "Crea, personaliza y comparte invitaciones digitales para bodas, XV años, bautizos y fiestas especiales, sin conocimientos de diseño.",
+    "Crea una invitación elegante con RSVP, galería, ubicación, cuenta regresiva y un enlace personalizado para compartir con tus invitados.",
   primaryCta: "Crear mi invitación",
   secondaryCta: "Ver plantillas",
-  highlights: ["Sin conocimientos de diseño", "RSVP", "Música", "Galería", "Cuenta regresiva"],
+  highlights: ["RSVP", "Galería", "Ubicación", "Cuenta regresiva", "QR", "Música"],
 } as const;
 
 /** Tarjetas flotantes del hero. Los valores son demostrativos (no datos reales). */
@@ -66,7 +66,7 @@ export const howItWorksSteps: readonly HowItWorksStepData[] = [
   {
     number: "01",
     title: "Elige una plantilla",
-    description: "Explora cientos de diseños creados por nuestro equipo de diseñadores.",
+    description: "Explora diseños listos para bodas, XV años, bautizos y cumpleaños.",
     visual: "template-stack",
   },
   {
@@ -107,14 +107,12 @@ export const featureDemo = {
     { value: "16", label: "Seg" },
   ],
   rsvp: ["Asistiré", "No podré asistir", "Tal vez"],
-  location: { name: "Jardín Los Olivos", address: "Valle de Guadalupe, BC" },
-  /**
-   * Texto provisional: NO se usan logos oficiales de terceros hasta documentar su licencia
-   * (docs/ASSET_LICENSES.md §7, PROJECT_SPEC Q-05).
-   */
-  gifts: ["Liverpool", "Amazon", "Sears"],
-  /** Solo UI de demostración: no se reproduce ni se integra ningún servicio de música. */
-  music: { title: "Perfect", artist: "Ed Sheeran" },
+  /** Genérico a propósito: sin una dirección ficticia concreta. */
+  location: { name: "Ubicación del evento", address: "Se verá en el mapa de tu invitación" },
+  /** Genérico a propósito: sin nombres de tiendas reales (docs/PROJECT_SPEC.md Q-05). */
+  gifts: ["Mesa 1", "Tienda", "Sobre"],
+  /** Genérico a propósito: sin título/artista reales. Solo UI de demostración: no se reproduce ni se integra ningún servicio de música. */
+  music: { title: "Tu canción especial", artist: "Artista" },
   calendar: "Agregar al calendario",
 } as const;
 
@@ -124,12 +122,29 @@ export const featuredTemplatesCopy = {
   cta: "Ver todas las plantillas",
 } as const;
 
-/** Plantillas destacadas de la home: `slug`s del catálogo (`lib/content/templates.ts`), en orden de [01]. */
-export const featuredTemplateSlugs = ["magnolia", "ivory", "etoile"] as const;
+/**
+ * Plantillas destacadas de la home: `slug`s del catálogo (`lib/content/templates.ts`). [01] muestra
+ * Magnolia, Ivory y Étoile, pero Ivory y Étoile son `concept` (sin diseño aprobado, `isTemplateReady`
+ * en `lib/templates/status.ts`): se reemplazan por las otras dos plantillas listas (Aurora XV,
+ * Celeste) para no destacar un diseño sin terminar. `FeaturedTemplates` vuelve a filtrar por
+ * `isTemplateReady` de todas formas, así que esta lista nunca puede mostrar una no lista.
+ */
+export const featuredTemplateSlugs = ["magnolia", "level-12", "aurora-xv", "celeste"] as const;
+
+/**
+ * Mini-collage de la tarjeta "Galería" (`FeatureShowcase`): una foto real de 3 de las plantillas
+ * listas, no un placeholder con degradado. Rutas directas (ya aprobadas, `docs/ASSET_LICENSES.md`
+ * §5.2–5.4): es una composición de marketing, no la invitación en sí, así que no pasa por el motor.
+ */
+export const galleryShowcaseImages = [
+  { src: "/templates/aurora-xv/gallery-1.png", alt: "" },
+  { src: "/templates/celeste/gallery-1.png", alt: "" },
+  { src: "/templates/level-12/gallery-1.png", alt: "" },
+] as const;
 
 export const finalCtaCopy = {
   title: "Tu historia comienza con una *invitación.*",
-  description: "Empieza hoy y crea una experiencia inolvidable para tus invitados.",
+  description: "Elige una plantilla, personaliza tu evento y comparte una experiencia elegante con tus invitados.",
   primaryCta: "Crear invitación",
   secondaryCta: "Ver plantillas",
 } as const;

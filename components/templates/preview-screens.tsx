@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Image from "next/image";
 import { Calendar, Clock, Gift, MapPin, Music, Users } from "lucide-react";
 import { MediaSlot } from "@/components/ui/media-slot";
 import type { InvitationSample, TemplateScreen, TemplateScreenId } from "@/types/templates";
@@ -36,10 +37,26 @@ function Corners() {
   );
 }
 
-export function CoverScreen({ sample }: { sample: InvitationSample }) {
+export function CoverScreen({
+  sample,
+  backgroundImage,
+}: {
+  sample: InvitationSample;
+  /**
+   * Portada real de una plantilla lista (`getTemplateCoverImage`), para usar en vez del degradado
+   * de `Corners()` — solo donde ya se sabe que el centro de esa imagen queda despejado para texto
+   * (hoy, Magnolia en el hero de la home; `docs/ASSET_LICENSES.md` §5.1). Sin esto, el
+   * comportamiento no cambia (sigue el placeholder de siempre).
+   */
+  backgroundImage?: { src: string; alt: string };
+}) {
   return (
     <div className="relative flex h-full flex-col items-center justify-center px-[11cqw] text-center">
-      <Corners />
+      {backgroundImage ? (
+        <Image src={backgroundImage.src} alt={backgroundImage.alt} fill sizes="21rem" className="object-cover" />
+      ) : (
+        <Corners />
+      )}
       <div className="relative flex flex-col items-center gap-[5.5cqw]">
         <p className="text-[3.9cqw] font-medium tracking-[0.24em] text-lu-eyebrow uppercase">{sample.eyebrow}</p>
         <p className="flex flex-col items-center font-lu-display text-[14cqw] leading-none font-medium text-lu-brown-600 italic">
