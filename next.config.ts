@@ -26,6 +26,16 @@ function mediaImages(): NonNullable<NextConfig["images"]> {
 const nextConfig: NextConfig = {
   // Sin la cabecera `X-Powered-By: Next.js` (no aporta nada y revela el stack).
   poweredByHeader: false,
+  /**
+   * `@sentry/node` (D-37/D-41, server/observability/monitoring.ts) usa internamente módulos nativos de
+   * Node (p. ej. `fs`, vía su instrumentación automática) que Turbopack/webpack no saben bundlear: sin
+   * esto, un `import()` dinámico de `@sentry/node` en CUALQUIER punto que el bundler intente resolver
+   * para otro runtime (p. ej. el árbol de `instrumentation.ts`) puede fallar con "Can't resolve 'fs'",
+   * aunque el código en sí nunca se ejecute ahí (la condición de runtime se evalúa después). Declararlo
+   * aquí dice "no lo bundlees: resuélvelo con `require`/`import` reales en tiempo de ejecución", que es
+   * donde Node sí tiene `fs`. `@sentry/node` solo se importa desde server/observability/monitoring.ts.
+   */
+  serverExternalPackages: ["@sentry/node"],
   // Huella de la CSP del build (se compara al arrancar: `server/config/startup.ts`).
   env: { HILOLUNA_CSP_FINGERPRINT: cspFingerprint(process.env) },
   images: mediaImages(),

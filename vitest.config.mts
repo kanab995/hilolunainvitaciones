@@ -6,7 +6,16 @@ import { defineConfig } from "vitest/config";
  * componentes se renderizan a HTML con `react-dom/server`, sin navegador.
  */
 export default defineConfig({
-  resolve: { alias: { "@": fileURLToPath(new URL(".", import.meta.url)) } },
+  resolve: {
+    alias: {
+      "@": fileURLToPath(new URL(".", import.meta.url)),
+      // `server-only` (D-41) solo es un no-op bajo la condición `react-server` que activa el propio
+      // bundler de Next; fuera de él (aquí, Node puro) su `index.js` SIEMPRE lanza. Vitest no es un
+      // Client Component: se alía al `empty.js` del propio paquete (el mismo no-op que usaría Next
+      // al compilar para el servidor), para poder importar server/observability/monitoring.ts en pruebas.
+      "server-only": fileURLToPath(new URL("./node_modules/server-only/empty.js", import.meta.url)),
+    },
+  },
   test: {
     environment: "node",
     include: ["tests/**/*.test.{ts,tsx}"],

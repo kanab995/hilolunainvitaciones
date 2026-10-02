@@ -1,9 +1,14 @@
+import "server-only";
 import { redactString } from "@/server/observability/redact";
 
 /**
- * MONITOREO DE ERRORES (D-37, opcional). Abstracción MÍNIMA: un único punto de entrada (`captureException`), llamado SOLO por
+ * MONITOREO DE ERRORES (D-37/D-41, opcional). Abstracción MÍNIMA: un único punto de entrada (`captureException`), llamado SOLO por
  * `server/observability/logger.ts` (`logger.error`) — nadie más importa `@sentry/node` ni conoce que existe. Sin `SENTRY_DSN`,
  * este módulo no hace nada (ni se importa el SDK): coste cero en desarrollo y en cualquier entorno sin configurar.
+ * `import "server-only"` (D-41): si algún componente cliente llegara a importar este módulo por error, el build falla con un
+ * mensaje claro en vez de arrastrar `@sentry/node` a un bundle donde no pertenece. `@sentry/node` además está declarado en
+ * `next.config.ts` → `serverExternalPackages` (el fallo real de Vercel: Turbopack intentaba bundlear sus módulos nativos de
+ * Node, como `fs`, para otro runtime).
  *
  * QUÉ SE CAPTURA: exactamente lo que ya llega a `logger.error(evento, error, campos)` — excepciones del servidor, fallos de ruta,
  * del webhook de Stripe y de subida de imágenes (todo lo que ya usaba el registro). No hay una integración aparte que capture

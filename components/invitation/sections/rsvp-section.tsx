@@ -5,7 +5,7 @@ import { SectionHeading } from "@/components/invitation/primitives/section-headi
 import { SectionShell } from "@/components/invitation/primitives/section-shell";
 import type { SectionProps } from "@/components/invitation/sections/types";
 import { invitationCopy } from "@/lib/invitation/copy";
-import { isDemoInvitation } from "@/lib/invitation/demo";
+import { isDemoInvitation } from "@/lib/invitation/is-demo";
 
 /**
  * CONFIRMA TU ASISTENCIA. Toda la lógica (plazo, "tal vez", acompañantes, validación) vive en
