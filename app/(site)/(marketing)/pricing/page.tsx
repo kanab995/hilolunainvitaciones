@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { PricingPlans } from "@/components/billing/pricing-plans";
 import { PageHero } from "@/components/marketing/page-hero";
 import { billingCopy } from "@/lib/billing/copy";
+import { isTemplateReady } from "@/lib/templates/status";
 import { getOrCreateCurrentUser } from "@/server/auth/current-user";
 import { getTemplates } from "@/server/repositories/templates";
 
@@ -19,7 +20,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function PricingPage() {
   const [user, catalog] = await Promise.all([getOrCreateCurrentUser(), getTemplates()]);
-  const usable = catalog.filter((template) => template.status === "implemented");
+  const usable = catalog.filter(isTemplateReady);
 
   return (
     <>

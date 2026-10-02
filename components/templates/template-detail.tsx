@@ -11,7 +11,7 @@ import { Heading, Text } from "@/components/ui/typography";
 import { eventTypeLabels, styleLabels, templateDetailCopy } from "@/lib/content/templates";
 import { routes } from "@/lib/routes";
 import { getTemplateStyles } from "@/lib/templates/filter";
-import { getTemplateCapabilities } from "@/lib/templates/status";
+import { getTemplateCapabilities, getTemplateCoverImage } from "@/lib/templates/status";
 import type { Template } from "@/types/templates";
 
 type TemplateDetailProps = {
@@ -31,13 +31,15 @@ type TemplateDetailProps = {
  *  - `comingSoon`: solo miniatura, nombre, categoría, estilo, descripción y "Próximamente", con el
  *    CTA deshabilitado. No se dibuja ninguna invitación.
  * Escritorio: escena a la izquierda; información a la derecha. Móvil: escena arriba y información debajo.
+ * La escena usa la portada real de la plantilla (`getTemplateCoverImage`) cuando existe; `concept`/
+ * `comingSoon` (sin portada aprobada todavía) siguen con el degradado de placeholder.
  * "Usar esta plantilla" y "Ver invitación completa" apuntan a rutas temporales (`lib/routes.ts`).
- * TODO(asset): replace with approved Hilo Luna asset — escena (flores y piedra) tras el teléfono.
  */
 export function TemplateDetail({ template, related = [] }: TemplateDetailProps) {
   const capabilities = getTemplateCapabilities(template);
   const meta = [eventTypeLabels[template.eventType], ...getTemplateStyles(template).map((style) => styleLabels[style])];
   const notice = capabilities.notice ? templateDetailCopy.status[capabilities.notice] : undefined;
+  const cover = getTemplateCoverImage(template.slug);
 
   // Vista básica: solo la portada. Las demás pantallas no se muestran porque el diseño no está aprobado.
   const previewTemplate: Template =
@@ -53,11 +55,16 @@ export function TemplateDetail({ template, related = [] }: TemplateDetailProps) 
         className="relative isolate -mt-(--lu-header-h) overflow-clip"
       >
         <MediaSlot
+          src={cover?.src}
+          alt=""
+          priority={!!cover}
+          sizes="(min-width: 1024px) 62vw, 100vw"
+          imageClassName={cover?.position === "top" ? "object-top" : undefined}
           tone={template.thumbnail.tone}
           scene="petals"
           className="absolute inset-x-0 top-0 -z-10 h-[52rem] lu-fade-y lg:inset-y-0 lg:right-auto lg:left-0 lg:h-auto lg:w-[62%] lg:lu-fade-right-bottom"
         >
-          <SceneBlobs scene="fabric" flip />
+          {!cover ? <SceneBlobs scene="fabric" flip /> : null}
         </MediaSlot>
 
         <div className="lu-container grid grid-cols-[minmax(0,1fr)] gap-10 pt-[calc(var(--lu-header-h)+2rem)] pb-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)] lg:items-start lg:gap-10 lg:pb-16 xl:grid-cols-[minmax(0,1fr)_34rem] xl:gap-16">

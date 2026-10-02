@@ -8,6 +8,7 @@ import { onboardingCopy } from "@/lib/events/copy";
 import { isPaidPlanId } from "@/lib/billing/plans";
 import { getInvitationTemplate } from "@/lib/invitation/templates";
 import { routes } from "@/lib/routes";
+import { isTemplateReady } from "@/lib/templates/status";
 import { getTemplates } from "@/server/repositories/templates";
 
 export const metadata: Metadata = { title: "Crear invitación" };
@@ -29,7 +30,7 @@ export default async function NewEventPage(props: PageProps<"/dashboard/events/n
 
   const catalog = await getTemplates();
   const usable: WizardTemplate[] = catalog
-    .filter((template) => template.status === "implemented")
+    .filter(isTemplateReady)
     .map((template) => {
       // La miniatura sale del registro de plantillas del motor (imagen aprobada de la portada), no de la BD.
       const backdrop = getInvitationTemplate(template.slug)?.decor.heroBackdrop;

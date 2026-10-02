@@ -17,6 +17,8 @@ type TemplateCardProps = {
   /** Escena de la plantilla. Sin `imageSrc` se muestra un placeholder con una invitación de muestra. */
   imageSrc?: string;
   imageAlt?: string;
+  /** Punto focal del recorte `object-cover` (solo con `imageSrc`); por defecto el centro. */
+  imagePosition?: "center" | "top";
   /** Matiz del placeholder (solo sin `imageSrc`). */
   tone?: PlaceholderTone;
   /** Refleja el placeholder para variar tarjetas vecinas. */
@@ -40,6 +42,7 @@ export function TemplateCard({
   styles = [],
   imageSrc,
   imageAlt = "",
+  imagePosition = "center",
   tone = "cream",
   flip = false,
   priority = false,
@@ -63,7 +66,10 @@ export function TemplateCard({
               fill
               priority={priority}
               sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-              className="object-cover transition-transform duration-200 ease-lu-standard group-hover:scale-[1.03]"
+              className={cn(
+                "object-cover transition-transform duration-200 ease-lu-standard group-hover:scale-[1.03]",
+                imagePosition === "top" ? "object-top" : "object-center",
+              )}
             />
           ) : (
             <MediaSlot

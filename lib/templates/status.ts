@@ -1,5 +1,16 @@
+import { getInvitationTemplate } from "@/lib/invitation/templates";
 import { routes } from "@/lib/routes";
 import type { Template } from "@/types/templates";
+
+/**
+ * Posición de la imagen real (`object-position`) cuando el recorte por defecto ("center") no
+ * encuadra bien el foco de la foto en la proporción 8:5 de la tarjeta de catálogo. Hoy solo
+ * Level 12 lo necesita (el festejado queda fuera de cuadro con el recorte centrado); el resto se
+ * ve bien centrado. Configuración de presentación, no una rama del motor de invitaciones.
+ */
+const COVER_IMAGE_FOCAL_POINT: Partial<Record<string, "center" | "top">> = {
+  "level-12": "top",
+};
 
 /**
  * Qué puede mostrar y hacer la interfaz con una plantilla según su `status`. Única fuente de esta
@@ -30,4 +41,27 @@ export function getTemplateCapabilities(template: Pick<Template, "slug" | "statu
     case "comingSoon":
       return { preview: "none", showFeatures: false, canUse: false, demoHref: undefined, notice: "comingSoon" };
   }
+}
+
+/**
+ * ¿Se le muestra esta plantilla a un usuario cualquiera en el catálogo público (`/templates`, la
+ * galería filtrada, precios)? Única fuente de esta regla, igual que `getTemplateCapabilities`: solo
+ * `implemented` tiene diseño aprobado. No se borra nada de `concept`/`comingSoon`: su fila y su
+ * página de detalle (`/templates/[slug]`) siguen existiendo, solo no aparecen listadas.
+ */
+export function isTemplateReady(template: Pick<Template, "status">): boolean {
+  return template.status === "implemented";
+}
+
+/**
+ * Imagen real de portada de una plantilla, ya aprobada y en uso en su invitación pública
+ * (`decor.heroBackdrop` del motor de invitaciones, `docs/ASSET_LICENSES.md` §5). No se duplica la
+ * ruta en `lib/content/templates.ts`: se resuelve aquí, por `slug`, igual que ya hace el asistente
+ * de alta de evento (`app/.../events/new/page.tsx`). `undefined` para `concept`/`comingSoon` (Ivory
+ * y Étoile no tienen `heroBackdrop` todavía): la tarjeta cae de vuelta al placeholder con degradado.
+ */
+export function getTemplateCoverImage(slug: string): { src: string; position: "center" | "top" } | undefined {
+  const backdrop = getInvitationTemplate(slug)?.decor.heroBackdrop;
+  if (backdrop?.kind !== "image") return undefined;
+  return { src: backdrop.src, position: COVER_IMAGE_FOCAL_POINT[slug] ?? "center" };
 }

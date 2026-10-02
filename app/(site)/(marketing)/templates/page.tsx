@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { PageHero } from "@/components/marketing/page-hero";
 import { TemplateGallery, TemplateGalleryFallback } from "@/components/templates/template-gallery";
 import { templatesPageCopy } from "@/lib/content/templates";
+import { isTemplateReady } from "@/lib/templates/status";
 import { getTemplates } from "@/server/repositories/templates";
 
 export const metadata: Metadata = {
@@ -15,7 +16,8 @@ export const revalidate = 3600;
 
 /** Galería de plantillas (mockup 02). Catálogo leído de la base de datos; los filtros funcionan en el cliente. */
 export default async function TemplatesPage() {
-  const templates = await getTemplates();
+  /** Catálogo público: solo plantillas con diseño aprobado (`concept`/`comingSoon` existen pero no se listan). */
+  const templates = (await getTemplates()).filter(isTemplateReady);
   return (
     <>
       <PageHero
