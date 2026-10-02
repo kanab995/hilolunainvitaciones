@@ -66,7 +66,7 @@ describe("Invitación general y personalizada", () => {
 });
 
 describe("Aviso «modo demostración» en el RSVP: SOLO en demos públicas (lib/invitation/demo.ts → isDemoInvitation)", () => {
-  it.each(["magnolia", "ivory", "etoile", "level-12", "aurora-xv"])("aparece en /i/demo-%s", (slug) => {
+  it.each(["magnolia", "ivory", "etoile", "level-12", "aurora-xv", "celeste"])("aparece en /i/demo-%s", (slug) => {
     const invitation = getMockInvitation(`demo-${slug}`);
     expect(invitation, slug).toBeDefined();
     const html = renderToStaticMarkup(<InvitationRenderer invitation={invitation!} template={getInvitationTemplate(slug)!} now={NOW} />);

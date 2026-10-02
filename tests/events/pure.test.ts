@@ -103,7 +103,7 @@ describe("Compatibilidad plantilla ↔ tipo", () => {
     expect(templatesFor(templates, "birthday").map((t) => t.slug)).toEqual(["level-12"]);
     // Étoile también es "quinceanera" pero sigue en concept: la única candidata aprobada es Aurora XV.
     expect(templatesFor(templates, "quinceanera").map((t) => t.slug)).toEqual(["aurora-xv"]);
-    expect(templatesFor(templates, "baptism")).toEqual([]);
+    expect(templatesFor(templates, "baptism").map((t) => t.slug)).toEqual(["celeste"]);
   });
 });
 

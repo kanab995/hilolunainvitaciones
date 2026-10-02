@@ -15,6 +15,7 @@ const expectedStatus: Record<string, TemplateStatus> = {
   magnolia: "implemented",
   "level-12": "implemented",
   "aurora-xv": "implemented",
+  celeste: "implemented",
   ivory: "concept",
   etoile: "concept",
   tuscany: "comingSoon",
@@ -37,8 +38,8 @@ describe("estado de las plantillas", () => {
     for (const template of templates) expect(template.status, template.slug).toBe(expectedStatus[template.slug]);
   });
 
-  it("hay exactamente tres plantillas implementadas: Magnolia, Level 12 y Aurora XV (D-39)", () => {
-    expect(templates.filter((t) => t.status === "implemented").map((t) => t.slug).sort()).toEqual(["aurora-xv", "level-12", "magnolia"]);
+  it("hay exactamente cuatro plantillas implementadas: Magnolia, Level 12, Aurora XV y Celeste (D-43)", () => {
+    expect(templates.filter((t) => t.status === "implemented").map((t) => t.slug).sort()).toEqual(["aurora-xv", "celeste", "level-12", "magnolia"]);
   });
 });
 
@@ -135,7 +136,7 @@ describe("/templates/[slug]: toda plantilla del catálogo tiene página válida"
     }
   });
 
-  it.each(["magnolia", "level-12", "aurora-xv"])("implemented: preview completo, funciones, CTA activo y demo (%s)", (slug) => {
+  it.each(["magnolia", "level-12", "aurora-xv", "celeste"])("implemented: preview completo, funciones, CTA activo y demo (%s)", (slug) => {
     const template = getTemplateBySlug(slug)!;
     const hero = heroOf(renderDetail(template));
     expect(hero).toContain("Secciones de la invitación");
@@ -156,7 +157,7 @@ describe("las demos no se enlazan desde la interfaz", () => {
     });
 
   it("ningún detalle de plantilla enlaza a demo-ivory ni demo-etoile (ni a ninguna demo salvo la de su propia plantilla implementada)", () => {
-    const linked = new Set(["magnolia", "level-12", "aurora-xv"]);
+    const linked = new Set(["magnolia", "level-12", "aurora-xv", "celeste"]);
     for (const template of templates) {
       const html = renderDetail(template);
       const demos = [...html.matchAll(/href="(\/i\/[^"]*)"/g)].map((m) => m[1]);

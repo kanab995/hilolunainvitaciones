@@ -318,6 +318,12 @@ const auroraXvTheme: Pick<InvitationTheme, "layout" | "effects"> = {
   layout: { hero: "centered", locations: "split", gallery: "grid", timeline: "vertical" },
   effects: { photoMask: "fade" },
 };
+
+/** Celeste (D-43; brief de texto del propietario, sin mockup de imagen). Itinerario de 6 pasos: timeline "vertical" (mismo motivo que Aurora XV). */
+const celesteTheme: Pick<InvitationTheme, "layout" | "effects"> = {
+  layout: { hero: "centered", locations: "split", gallery: "grid", timeline: "vertical" },
+  effects: { photoMask: "fade" },
+};
 ```
 
 **Reglas del contrato `layout` / `effects`**
@@ -335,6 +341,8 @@ const auroraXvTheme: Pick<InvitationTheme, "layout" | "effects"> = {
 **Defaults de Level 12 implementados (D-38):** `--inv-bg #0A0E1F`, `--inv-bg-alt #05070F`, `--inv-surface #141B36`, `--inv-ink #F5F7FF`, `--inv-ink-muted #9AA5CC`, `--inv-accent #39E5FF`, `--inv-line #2A3568`, `--inv-button-bg #8B5CF6`, `--inv-button-fg #F8F7FF`; mismas fuentes registradas (Cormorant + Inter, sin fuente nueva); tema oscuro, sin textura de papel ni viñeta (`--inv-vignette-color`/`--inv-vignette-blur` siguen siendo una variable GLOBAL con los valores de Magnolia, sin parametrizar por plantilla — ver D-38).
 
 **Defaults de Aurora XV implementados (D-39):** `--inv-bg #FBF5EF`, `--inv-bg-alt #F6EBE2`, `--inv-surface #F1DFD8`, `--inv-ink #5A3240`, `--inv-ink-muted #7D6056`, `--inv-accent #BD8A52`, `--inv-line #E3CDC2`, `--inv-button-bg #5A2F3F`, `--inv-button-fg #FBF0E6`; mismas fuentes registradas (Cormorant + Inter, sin fuente nueva); tema claro marfil/rosa/champagne/dorado, sin textura de papel ni viñeta (mismo motivo que Level 12: esas variables siguen sin parametrizarse por plantilla).
+
+**Defaults de Celeste implementados (D-43):** `--inv-bg #FBF8F2`, `--inv-bg-alt #F6F1E6`, `--inv-surface #E9F1F5`, `--inv-ink #3E4A52`, `--inv-ink-muted #7D8D94`, `--inv-accent #B8975E`, `--inv-line #DBE7EC`, `--inv-button-bg #3E5A6B`, `--inv-button-fg #FBF8F2`; mismas fuentes registradas (Cormorant + Inter, sin fuente nueva); tema claro marfil/blanco perla/azul cielo/dorado, sin textura de papel ni viñeta (mismo motivo que Level 12 y Aurora XV).
 
 **Lenguaje observado en [06]:** portada con tarjeta en arco y botón oscuro "Abrir invitación"; secciones en bandas casi iguales con textura de papel y flores en esquinas; títulos serif con palabra en cursiva; cuenta regresiva con cifras marrones separadas por filetes; sedes mitad imagen / mitad texto alternando; itinerario horizontal con íconos; galería en mosaico; cierre con fotografía suave. Escala móvil estimada (col. de 470 px → 390 px): nombres ≈ 34–38, títulos ≈ 26–28, cifras ≈ 36, cuerpo ≈ 13–14. **Sin medir a fondo hasta que se construya la invitación.**
 

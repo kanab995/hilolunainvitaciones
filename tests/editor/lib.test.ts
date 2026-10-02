@@ -213,7 +213,7 @@ describe("filas de la lista lateral", () => {
 });
 
 describe("cambio de plantilla en el editor", () => {
-  it("Magnolia, Level 12 y Aurora XV son seleccionables; Ivory y Étoile aparecen como próximamente; las comingSoon no se listan", () => {
+  it("Magnolia, Level 12, Aurora XV y Celeste son seleccionables; Ivory y Étoile aparecen como próximamente; las comingSoon no se listan", () => {
     const choices = getTemplateChoices();
     expect(choices.map((c) => [c.slug, c.status, c.selectable])).toEqual([
       ["magnolia", "implemented", true],
@@ -221,10 +221,12 @@ describe("cambio de plantilla en el editor", () => {
       ["etoile", "concept", false],
       ["level-12", "implemented", true],
       ["aurora-xv", "implemented", true],
+      ["celeste", "implemented", true],
     ]);
     expect(canSelectTemplate("magnolia")).toBe(true);
     expect(canSelectTemplate("level-12")).toBe(true);
     expect(canSelectTemplate("aurora-xv")).toBe(true);
+    expect(canSelectTemplate("celeste")).toBe(true);
     expect(canSelectTemplate("ivory")).toBe(false);
     expect(canSelectTemplate("noir")).toBe(false);
   });

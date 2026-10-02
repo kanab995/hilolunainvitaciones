@@ -244,6 +244,31 @@ export const templates: readonly Template[] = [
     },
   },
   {
+    id: "tpl_celeste",
+    slug: "celeste",
+    name: "Celeste",
+    status: "implemented",
+    eventType: "baptism",
+    style: "elegant",
+    secondaryStyles: ["romantic"],
+    thumbnail: { alt: "Plantilla Celeste", tone: "cream" },
+    description:
+      "Una invitación tierna y luminosa para un bautizo premium: marfil cálido, blanco perla y azul cielo muy suave, con flores blancas, velas y detalles dorados delicados.",
+    premium: false,
+    minimumPlan: "FREE",
+    features: standardFeatures,
+    preview: {
+      sample: {
+        eyebrow: "Mi bautizo",
+        names: ["Mateo"],
+        date: "14 de marzo de 2027",
+        venue: ["Jardín Los Olivos", "Querétaro"],
+        button: "Abrir invitación",
+      },
+      screens: standardScreens,
+    },
+  },
+  {
     id: "tpl_tuscany",
     slug: "tuscany",
     name: "Tuscany",
