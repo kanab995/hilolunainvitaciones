@@ -39,6 +39,7 @@ Convenciones: paths en **inglés**, minúsculas, con guiones. Los nombres de arc
 | `/admin/emails` | `(site)/admin` | — | Dinámico | Correo transaccional (D-36): filtros `?status=&kind=&page=`, destinatario enmascarado. Sin asunto ni cuerpo. **Solo lectura** |
 | `/admin/audit` | `(site)/admin` | — | Dinámico | Auditoría (D-34): últimos cambios de administración (quién, qué, antes → después). Solo lectura |
 | `/privacy` · `/terms` | `(site)/(marketing)` | — | Estático | **BORRADOR legal** (D-34): «DRAFT — requiere revisión legal antes de lanzamiento». Públicas, indexables |
+| `/contact` | `(site)/(marketing)` | — | Estático | **Implementada (D-42)**: simple, dos correos ya aprobados (`lib/content/contact.ts`, los mismos de `/privacy`/`/terms`), sin formulario. Corrige el enlace del pie que no tenía página destino |
 | `/robots.txt` · `/sitemap.xml` | — (metadata de Next) | — | Estático / ISR 1 h | Solo marketing (home, plantillas, precios, privacidad, términos). Nunca `/i/**`, `/dashboard`, `/admin`, `/preview` |
 | `/api/health` · `/api/health/ready` | — (route handlers) | — | Dinámico | Vida (`{status:ok}`) y preparación (configuración + base de datos; 200 `ready` / 503 `not_ready`). Sin datos internos |
 | `/design-system` | `(site)` | — | Estático | **Ruta interna**: todos los componentes y estados. `noindex`; sin restricción de acceso todavía |
@@ -57,7 +58,7 @@ Nota de agrupación: `/dashboard/events/[id]/edit` vive en un grupo `(editor)` *
 
 | Ruta propuesta | Descripción | Mockup | Pendiente |
 |---|---|---|---|
-| `/how-it-works` · `/contact` · `/terms` | Marketing restante (navbar/footer de los mockups) | — | Q-13; nombres en inglés por coherencia con la decisión de rutas |
+| `/how-it-works` · `/terms` | Marketing restante (navbar/footer de los mockups) | — | Q-13; nombres en inglés por coherencia con la decisión de rutas |
 | `/dashboard/events/new` | Crear evento tras "Usar esta plantilla" | — | Q-13 |
 | `/dashboard/events/[id]/template` | Cambiar de plantilla (reutiliza la galería) | — (item "Plantillas" en 05) | Q-06 |
 | `/dashboard/events/[id]/messages` | Mensajes | — | Q-07 (sin definir) |

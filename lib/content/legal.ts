@@ -7,8 +7,9 @@ import { siteConfig } from "@/lib/site-config";
 
 const RESPONSIBLE_NAME = "Kanab Domínguez Siliceo";
 const RESPONSIBLE_ADDRESS = "20 de Noviembre #25, colonia Centro, C.P. 91500, Coatepec, Veracruz";
-const PRIVACY_EMAIL = "privacidad@hiloluna.com";
-const SUPPORT_EMAIL = "soporte@hiloluna.com";
+/** Reutilizados por `/contact` (lib/content/contact.ts): son los mismos correos ya aprobados aquí, nunca un valor nuevo. */
+export const PRIVACY_EMAIL = "privacidad@hiloluna.com";
+export const SUPPORT_EMAIL = "soporte@hiloluna.com";
 const LAST_UPDATED = "30 de septiembre de 2026";
 
 export type LegalBlock = { type: "paragraph"; text: string } | { type: "list"; items: readonly string[] };

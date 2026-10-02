@@ -22,7 +22,7 @@ export const routes = {
 
   /** Planes y precios (D-31). */
   pricing: "/pricing",
-  /** Marketing sin página todavía (docs/ROUTES.md §1.2): hoy responden con el 404 del producto. */
+  /** Contacto: simple, dos correos ya aprobados (`lib/content/contact.ts`). Sin formulario. */
   contact: "/contact",
   terms: "/terms",
   privacy: "/privacy",
