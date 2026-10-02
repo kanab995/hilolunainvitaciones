@@ -28,7 +28,7 @@ function ToggleRow({ id, label, hint, checked, onChange }: { id: string; label: 
 
 /**
  * RSVP: configuración de la confirmación (habilitada, fecha límite, mensaje, texto del botón,
- * acompañantes). No hay respuestas reales: la invitación las recibe en modo demostración.
+ * acompañantes).
  */
 export function RsvpEditor({ section }: SectionEditorProps) {
   const { draft, api, errors } = useEditor();
@@ -80,8 +80,6 @@ export function RsvpEditor({ section }: SectionEditorProps) {
 
       <ToggleRow id="rsvp-maybe" label="Permitir «Tal vez»" hint="Cuenta como pendiente en las métricas." checked={rsvp.allowMaybe} onChange={(allowMaybe) => patch({ allowMaybe })} />
       <ToggleRow id="rsvp-dietary" label="Preguntar por restricciones alimentarias" hint="Añade un campo opcional al formulario." checked={rsvp.askDietaryNotes} onChange={(askDietaryNotes) => patch({ askDietaryNotes })} />
-
-      <p className="rounded-lu-card bg-lu-surface-tint/60 p-4 text-lu-sm text-lu-text-secondary">Modo demostración: las respuestas de tus invitados todavía no se guardan.</p>
     </div>
   );
 }

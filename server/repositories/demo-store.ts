@@ -59,6 +59,8 @@ export function getDemoRows(now: Date): DemoRows {
       inviteToken: guest.inviteToken,
       createdAt: guest.createdAt,
       attendeeCount: guest.rsvp?.attendeeCount ?? null,
+      // El evento demo (Andrea & Fernando) solo tiene invitados sembrados a mano: nunca autorregistrados.
+      source: "HOST" as const,
     })),
     guests: aggregate.guests.map((guest) => ({
       id: guest.id,

@@ -1,8 +1,10 @@
 "use server";
 
+import { readGeneralRsvpFormData } from "@/server/services/general-rsvp";
+import { submitGeneralRsvpDefault } from "@/server/services/general-rsvp-runtime";
 import { readPublicRsvpFormData } from "@/server/services/public-rsvp";
 import { submitPublicRsvpDefault } from "@/server/services/public-rsvp-runtime";
-import type { PublicRsvpResult } from "@/types/public-rsvp";
+import type { GeneralRsvpResult, PublicRsvpResult } from "@/types/public-rsvp";
 
 /**
  * SERVER ACTION pública del RSVP (sin Clerk: la persona invitada no crea cuenta ni inicia sesión). Usa el
@@ -13,4 +15,13 @@ import type { PublicRsvpResult } from "@/types/public-rsvp";
  */
 export async function submitPublicRsvp(_previous: PublicRsvpResult | null, formData: FormData): Promise<PublicRsvpResult> {
   return submitPublicRsvpDefault(readPublicRsvpFormData(formData));
+}
+
+/**
+ * SERVER ACTION del RSVP GENERAL (D-40: enlace público sin `?guest=`, autorregistra un invitado nuevo).
+ * Lee SOLO `slug`, `name`, `status`, `companions` y `dietaryNotes`. Nunca guarda nada de una demo
+ * (`/i/demo-*`): ver `server/services/general-rsvp.ts`.
+ */
+export async function submitGeneralRsvp(_previous: GeneralRsvpResult | null, formData: FormData): Promise<GeneralRsvpResult> {
+  return submitGeneralRsvpDefault(readGeneralRsvpFormData(formData));
 }

@@ -37,6 +37,8 @@ export const RATE_LIMIT_RULES = {
   /** Envío de RSVP: por dirección de cliente y, además, por invitado (token). */
   rsvpByClient: { name: "rsvp-client", limit: 20, windowSeconds: 600 },
   rsvpByGuest: { name: "rsvp-guest", limit: 10, windowSeconds: 600 },
+  /** RSVP general (D-40, sin invitado previo: crea uno nuevo cada vez): más estricto por dirección de cliente. */
+  generalRsvpByClient: { name: "rsvp-general-client", limit: 5, windowSeconds: 600 },
   /** Consulta de la invitación con `?guest=<token>` (adivinar tokens): por dirección de cliente. */
   guestLookup: { name: "guest-lookup", limit: 60, windowSeconds: 60 },
   /** Emisión de URL de subida de imágenes: por usuario. */

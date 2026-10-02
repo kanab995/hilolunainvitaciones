@@ -48,12 +48,13 @@ describe("Magnolia (plantilla terminada)", () => {
       "Tu presencia es nuestro mejor regalo",
       "Ver más opciones",
       "Confirmar asistencia",
-      "Modo demostración",
-      "la respuesta no se guarda",
       "Gracias por ser parte de nuestra historia",
     ]) {
       expect(text).toContain(expected);
     }
+    // `andreaFernandoInvitation.slug` es "andrea-y-fernando" (invitación real, no "demo-…"):
+    // el aviso de modo demostración NO se muestra aquí (tests/rsvp/ui-and-policy.test.tsx cubre /i/demo-magnolia).
+    expect(text).not.toContain("Modo demostración");
   });
 
   it("usa las variantes de layout de Magnolia (hero centered, locations split, gallery grid, timeline horizontal)", () => {

@@ -125,6 +125,14 @@ enum RsvpStatus {
   MAYBE
 }
 
+/// Origen del invitado (D-40). HOST = lo agregó el anfitrión (Guest Manager); PUBLIC_RSVP = se auto-registró
+/// al responder por el enlace general (`/i/<slug>`, sin `?guest=`). Separa su propia cuota de plan
+/// (`maxPublicRsvpResponses`) de la del anfitrión (`maxGuestsPerEvent`): nunca se mezclan.
+enum GuestSource {
+  HOST
+  PUBLIC_RSVP
+}
+
 /// Clasificación de un archivo gestionado. Solo imágenes por ahora (audio queda preparado, sin implementar).
 enum MediaType {
   IMAGE
@@ -703,6 +711,8 @@ model Guest {
   status        RsvpStatus @default(PENDING)
   /// Primera vez que abrió su invitación (actividad "está revisando su invitación").
   firstViewedAt DateTime?  @db.Timestamptz
+  /// D-40: quién lo dio de alta. Nunca cambia después de creado.
+  source        GuestSource @default(HOST)
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
@@ -712,6 +722,7 @@ model Guest {
 
   @@index([eventId, status])
   @@index([groupId])
+  @@index([eventId, source])
 }
 
 /// Respuesta de un invitado (una vigente por invitado; responder de nuevo la actualiza).

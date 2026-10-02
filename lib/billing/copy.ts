@@ -7,6 +7,7 @@ export const billingCopy = {
   limitReached: {
     maxGuestsPerEvent: "Has alcanzado el límite de invitados de este evento.",
     maxGalleryImages: "Has alcanzado el límite de imágenes de la galería de este evento.",
+    maxPublicRsvpResponses: "Por ahora no se pueden recibir más confirmaciones por el enlace general de este evento.",
   } satisfies Record<LimitId, string>,
   featureUnavailable: {
     publish: "El plan de este evento no incluye publicar la invitación.",
@@ -113,4 +114,5 @@ export const billingCopy = {
 export const limitLabel: Record<LimitId, string> = {
   maxGuestsPerEvent: "invitados por evento",
   maxGalleryImages: "imágenes de galería",
+  maxPublicRsvpResponses: "respuestas por el enlace general",
 };

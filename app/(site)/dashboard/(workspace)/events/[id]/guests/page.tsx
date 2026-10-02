@@ -35,7 +35,17 @@ export default async function EventGuestsPage(props: PageProps<"/dashboard/event
   return (
     <DashboardPlaceholder title={guestsCopy.title} description={guestsCopy.description} eventId={event.id} eventTitle={event.title}>
       <GuestSummary summary={summarizeGuests(all)} />
-      <GuestManager eventId={event.id} guests={visible} totalCount={all.length} groups={groups} filters={filters} publication={{ slug: meta?.slug ?? "", state: meta?.publication.state ?? "draft" }} guestLimit={{ count: all.length, max: limitOf(entitlements, "maxGuestsPerEvent") }} />
+      <GuestManager
+        eventId={event.id}
+        guests={visible}
+        totalCount={all.length}
+        groups={groups}
+        filters={filters}
+        publication={{ slug: meta?.slug ?? "", state: meta?.publication.state ?? "draft" }}
+        // La cuota de invitados (D-32) solo cuenta a los que el anfitrión agregó: los autorregistrados por el
+        // enlace general (D-40, `source: "PUBLIC_RSVP"`) tienen su propia cuota aparte y no cuentan aquí.
+        guestLimit={{ count: all.filter((guest) => guest.source === "HOST").length, max: limitOf(entitlements, "maxGuestsPerEvent") }}
+      />
     </DashboardPlaceholder>
   );
 }

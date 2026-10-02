@@ -13,6 +13,7 @@ const guest = (over: Partial<GuestRow> & Pick<GuestRow, "id" | "name">): GuestRo
   statusGroup: "pending",
   attendeeCount: null,
   inviteUrl: "http://localhost:3000/i/x?guest=t",
+  source: "HOST",
   ...over,
 });
 

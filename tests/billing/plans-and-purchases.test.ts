@@ -34,11 +34,17 @@ describe("Modelo comercial: un pago único por evento (D-32)", () => {
   });
 
   it("(4) límites POR EVENTO: Gratis 30/5, Esencial 100/15, Premium 300/40; no existe un límite de eventos", () => {
-    expect(planConfigs.FREE.limits).toEqual({ maxGuestsPerEvent: 30, maxGalleryImages: 5 });
-    expect(planConfigs.ESSENTIAL.limits).toEqual({ maxGuestsPerEvent: 100, maxGalleryImages: 15 });
-    expect(planConfigs.PREMIUM.limits).toEqual({ maxGuestsPerEvent: 300, maxGalleryImages: 40 });
-    expect([...LIMIT_IDS]).toEqual(["maxGuestsPerEvent", "maxGalleryImages"]);
+    expect(planConfigs.FREE.limits).toEqual({ maxGuestsPerEvent: 30, maxGalleryImages: 5, maxPublicRsvpResponses: 50 });
+    expect(planConfigs.ESSENTIAL.limits).toEqual({ maxGuestsPerEvent: 100, maxGalleryImages: 15, maxPublicRsvpResponses: 150 });
+    expect(planConfigs.PREMIUM.limits).toEqual({ maxGuestsPerEvent: 300, maxGalleryImages: 40, maxPublicRsvpResponses: 250 });
+    expect([...LIMIT_IDS]).toEqual(["maxGuestsPerEvent", "maxGalleryImages", "maxPublicRsvpResponses"]);
     for (const id of PLAN_IDS) expect(Object.keys(planConfigs[id].limits)).not.toContain("maxEvents");
+  });
+
+  it("(D-40) límite SEPARADO de respuestas por el enlace general (RSVP sin invitado previo): Gratis 50, Esencial 150, Premium 250", () => {
+    expect(planConfigs.FREE.limits.maxPublicRsvpResponses).toBe(50);
+    expect(planConfigs.ESSENTIAL.limits.maxPublicRsvpResponses).toBe(150);
+    expect(planConfigs.PREMIUM.limits.maxPublicRsvpResponses).toBe(250);
   });
 
   it("las features actuales (publicar, enlaces personalizados, QR, calendario, fotos propias) siguen activas en todos los planes por configuración", () => {

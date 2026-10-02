@@ -6,6 +6,9 @@
 export type GuestStatus = "PENDING" | "ATTENDING" | "DECLINED" | "MAYBE";
 export type GuestStatusGroup = "confirmed" | "pending" | "declined";
 export type GuestStatusFilter = "all" | GuestStatusGroup;
+/** Quién lo dio de alta (D-40). `HOST` = el anfitrión (Guest Manager); `PUBLIC_RSVP` = se auto-registró al
+ * responder por el enlace general, sin invitación previa (cuenta contra su propia cuota, no la de invitados). */
+export type GuestSource = "HOST" | "PUBLIC_RSVP";
 
 export interface GuestRow {
   id: string;
@@ -22,6 +25,7 @@ export interface GuestRow {
   attendeeCount: number | null;
   /** Enlace personalizado `<base>/i/<slug>?guest=<token>` (usa el token opaco, nunca el id). */
   inviteUrl: string;
+  source: GuestSource;
 }
 
 export interface GuestGroupOption {

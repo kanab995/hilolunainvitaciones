@@ -117,7 +117,7 @@ describe("createEventForUser: sin límite de eventos, el evento nace Gratis (28,
 });
 
 describe("Guest service: el límite es el del evento; nada existente se toca", () => {
-  const record: GuestRecord = { id: "gst_1", name: "Ana", email: null, phone: null, groupId: null, groupName: null, maxCompanions: 0, status: "PENDING", inviteToken: "t".repeat(32), createdAt: new Date(), attendeeCount: null };
+  const record: GuestRecord = { id: "gst_1", name: "Ana", email: null, phone: null, groupId: null, groupName: null, maxCompanions: 0, status: "PENDING", inviteToken: "t".repeat(32), createdAt: new Date(), attendeeCount: null, source: "HOST" };
 
   function guestWorld(plan: PlanId, guests: number) {
     const { deps: planDeps } = eventLimits({ evt_A: plan }, { guests: { evt_A: guests } });

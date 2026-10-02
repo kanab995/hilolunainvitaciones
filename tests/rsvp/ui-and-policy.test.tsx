@@ -4,13 +4,18 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { generateMetadata } from "@/app/(invitation)/i/[slug]/page";
 import { InvitationRenderer } from "@/components/invitation/invitation-renderer";
+import { GeneralRsvpForm } from "@/components/invitation/sections/general-rsvp-form";
 import { PersonalizedRsvp } from "@/components/invitation/sections/personalized-rsvp";
 import { andreaFernandoInvitation } from "@/lib/invitation/mock/andrea-fernando";
+import { getMockInvitation } from "@/lib/invitation/mock";
 import { getInvitationTemplate } from "@/lib/invitation/templates";
 import { isPrivatePath } from "@/server/auth/access";
 import { deriveDemoInviteToken } from "@/server/services/invite-token";
+import type { RSVPSettings } from "@/types/invitation";
 import type { Personalization } from "@/types/public-rsvp";
 import { NOW, visibleText } from "../invitation/helpers";
+
+const DEMO_NOTE = "Modo demostración: las respuestas de tus invitados todavía no se guardan.";
 
 const ROOT = process.cwd();
 const template = getInvitationTemplate("magnolia")!;
@@ -31,6 +36,8 @@ describe("Invitación general y personalizada", () => {
     expect(html).not.toContain("data-rsvp-form");
     expect(visibleText(html)).toContain("Confirmar asistencia");
     expect(visibleText(html)).toContain("Andrea");
+    // Invitación real publicada (slug "andrea-y-fernando", no "demo-…"): sin el aviso de demostración.
+    expect(visibleText(html)).not.toContain("Modo demostración");
   });
 
   it("10. con invitado válido: saludo con el nombre (y «y familia» solo por el grupo)", () => {
@@ -55,6 +62,64 @@ describe("Invitación general y personalizada", () => {
     expect(visibleText(html)).not.toContain("T".repeat(32));
     expect(html).toContain(`name="guest" value="${"T".repeat(32)}"`);
     expect(html).toContain('name="slug" value="andrea-y-fernando"');
+  });
+});
+
+describe("Aviso «modo demostración» en el RSVP: SOLO en demos públicas (lib/invitation/demo.ts → isDemoInvitation)", () => {
+  it.each(["magnolia", "ivory", "etoile", "level-12", "aurora-xv"])("aparece en /i/demo-%s", (slug) => {
+    const invitation = getMockInvitation(`demo-${slug}`);
+    expect(invitation, slug).toBeDefined();
+    const html = renderToStaticMarkup(<InvitationRenderer invitation={invitation!} template={getInvitationTemplate(slug)!} now={NOW} />);
+    expect(visibleText(html), slug).toContain(DEMO_NOTE);
+  });
+
+  it("NO aparece en una invitación real publicada sin token (RSVP general, se envía pero hoy no se guarda)", () => {
+    const html = render(undefined);
+    expect(visibleText(html)).not.toContain("Modo demostración");
+    // El formulario RSVP sigue intacto: botón, y al abrirlo sus campos.
+    expect(visibleText(html)).toContain("Confirmar asistencia");
+  });
+
+  it("NO aparece con un invitado personalizado (?guest= válido: PersonalizedRsvp, se guarda de verdad)", () => {
+    const html = render(guestPersonalization());
+    expect(visibleText(html)).not.toContain("Modo demostración");
+    expect(html).toContain("data-rsvp-form");
+  });
+
+  it("NO aparece con un token inválido (misma invitación general, sin formulario de invitado)", () => {
+    const html = render({ kind: "invalid" });
+    expect(visibleText(html)).not.toContain("Modo demostración");
+  });
+
+  it("una invitación de demostración sigue mostrando el formulario RSVP completo (botón, nombre, asistencia, enviar)", () => {
+    const invitation = getMockInvitation("demo-magnolia")!;
+    const html = renderToStaticMarkup(<InvitationRenderer invitation={invitation} template={getInvitationTemplate("magnolia")!} now={NOW} />);
+    const text = visibleText(html);
+    expect(text).toContain("Confirmar asistencia");
+    expect(text).toContain(DEMO_NOTE);
+  });
+});
+
+describe("GeneralRsvpForm (D-40): el CTA del enlace general, sin identidad previa", () => {
+  const settings: RSVPSettings = { enabled: true, deadline: "2027-04-17T23:59:00-06:00", message: "", maxCompanions: 2, allowMaybe: true, askDietaryNotes: false };
+  const form = (over: Partial<RSVPSettings> = {}, now = NOW) =>
+    renderToStaticMarkup(<GeneralRsvpForm invitationSlug="andrea-y-fernando" settings={{ ...settings, ...over }} serverNowMs={now} buttonVariant="solid" />);
+
+  it("muestra el botón de confirmar (o el texto personalizado) y nunca el aviso de demostración", () => {
+    const html = form();
+    expect(visibleText(html)).toContain("Confirmar asistencia");
+    expect(visibleText(html)).not.toContain("Modo demostración");
+    expect(html).not.toContain("data-rsvp-form"); // cerrado en el primer render: sin formulario aún
+  });
+
+  it("usa el texto del botón de la invitación si lo tiene", () => {
+    expect(visibleText(form({ ctaLabel: "Sí, ahí estaré" }))).toContain("Sí, ahí estaré");
+  });
+
+  it("deshabilitado o fuera de plazo: mismo copy que el resto del RSVP, sin botón", () => {
+    expect(visibleText(form({ enabled: false }))).toContain("La confirmación de asistencia no está disponible.");
+    expect(visibleText(form({}, Date.parse("2027-05-01T00:00:00Z")))).toContain("El plazo para confirmar ya terminó.");
+    expect(form({ enabled: false })).not.toContain("Confirmar asistencia");
   });
 });
 

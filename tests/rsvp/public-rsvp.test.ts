@@ -144,7 +144,7 @@ describe("Flujo funcional del RSVP", () => {
     expect(summary()).toEqual({ confirmed: 0, pending: 1, declined: 0 });
     await submit(w, { status: "ATTENDING", attendeeCount: "3" });
     expect(summary()).toEqual({ confirmed: 1, pending: 0, declined: 0 });
-    const row = () => guestRecordToRow({ id: "gst_1", name: "Mariana López", email: null, phone: null, groupId: null, groupName: null, maxCompanions: 2, status: w.guests.get("gst_1")!.status, inviteToken: TOKEN, createdAt: new Date(), attendeeCount: w.rsvps.get("gst_1")!.attendeeCount }, "andrea");
+    const row = () => guestRecordToRow({ id: "gst_1", name: "Mariana López", email: null, phone: null, groupId: null, groupName: null, maxCompanions: 2, status: w.guests.get("gst_1")!.status, inviteToken: TOKEN, createdAt: new Date(), attendeeCount: w.rsvps.get("gst_1")!.attendeeCount, source: "HOST" }, "andrea");
     expect(row()).toMatchObject({ statusGroup: "confirmed", attendeeCount: 3 });
     await submit(w, { status: "MAYBE" });
     expect(summary()).toEqual({ confirmed: 0, pending: 1, declined: 0 }); // «Tal vez» = pendiente

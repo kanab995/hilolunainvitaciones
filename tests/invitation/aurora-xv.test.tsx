@@ -46,11 +46,13 @@ describe("Aurora XV (plantilla terminada, D-39)", () => {
       "Nos encantaría que nos acompañes",
       "Tu presencia es el regalo más especial",
       "Confirmar asistencia",
-      "Modo demostración",
       "Gracias por formar parte de este sueño",
     ]) {
       expect(text, expected).toContain(expected);
     }
+    // `valentinaAuroraXvInvitation.slug` es "valentina-aurora-xv" (no "demo-…"): el aviso de modo
+    // demostración NO se muestra con este slug (tests/rsvp/ui-and-policy.test.tsx cubre /i/demo-aurora-xv).
+    expect(text).not.toContain("Modo demostración");
     expect(text).not.toContain("Andrea");
     expect(text).not.toContain("Fernando");
     expect(text).not.toContain("Santiago");

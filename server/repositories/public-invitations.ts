@@ -7,7 +7,8 @@ import { getDemoRows } from "@/server/repositories/demo-store";
 import { writeGuestResponse } from "@/server/repositories/guest-response";
 import { publicMediaOptions } from "@/server/repositories/invitations";
 import { isExpiredRecord, loadPublishedInvitation, type ExpiredRecord } from "@/server/repositories/publishing";
-import { INVITE_TOKEN_PATTERN } from "@/server/services/invite-token";
+import { generateInviteToken, INVITE_TOKEN_PATTERN } from "@/server/services/invite-token";
+import type { GeneralRsvpSaveResult, GeneralRsvpTarget, GeneralRsvpValue } from "@/server/services/general-rsvp";
 import type { RsvpSaveResult, RsvpTarget, RsvpTargetQuestion, RsvpValue } from "@/server/services/public-rsvp";
 import type { Invitation } from "@/types/invitation";
 import type { InvitationTemplate } from "@/types/invitation-template";
@@ -160,6 +161,52 @@ export async function savePublicRsvp(target: RsvpTarget, value: RsvpValue, submi
   } catch (error) {
     // Dos envíos simultáneos del mismo invitado: uno pierde la carrera por la restricción única; se reintenta una vez.
     if (uniqueViolationFields(error)) return run();
+    throw error;
+  }
+}
+
+/**
+ * Objetivo del RSVP GENERAL (D-40, sin `?guest=`): solo si `slug` es una invitación PUBLICADA real.
+ * `getPublicInvitationRecord` nunca resuelve un slug `demo-*` (esas invitaciones no viven en
+ * `InvitationPublication`), así que una demo da `null` aquí de forma natural: nunca se persiste.
+ */
+export async function resolveGeneralRsvpTarget(slug: string): Promise<GeneralRsvpTarget | "expired" | null> {
+  const record = await getPublicInvitationRecord(slug);
+  if (record && isExpiredRecord(record)) return "expired";
+  if (!record) return null;
+  return { eventId: record.eventId, rsvp: record.invitation.rsvp };
+}
+
+/**
+ * Autorregistra un invitado nuevo (`source: "PUBLIC_RSVP"`, D-40) y su respuesta, en UNA transacción.
+ * `Guest.maxCompanions` queda en el máximo que permitía el formulario (`target.rsvp.maxCompanions`): es
+ * informativo, no un límite propio de ESTE invitado (no hay anfitrión que se lo haya asignado a mano).
+ * El token de invitación se genera igual que para un invitado del Guest Manager (reutilizable después
+ * por el anfitrión si quiere compartirle un enlace personalizado), pero nunca se revela aquí.
+ */
+export async function saveGeneralRsvp(target: GeneralRsvpTarget, value: GeneralRsvpValue, submittedAt: Date): Promise<GeneralRsvpSaveResult> {
+  if (getDataSource() === "demo") throw new StoreUnavailableError();
+
+  const run = (): Promise<GeneralRsvpSaveResult> =>
+    prisma.$transaction(async (tx) => {
+      const guest = await tx.guest.create({
+        data: { eventId: target.eventId, name: value.name, maxCompanions: target.rsvp.maxCompanions, inviteToken: generateInviteToken(), source: "PUBLIC_RSVP" },
+        select: { id: true },
+      });
+      await writeGuestResponse(tx, {
+        eventId: target.eventId,
+        guestId: guest.id,
+        status: value.status,
+        response: { attendeeCount: value.attendeeCount, message: null, submittedAt, dietaryNotes: value.dietaryNotes },
+      });
+      return { guestId: guest.id };
+    });
+
+  try {
+    return await run();
+  } catch (error) {
+    // Colisión (prácticamente imposible) del token nuevo: se reintenta una vez con otro.
+    if (uniqueViolationFields(error)?.includes("inviteToken")) return run();
     throw error;
   }
 }

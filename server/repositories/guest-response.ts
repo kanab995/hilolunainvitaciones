@@ -17,6 +17,8 @@ export interface GuestResponse {
   attendeeCount: number | null;
   message: string | null;
   submittedAt: Date;
+  /** Solo el RSVP general lo usa (D-40, `settings.askDietaryNotes`); el personalizado no lo recoge y, al omitirlo, no lo toca. */
+  dietaryNotes?: string | null;
 }
 
 export const attendeeCountFor = (status: RsvpStatus): number | null | undefined => (status === "DECLINED" ? 0 : status === "MAYBE" || status === "PENDING" ? null : undefined);
@@ -26,7 +28,13 @@ export async function writeGuestResponse(tx: Tx, params: { eventId: string; gues
   await tx.guest.updateMany({ where: { id: guestId, eventId }, data: { status } });
 
   if (response) {
-    const data = { status, attendeeCount: response.attendeeCount, message: response.message, submittedAt: response.submittedAt };
+    const data = {
+      status,
+      attendeeCount: response.attendeeCount,
+      message: response.message,
+      submittedAt: response.submittedAt,
+      ...(response.dietaryNotes !== undefined ? { dietaryNotes: response.dietaryNotes } : {}),
+    };
     const rsvp = await tx.rsvp.upsert({ where: { guestId }, create: { eventId, guestId, ...data }, update: data, select: { id: true } });
     return { rsvpId: rsvp.id };
   }

@@ -36,6 +36,7 @@ const guestSelect = {
   status: true,
   inviteToken: true,
   createdAt: true,
+  source: true,
   group: { select: { name: true } },
   rsvp: { select: { attendeeCount: true } },
 } as const;

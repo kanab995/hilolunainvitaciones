@@ -20,3 +20,14 @@ export async function getDemoInvitation(slug: string): Promise<Invitation | unde
   const base = await getDemoEventInvitation();
   return base ? { ...changeTemplate(base, templateSlug), slug } : undefined;
 }
+
+/**
+ * Una invitación es de DEMOSTRACIÓN PÚBLICA si su slug sigue el patrón `demo-<plantilla>` que usa
+ * `getDemoInvitation` (p. ej. `demo-aurora-xv`). Ningún slug real puede tener ese prefijo
+ * (`lib/events/slug.ts` lo evita explícitamente al generarlos), así que esta condición nunca da un
+ * falso positivo en una invitación publicada, en el editor o en la vista previa privada. Única
+ * fuente de verdad para "¿esto es una demo pública?": úsala en vez de repetir `slug.startsWith(...)`.
+ */
+export function isDemoInvitation(invitation: Pick<Invitation, "slug">): boolean {
+  return invitation.slug.startsWith("demo-");
+}

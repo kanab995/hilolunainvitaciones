@@ -31,6 +31,7 @@ export function planRows(plan: PlanId, templatesAvailable: number): PlanRow[] {
   const rows: PlanRow[] = [
     { id: "guests", label: limits.maxGuestsPerEvent === null ? "Invitados sin límite" : `Hasta ${limits.maxGuestsPerEvent} invitados`, included: true },
     { id: "gallery", label: limits.maxGalleryImages === null ? "Galería sin límite de imágenes" : `Galería de hasta ${limits.maxGalleryImages} imágenes`, included: true },
+    { id: "publicRsvp", label: limits.maxPublicRsvpResponses === null ? "Respuestas sin límite por tu enlace general" : `Hasta ${limits.maxPublicRsvpResponses} respuestas por tu enlace general`, included: true },
     { id: "templates", label: `${templatesAvailable} ${plural(templatesAvailable, "plantilla disponible hoy", "plantillas disponibles hoy")}`, included: templatesAvailable > 0 },
   ];
   for (const feature of FEATURE_IDS) rows.push({ id: feature, label: featureLabels[feature], included: features[feature] });

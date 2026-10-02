@@ -22,8 +22,13 @@ export type PaidPlanId = (typeof PAID_PLAN_IDS)[number];
 export const FEATURE_IDS = ["publish", "personalizedGuestLinks", "qr", "calendar", "customMedia"] as const;
 export type FeatureId = (typeof FEATURE_IDS)[number];
 
-/** Cuotas numéricas POR EVENTO. `null` = sin límite. No existe un límite de eventos por plan (cada evento se compra por separado). */
-export const LIMIT_IDS = ["maxGuestsPerEvent", "maxGalleryImages"] as const;
+/**
+ * Cuotas numéricas POR EVENTO. `null` = sin límite. No existe un límite de eventos por plan (cada evento se compra por separado).
+ * `maxPublicRsvpResponses` (D-40) es DISTINTA de `maxGuestsPerEvent`: la primera cuenta solo invitados que el anfitrión agregó a
+ * mano (Guest Manager); la segunda, respuestas auto-registradas por el enlace general público (`/i/<slug>`, sin `?guest=`). Nunca
+ * se mezclan: un enlace general que se vuelve viral no puede agotar el cupo de invitados que el anfitrión pagó para gestionar.
+ */
+export const LIMIT_IDS = ["maxGuestsPerEvent", "maxGalleryImages", "maxPublicRsvpResponses"] as const;
 export type LimitId = (typeof LIMIT_IDS)[number];
 
 /** Moneda de todos los precios. Un precio del proveedor en otra moneda se rechaza (no hay conversión de divisas). */
@@ -63,7 +68,7 @@ export const planConfigs: Readonly<Record<PlanId, PlanConfig>> = {
     description: "Para crear y probar tu invitación.",
     rank: 0,
     features: ALL_ON,
-    limits: { maxGuestsPerEvent: 30, maxGalleryImages: 5 },
+    limits: { maxGuestsPerEvent: 30, maxGalleryImages: 5, maxPublicRsvpResponses: 50 },
     pricing: { displayPrice: 0, currency: "MXN", stripePriceEnvKey: null, upgradeFrom: {} },
   },
   ESSENTIAL: {
@@ -72,7 +77,7 @@ export const planConfigs: Readonly<Record<PlanId, PlanConfig>> = {
     description: "Para una celebración con más invitados y una galería más completa.",
     rank: 1,
     features: ALL_ON,
-    limits: { maxGuestsPerEvent: 100, maxGalleryImages: 15 },
+    limits: { maxGuestsPerEvent: 100, maxGalleryImages: 15, maxPublicRsvpResponses: 150 },
     pricing: { displayPrice: 499, currency: "MXN", stripePriceEnvKey: "STRIPE_PRICE_ESSENTIAL_ONE_TIME", upgradeFrom: {} },
   },
   PREMIUM: {
@@ -81,7 +86,7 @@ export const planConfigs: Readonly<Record<PlanId, PlanConfig>> = {
     description: "Para una lista de invitados grande y la galería más amplia.",
     rank: 2,
     features: ALL_ON,
-    limits: { maxGuestsPerEvent: 300, maxGalleryImages: 40 },
+    limits: { maxGuestsPerEvent: 300, maxGalleryImages: 40, maxPublicRsvpResponses: 250 },
     pricing: { displayPrice: 799, currency: "MXN", stripePriceEnvKey: "STRIPE_PRICE_PREMIUM_ONE_TIME", upgradeFrom: { ESSENTIAL: { stripePriceEnvKey: "STRIPE_PRICE_ESSENTIAL_TO_PREMIUM" } } },
   },
 };

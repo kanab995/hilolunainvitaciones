@@ -14,11 +14,13 @@ const field =
   "h-11 w-full rounded-(--inv-radius-image) border border-inv-line bg-inv-bg px-3 font-inv-body text-sm text-inv-ink outline-none focus-visible:ring-2 focus-visible:ring-inv-accent";
 
 /**
- * Isla cliente de la confirmación de asistencia. Aplica los `RSVPSettings` de la invitación
- * (habilitado, plazo, "tal vez", acompañantes, restricciones) con `lib/invitation/rsvp.ts`. Es
- * GENÉRICA: no sabe qué plantilla la contiene, solo recibe el estilo del botón.
- * Todavía no hay persistencia (sin BD ni servidor): al enviar solo muestra el agradecimiento en
- * modo demostración. TODO: conectar con la acción de servidor cuando exista el backend de RSVP.
+ * Isla cliente de la confirmación de asistencia SOLO PARA DEMOS PÚBLICAS (`/i/demo-*`). Aplica los
+ * `RSVPSettings` de la invitación (habilitado, plazo, "tal vez", acompañantes, restricciones) con
+ * `lib/invitation/rsvp.ts`. Es GENÉRICA: no sabe qué plantilla la contiene, solo recibe el estilo del
+ * botón. A PROPÓSITO no guarda nada (sin BD ni servidor): al enviar solo muestra el agradecimiento
+ * localmente — es justo lo que anuncia el aviso de "modo demostración" que siempre dibuja. Una
+ * invitación REAL (publicada o recién creada) nunca usa este componente: usa `GeneralRsvpForm`
+ * (D-40, sí persiste). `RSVPSection` elige entre los dos con `isDemoInvitation`.
  */
 export function RsvpPanel({
   settings,
@@ -36,11 +38,7 @@ export function RsvpPanel({
   const [input, setInput] = useState<RsvpInput>({ name: "", attendance: "", companions: 0, dietaryNotes: "" });
 
   const availability = getRsvpAvailability(settings, serverNowMs);
-  const demoNote = (
-    <p className="max-w-[20rem] font-inv-body text-[0.6875rem] leading-relaxed tracking-[0.12em] text-balance text-inv-ink-muted uppercase">
-      {copy.demoBadge} · {copy.demoNote}
-    </p>
-  );
+  const demoNote = <p className="max-w-[20rem] font-inv-body text-[0.6875rem] leading-relaxed tracking-[0.12em] text-balance text-inv-ink-muted uppercase">{copy.demoNote}</p>;
   if (availability === "disabled") return <p className="text-center font-inv-body text-sm text-inv-ink-muted">{copy.disabled}</p>;
   if (availability === "closed") return <p className="text-center font-inv-body text-sm text-inv-ink-muted">{copy.closed}</p>;
 

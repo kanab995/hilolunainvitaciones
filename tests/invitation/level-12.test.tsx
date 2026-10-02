@@ -46,11 +46,13 @@ describe("Level 12 (plantilla terminada, D-38)", () => {
       "Ven cómodo para jugar.",
       "Tu presencia es el mejor regalo",
       "Confirmar asistencia",
-      "Modo demostración",
       "¡Gracias por ser parte de esta misión!",
     ]) {
       expect(text, expected).toContain(expected);
     }
+    // `santiagoLevel12Invitation.slug` es "santiago-level-12" (no "demo-…"): el aviso de modo
+    // demostración NO se muestra con este slug (tests/rsvp/ui-and-policy.test.tsx cubre /i/demo-level-12).
+    expect(text).not.toContain("Modo demostración");
     expect(text).not.toContain("Andrea");
     expect(text).not.toContain("Fernando");
     expect(text).not.toContain("Nos casamos");

@@ -52,6 +52,10 @@ describe("41/66. La invitación de un evento NUEVO (datos vacíos) no muestra ba
     expect(text).toContain("Gracias por ser parte de este día");
   });
 
+  it("un evento real recién creado no muestra el aviso de «modo demostración» (su slug no empieza con demo-)", () => {
+    expect(text).not.toContain("Modo demostración");
+  });
+
   it("oculta (sin placeholders) las secciones incompletas: sedes sin nombre, itinerario, galería vacía, dress code y regalos vacíos", () => {
     expect(html).not.toContain('data-section="locations"');
     expect(html).not.toContain("data-timeline-layout");
@@ -132,6 +136,11 @@ describe("40/66. El editor abre un evento recién creado sin fallar", () => {
       expect(html, name).not.toContain("undefined");
       expect(html.length, name).toBeGreaterThan(50);
     }
+  });
+
+  it("el editor de RSVP ya no repite el aviso de «modo demostración» (solo aparece en demos públicas, ver tests/rsvp/ui-and-policy.test.tsx)", () => {
+    const html = editorHtml((i) => <RsvpEditor section={section(i, "rsvp")} />);
+    expect(html).not.toContain("Modo demostración");
   });
 
   it("la galería vacía ofrece agregar y las sedes vacías se pueden completar", () => {

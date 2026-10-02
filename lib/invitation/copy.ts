@@ -37,12 +37,13 @@ export const invitationCopy = {
     companions: "Acompañantes",
     dietary: "Restricciones alimentarias",
     submit: "Enviar respuesta",
+    submitting: "Enviando...",
     cancel: "Cancelar",
     closed: "El plazo para confirmar ya terminó.",
     disabled: "La confirmación de asistencia no está disponible.",
     thanks: "¡Gracias por responder!",
-    demoBadge: "Modo demostración",
-    demoNote: "la respuesta no se guarda",
+    /** Solo en demos públicas (`/i/demo-*`): ver `isDemoInvitation` en `lib/invitation/demo.ts`. */
+    demoNote: "Modo demostración: las respuestas de tus invitados todavía no se guardan.",
   },
   /** RSVP de una invitación personalizada (`?guest=`): se guarda de verdad. */
   guestRsvp: {

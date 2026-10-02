@@ -48,3 +48,17 @@ export type PublicRsvpResult =
       message: string;
       fieldErrors?: Partial<Record<"status" | "attendeeCount" | "message" | "answers", string>> & { answers?: string };
     };
+
+/**
+ * Resultado de `submitGeneralRsvp` (D-40: RSVP del enlace general, sin `?guest=`, autorregistra un
+ * invitado nuevo). `limit_reached` = este evento ya alcanzó su cuota de respuestas por el enlace
+ * general (independiente del cupo de invitados que agrega el anfitrión).
+ */
+export type GeneralRsvpResult =
+  | { ok: true; status: PublicRsvpStatus; attendeeCount: number | null; message: string }
+  | {
+      ok: false;
+      code: "invalid" | "closed" | "unavailable" | "expired" | "rate_limited" | "limit_reached" | "error";
+      message: string;
+      fieldErrors?: Partial<Record<"name" | "status" | "attendeeCount" | "dietaryNotes", string>>;
+    };

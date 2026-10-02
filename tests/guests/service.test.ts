@@ -4,7 +4,7 @@ import { GuestStoreUnavailableError, type GuestWriteResult } from "@/server/repo
 import { createGuestFor, deleteGuestFor, updateGuestFor, type GuestServiceDeps } from "@/server/services/guest-service";
 import type { GuestRecord } from "@/server/mappers/guest";
 
-const record: GuestRecord = { id: "gst_1", name: "Ana", email: null, phone: null, groupId: null, groupName: null, maxCompanions: 0, status: "PENDING", inviteToken: "t".repeat(32), createdAt: new Date(), attendeeCount: null };
+const record: GuestRecord = { id: "gst_1", name: "Ana", email: null, phone: null, groupId: null, groupName: null, maxCompanions: 0, status: "PENDING", inviteToken: "t".repeat(32), createdAt: new Date(), attendeeCount: null, source: "HOST" };
 
 /** Mundo de prueba: el usuario A es dueño de `evt_A`; `evt_B` es de otra persona (para A no existe). */
 function deps(over: Partial<GuestServiceDeps> = {}): GuestServiceDeps & { calls: string[] } {
