@@ -28,19 +28,21 @@ describe("getRelatedTemplates: solo sugiere plantillas listas (isTemplateReady)"
     }
   });
 
-  it("mantiene el orden por categoría y estilo (D-44): Magnolia prioriza Aurora XV y Celeste (estilo romántico compartido) sobre Level 12", () => {
+  it("mantiene el orden por categoría y estilo (D-44): Magnolia prioriza Aurora XV, Celeste y Baby Bloom (estilo romántico compartido) sobre Level 12", () => {
     const magnolia = templates.find((t) => t.slug === "magnolia")!;
-    expect(slugsOf(getRelatedTemplates(magnolia, templates))).toEqual(["aurora-xv", "celeste", "level-12"]);
+    // Empate a puntaje (las 3 comparten el estilo "romantic" con Magnolia): se ordena por índice de
+    // catálogo. Level 12 no comparte categoría ni estilo con Magnolia, así que queda fuera del top 3.
+    expect(slugsOf(getRelatedTemplates(magnolia, templates))).toEqual(["aurora-xv", "celeste", "baby-bloom"]);
   });
 
-  it("solo quedan 4 plantillas listas en total (sin contarse a sí misma): un límite mayor no rellena con plantillas no listas", () => {
+  it("solo quedan 5 plantillas listas en total (sin contarse a sí misma): un límite mayor no rellena con plantillas no listas", () => {
     const level12 = templates.find((t) => t.slug === "level-12")!;
-    const related = getRelatedTemplates(level12, templates, 6);
-    expect(related).toHaveLength(4);
-    expect(slugsOf(related).sort()).toEqual(["aurora-xv", "celeste", "magnolia", "spider-friends"]);
+    const related = getRelatedTemplates(level12, templates, 7);
+    expect(related).toHaveLength(5);
+    expect(slugsOf(related).sort()).toEqual(["aurora-xv", "baby-bloom", "celeste", "magnolia", "spider-friends"]);
   });
 
-  it("si la propia plantilla es de las 5 listas, el límite por defecto (3) sigue aplicando", () => {
+  it("si la propia plantilla es de las 6 listas, el límite por defecto (3) sigue aplicando", () => {
     for (const template of templates.filter(isTemplateReady)) {
       expect(getRelatedTemplates(template, templates).length).toBeLessThanOrEqual(3);
     }

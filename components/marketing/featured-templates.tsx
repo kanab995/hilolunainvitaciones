@@ -3,22 +3,19 @@ import { MarketingSection } from "@/components/marketing/marketing-section";
 import { CatalogTemplateCard } from "@/components/templates/catalog-template-card";
 import { Button } from "@/components/ui/button";
 import { SectionHeading } from "@/components/ui/section-heading";
-import { featuredTemplateSlugs, featuredTemplatesCopy } from "@/lib/content/home";
+import { featuredTemplatesCopy } from "@/lib/content/home";
 import { templates } from "@/lib/content/templates";
 import { routes } from "@/lib/routes";
-import { isTemplateReady } from "@/lib/templates/status";
+import { getFeaturedTemplates } from "@/lib/templates/featured";
 
 /**
  * "Plantillas que se sienten como tu evento" (mockup 01): titular a la izquierda, botón a la
- * derecha y las plantillas destacadas. Filtra por `isTemplateReady` además de por `slug` (misma
- * regla que `/templates`, `docs/ARCHITECTURE.md`): aunque `featuredTemplateSlugs` cambie, nunca
- * puede llegar a destacarse aquí una plantilla `concept`/`comingSoon`.
+ * derecha y las plantillas destacadas. La lista sale de `getFeaturedTemplates` (solo
+ * `isTemplateReady`, con variedad por categoría) — agregar una plantilla nueva al catálogo y
+ * marcarla `implemented` basta para que aparezca aquí, sin editar este componente.
  */
 export function FeaturedTemplates() {
-  const featured = featuredTemplateSlugs.flatMap((slug) => {
-    const template = templates.find((item) => item.slug === slug);
-    return template && isTemplateReady(template) ? [template] : [];
-  });
+  const featured = getFeaturedTemplates(templates);
 
   return (
     <MarketingSection labelledBy="featured-templates-title">

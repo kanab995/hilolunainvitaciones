@@ -1,19 +1,22 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import HomePage from "@/app/(site)/(marketing)/page";
 import { SiteFooter } from "@/components/marketing/site-footer";
-import { featureDemo, featuredTemplateSlugs } from "@/lib/content/home";
+import { featureDemo } from "@/lib/content/home";
 import { footerNav } from "@/lib/content/navigation";
 import { templates } from "@/lib/content/templates";
 import { routes } from "@/lib/routes";
+import { getFeaturedTemplates } from "@/lib/templates/featured";
 import { isTemplateReady } from "@/lib/templates/status";
 
 const encoded = (path: string) => encodeURIComponent(path);
 const html = renderToStaticMarkup(<HomePage />);
 const NOT_READY = ["ivory", "etoile", "tuscany", "noir", "riviera", "dream", "blossom", "safari"] as const;
-const READY = ["magnolia", "level-12", "aurora-xv", "celeste"] as const;
+const READY = ["magnolia", "level-12", "aurora-xv", "celeste", "spider-friends", "baby-bloom"] as const;
+/** Las 4 que caben en el abanico fijo del hero (ver `components/marketing/hero-visual.tsx`). */
+const HERO_SLOTS = ["magnolia", "level-12", "aurora-xv", "celeste"] as const;
 
 describe("homepage: renderiza y tiene los CTA principales", () => {
   it("renderiza sin lanzar, con el hero y sus textos", () => {
@@ -64,9 +67,15 @@ describe("homepage: copy honesto, sin claims falsos (sección 10)", () => {
   });
 });
 
-describe("homepage: plantillas destacadas, solo las listas (isTemplateReady)", () => {
-  it("featuredTemplateSlugs son exactamente las 4 plantillas implemented", () => {
-    expect([...featuredTemplateSlugs].sort()).toEqual(["aurora-xv", "celeste", "level-12", "magnolia"]);
+describe("homepage: plantillas destacadas calculadas dinámicamente (getFeaturedTemplates, sin lista fija)", () => {
+  it("getFeaturedTemplates(templates) son exactamente las 6 plantillas implemented, en orden de variedad por categoría", () => {
+    // magnolia/level-12/aurora-xv/celeste/baby-bloom: primera aparición de su categoría, en orden de
+    // catálogo. spider-friends repite categoría (birthday, ya la tiene level-12) → va al final.
+    expect(getFeaturedTemplates(templates).map((t) => t.slug)).toEqual(["magnolia", "level-12", "aurora-xv", "celeste", "baby-bloom", "spider-friends"]);
+  });
+
+  it("un límite menor recorta por el mismo orden (variedad primero)", () => {
+    expect(getFeaturedTemplates(templates, 3).map((t) => t.slug)).toEqual(["magnolia", "level-12", "aurora-xv"]);
   });
 
   it.each(NOT_READY)("%s nunca aparece como destacada en la home", (slug) => {
@@ -77,21 +86,31 @@ describe("homepage: plantillas destacadas, solo las listas (isTemplateReady)", (
     expect(html).toContain(`href="/templates/${slug}"`);
     expect(html).toContain(encoded(`/templates/${slug}/cover-bg.png`));
   });
+
+  it("agregar una plantilla nueva (Baby Bloom) no requirió tocar lib/content/home.ts: no existe ninguna lista fija de slugs destacados", () => {
+    const homeContentSource = readFileSync(join(process.cwd(), "lib/content/home.ts"), "utf8");
+    expect(homeContentSource).not.toMatch(/featuredTemplateSlugs/);
+  });
 });
 
-describe("homepage: hero con collage de imágenes reales (no un solo teléfono genérico)", () => {
-  it("las 4 plantillas listas aparecen como imagen real en el hero", () => {
-    for (const slug of READY) expect(html).toContain(encoded(`/templates/${slug}/cover-bg.png`));
+describe("homepage: hero con collage de imágenes reales (abanico fijo de 4, elegido dinámicamente)", () => {
+  it("las 4 plantillas del abanico del hero aparecen como imagen real", () => {
+    for (const slug of HERO_SLOTS) expect(html).toContain(encoded(`/templates/${slug}/cover-bg.png`));
   });
 
   it("ninguna plantilla no lista aparece como imagen en el hero", () => {
     for (const slug of NOT_READY) expect(html).not.toContain(encoded(`/templates/${slug}/cover-bg.png`));
   });
+
+  it("Spider Friends y Baby Bloom NO entran en el abanico del hero: solo hay 4 huecos fijos y 4 categorías (boda/cumpleaños/XV años/bautizo) ya los ocupan antes de que les toque turno a Infantil/Baby Shower", () => {
+    expect(getFeaturedTemplates(templates, 4).map((t) => t.slug)).not.toContain("spider-friends");
+    expect(getFeaturedTemplates(templates, 4).map((t) => t.slug)).not.toContain("baby-bloom");
+  });
 });
 
 describe('homepage: "Así de fácil" usa plantillas reales, no solo degradados', () => {
   it("el paso 1 muestra las 4 portadas reales (abanico de plantillas)", () => {
-    for (const slug of READY) expect(html).toContain(encoded(`/templates/${slug}/cover-bg.png`));
+    for (const slug of HERO_SLOTS) expect(html).toContain(encoded(`/templates/${slug}/cover-bg.png`));
   });
 
   it("el paso 2 (editor) y el paso 3 (compartir) usan una imagen real, no solo UI abstracta", () => {
@@ -117,20 +136,26 @@ describe("homepage: CTA final con imagen real (no solo degradado)", () => {
 });
 
 describe("homepage: categorías de evento no muestran como disponible lo que no está listo", () => {
-  it("Bodas, Cumpleaños, XV años y Bautizo usan la foto real de su plantilla lista (sin aviso)", () => {
+  it("Bodas, Cumpleaños, XV años, Bautizo y Baby Shower usan la foto real de su plantilla lista (sin aviso)", () => {
     expect(html).toContain(encoded("/templates/magnolia/cover-bg.png"));
     expect(html).toContain(encoded("/templates/level-12/cover-bg.png"));
     expect(html).toContain(encoded("/templates/aurora-xv/cover-bg.png"));
     expect(html).toContain(encoded("/templates/celeste/cover-bg.png"));
+    // Baby Bloom: antes del catálogo de esta tarea, "Baby Shower" no tenía ninguna plantilla lista
+    // y mostraba "Próximamente" en la home; ahora lo pierde automáticamente (sin tocar la home).
+    expect(html).toContain(encoded("/templates/baby-bloom/cover-bg.png"));
   });
 
-  it('Baby Shower e Infantiles (sin ninguna plantilla implemented) muestran "Próximamente"', () => {
-    const babyShowerReady = templates.some((t) => isTemplateReady(t) && t.eventType === "baby-shower");
+  it('Infantiles (sin ninguna plantilla cuyo eventType sea "kids") sigue mostrando "Próximamente"', () => {
+    // Spider Friends tiene secondaryStyles: ["kids"] pero su eventType es "birthday": las tarjetas
+    // de categoría de la home emparejan por eventType (no por estilo, a diferencia del filtro de
+    // /templates), así que "Infantiles" sigue sin una plantilla propia.
     const kidsReady = templates.some((t) => isTemplateReady(t) && t.eventType === "kids");
-    expect(babyShowerReady, "si esto falla, hay que quitar el aviso de Baby Shower").toBe(false);
     expect(kidsReady, "si esto falla, hay que quitar el aviso de Infantiles").toBe(false);
+    const babyShowerReady = templates.some((t) => isTemplateReady(t) && t.eventType === "baby-shower");
+    expect(babyShowerReady, "Baby Bloom debería haber quitado el aviso de Baby Shower").toBe(true);
     const matches = [...html.matchAll(/Próximamente/g)];
-    expect(matches.length).toBeGreaterThanOrEqual(2);
+    expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
   it("las 6 categorías siguen enlazando a /templates?category=… (ninguna se oculta, solo se avisa)", () => {

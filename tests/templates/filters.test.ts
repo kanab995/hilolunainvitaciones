@@ -51,6 +51,12 @@ describe("filtro de categoría de /templates (lib/templates/filter.ts)", () => {
   it("categoría + estilo sin ninguna coincidencia en el catálogo real también da una lista vacía", () => {
     expect(filterTemplates(templates, { category: "birthday", style: "floral" })).toEqual([]);
   });
+
+  it('Baby Shower (eventType "baby-shower"): Baby Bloom y Safari — Baby Bloom está incluida', () => {
+    const result = slugsOf(filterTemplates(templates, { category: "baby-shower", style: null }));
+    expect(result).toEqual(["baby-bloom", "safari"]);
+    expect(result).toContain("baby-bloom");
+  });
 });
 
 describe("parseTemplateFilters / serializeTemplateFilters (?category= y ?style=, docs/ROUTES.md §5)", () => {
@@ -99,7 +105,7 @@ describe("categoryFilters: un chip por categoría del MVP", () => {
 });
 
 describe("enlaces de plantillas con categoría (no rotos)", () => {
-  it.each(["level-12", "aurora-xv", "celeste", "spider-friends"])("/templates/%s resuelve y tiene demo pública /i/demo-%s", (slug) => {
+  it.each(["level-12", "aurora-xv", "celeste", "spider-friends", "baby-bloom"])("/templates/%s resuelve y tiene demo pública /i/demo-%s", (slug) => {
     expect(routes.template(slug)).toBe(`/templates/${slug}`);
     expect(templates.some((t) => t.slug === slug)).toBe(true);
     expect(routes.templateDemo(slug)).toBe(`/i/demo-${slug}`);

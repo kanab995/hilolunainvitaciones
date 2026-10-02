@@ -17,6 +17,7 @@ const expectedStatus: Record<string, TemplateStatus> = {
   "aurora-xv": "implemented",
   celeste: "implemented",
   "spider-friends": "implemented",
+  "baby-bloom": "implemented",
   ivory: "concept",
   etoile: "concept",
   tuscany: "comingSoon",
@@ -39,8 +40,8 @@ describe("estado de las plantillas", () => {
     for (const template of templates) expect(template.status, template.slug).toBe(expectedStatus[template.slug]);
   });
 
-  it("hay exactamente cinco plantillas implementadas: Magnolia, Level 12, Aurora XV, Celeste y Spider Friends", () => {
-    expect(templates.filter((t) => t.status === "implemented").map((t) => t.slug).sort()).toEqual(["aurora-xv", "celeste", "level-12", "magnolia", "spider-friends"]);
+  it("hay exactamente seis plantillas implementadas: Magnolia, Level 12, Aurora XV, Celeste, Spider Friends y Baby Bloom", () => {
+    expect(templates.filter((t) => t.status === "implemented").map((t) => t.slug).sort()).toEqual(["aurora-xv", "baby-bloom", "celeste", "level-12", "magnolia", "spider-friends"]);
   });
 });
 
@@ -137,7 +138,7 @@ describe("/templates/[slug]: toda plantilla del catálogo tiene página válida"
     }
   });
 
-  it.each(["magnolia", "level-12", "aurora-xv", "celeste", "spider-friends"])("implemented: preview completo, funciones, CTA activo y demo (%s)", (slug) => {
+  it.each(["magnolia", "level-12", "aurora-xv", "celeste", "spider-friends", "baby-bloom"])("implemented: preview completo, funciones, CTA activo y demo (%s)", (slug) => {
     const template = getTemplateBySlug(slug)!;
     const hero = heroOf(renderDetail(template));
     expect(hero).toContain("Secciones de la invitación");
@@ -158,7 +159,7 @@ describe("las demos no se enlazan desde la interfaz", () => {
     });
 
   it("ningún detalle de plantilla enlaza a demo-ivory ni demo-etoile (ni a ninguna demo salvo la de su propia plantilla implementada)", () => {
-    const linked = new Set(["magnolia", "level-12", "aurora-xv", "celeste", "spider-friends"]);
+    const linked = new Set(["magnolia", "level-12", "aurora-xv", "celeste", "spider-friends", "baby-bloom"]);
     for (const template of templates) {
       const html = renderDetail(template);
       const demos = [...html.matchAll(/href="(\/i\/[^"]*)"/g)].map((m) => m[1]);

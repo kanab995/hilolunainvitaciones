@@ -96,9 +96,8 @@ export const templateFeatureCopy: Record<TemplateFeatureId, { title: string; des
 };
 
 /**
- * Chips de categoría. Orden: las categorías con alguna plantilla implementada primero (Bodas,
- * Cumpleaños, XV años, Bautizo, Infantil), luego las que aún no tienen ninguna (Baby Shower) —
- * seguirá mostrando el estado sin resultados hasta que exista una plantilla de ese tipo. El chip
+ * Chips de categoría. Las seis ya tienen al menos una plantilla implementada (Bodas, Cumpleaños,
+ * XV años, Bautizo, Infantil, Baby Shower) — ninguna muestra el estado sin resultados hoy. El chip
  * "Infantil" incluye también las plantillas de estilo infantil, no solo `eventType: "kids"` (Safari
  * es "Baby Shower · Infantil" en [02], ver Q-14 en docs/PROJECT_SPEC.md; Spider Friends es
  * `eventType: "birthday"` con `secondaryStyles: ["kids"]`, así que aparece en Cumpleaños Y en
@@ -436,6 +435,31 @@ export const templates: readonly Template[] = [
         names: ["Nico"],
         date: "15 de mayo de 2027",
         venue: ["Salón Ciudad Aventura"],
+        button: "Abrir invitación",
+      },
+      screens: standardScreens,
+    },
+  },
+  {
+    id: "tpl_baby_bloom",
+    slug: "baby-bloom",
+    name: "Baby Bloom",
+    status: "implemented",
+    eventType: "baby-shower",
+    style: "elegant",
+    secondaryStyles: ["romantic"],
+    thumbnail: { alt: "Plantilla Baby Bloom", tone: "cream" },
+    description:
+      "Una invitación tierna, elegante y luminosa para dar la bienvenida al bebé: marfil cálido, champagne y dorado suave, con flores delicadas, globos pastel y un osito — neutral para niño o niña.",
+    premium: false,
+    minimumPlan: "FREE",
+    features: standardFeatures,
+    preview: {
+      sample: {
+        eyebrow: "Baby Shower",
+        names: ["Baby Mateo"],
+        date: "12 de junio de 2027",
+        venue: ["Jardín Luna Azul"],
         button: "Abrir invitación",
       },
       screens: standardScreens,

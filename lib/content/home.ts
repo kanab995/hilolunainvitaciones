@@ -123,15 +123,6 @@ export const featuredTemplatesCopy = {
 } as const;
 
 /**
- * Plantillas destacadas de la home: `slug`s del catálogo (`lib/content/templates.ts`). [01] muestra
- * Magnolia, Ivory y Étoile, pero Ivory y Étoile son `concept` (sin diseño aprobado, `isTemplateReady`
- * en `lib/templates/status.ts`): se reemplazan por las otras dos plantillas listas (Aurora XV,
- * Celeste) para no destacar un diseño sin terminar. `FeaturedTemplates` vuelve a filtrar por
- * `isTemplateReady` de todas formas, así que esta lista nunca puede mostrar una no lista.
- */
-export const featuredTemplateSlugs = ["magnolia", "level-12", "aurora-xv", "celeste"] as const;
-
-/**
  * Mini-collage de la tarjeta "Galería" (`FeatureShowcase`): una foto real de 3 de las plantillas
  * listas, no un placeholder con degradado. Rutas directas (ya aprobadas, `docs/ASSET_LICENSES.md`
  * §5.2–5.4): es una composición de marketing, no la invitación en sí, así que no pasa por el motor.
