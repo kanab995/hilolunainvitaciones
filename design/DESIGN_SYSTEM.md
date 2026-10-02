@@ -312,6 +312,12 @@ const level12Theme: Pick<InvitationTheme, "layout" | "effects"> = {
   layout: { hero: "centered", locations: "stacked", gallery: "grid", timeline: "vertical" },
   effects: { photoMask: "fade" },
 };
+
+/** Aurora XV (D-39; referencia visual + brief del propietario). Itinerario de 6 pasos: timeline "vertical" (la "horizontal" tiene grid fijo a 5 columnas). */
+const auroraXvTheme: Pick<InvitationTheme, "layout" | "effects"> = {
+  layout: { hero: "centered", locations: "split", gallery: "grid", timeline: "vertical" },
+  effects: { photoMask: "fade" },
+};
 ```
 
 **Reglas del contrato `layout` / `effects`**
@@ -327,6 +333,8 @@ const level12Theme: Pick<InvitationTheme, "layout" | "effects"> = {
 **Defaults de Magnolia implementados:** `--inv-bg #FAF6F1`, `--inv-bg-alt #F9F5F1`, `--inv-surface #F3E6DC`, `--inv-ink #492512`, `--inv-ink-muted #39342F` (provisional), `--inv-accent #907058`, `--inv-line #D3C9C0`, `--inv-button-bg #231A0F`, `--inv-button-fg #F7F8F3`; fuentes Cormorant + Inter; columna 430; gutter 20.
 
 **Defaults de Level 12 implementados (D-38):** `--inv-bg #0A0E1F`, `--inv-bg-alt #05070F`, `--inv-surface #141B36`, `--inv-ink #F5F7FF`, `--inv-ink-muted #9AA5CC`, `--inv-accent #39E5FF`, `--inv-line #2A3568`, `--inv-button-bg #8B5CF6`, `--inv-button-fg #F8F7FF`; mismas fuentes registradas (Cormorant + Inter, sin fuente nueva); tema oscuro, sin textura de papel ni viñeta (`--inv-vignette-color`/`--inv-vignette-blur` siguen siendo una variable GLOBAL con los valores de Magnolia, sin parametrizar por plantilla — ver D-38).
+
+**Defaults de Aurora XV implementados (D-39):** `--inv-bg #FBF5EF`, `--inv-bg-alt #F6EBE2`, `--inv-surface #F1DFD8`, `--inv-ink #5A3240`, `--inv-ink-muted #7D6056`, `--inv-accent #BD8A52`, `--inv-line #E3CDC2`, `--inv-button-bg #5A2F3F`, `--inv-button-fg #FBF0E6`; mismas fuentes registradas (Cormorant + Inter, sin fuente nueva); tema claro marfil/rosa/champagne/dorado, sin textura de papel ni viñeta (mismo motivo que Level 12: esas variables siguen sin parametrizarse por plantilla).
 
 **Lenguaje observado en [06]:** portada con tarjeta en arco y botón oscuro "Abrir invitación"; secciones en bandas casi iguales con textura de papel y flores en esquinas; títulos serif con palabra en cursiva; cuenta regresiva con cifras marrones separadas por filetes; sedes mitad imagen / mitad texto alternando; itinerario horizontal con íconos; galería en mosaico; cierre con fotografía suave. Escala móvil estimada (col. de 470 px → 390 px): nombres ≈ 34–38, títulos ≈ 26–28, cifras ≈ 36, cuerpo ≈ 13–14. **Sin medir a fondo hasta que se construya la invitación.**
 

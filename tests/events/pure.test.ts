@@ -101,6 +101,8 @@ describe("Compatibilidad plantilla ↔ tipo", () => {
   it("la lista de candidatas por tipo solo incluye diseños aprobados", () => {
     expect(templatesFor(templates, "wedding").map((t) => t.slug)).toEqual(["magnolia"]);
     expect(templatesFor(templates, "birthday").map((t) => t.slug)).toEqual(["level-12"]);
+    // Étoile también es "quinceanera" pero sigue en concept: la única candidata aprobada es Aurora XV.
+    expect(templatesFor(templates, "quinceanera").map((t) => t.slug)).toEqual(["aurora-xv"]);
     expect(templatesFor(templates, "baptism")).toEqual([]);
   });
 });

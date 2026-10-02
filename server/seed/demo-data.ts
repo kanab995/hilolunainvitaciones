@@ -17,7 +17,7 @@ export const DEMO_EVENT_SLUG = "andrea-fernando";
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 
-/** Catálogo completo (las 10 plantillas). Todas visibles (`PUBLISHED`); su madurez es `designStatus`. */
+/** Catálogo completo (las 11 plantillas). Todas visibles (`PUBLISHED`); su madurez es `designStatus`. */
 export function buildTemplateRows(): TemplateRowData[] {
   return templates.map((template, index) => domainTemplateToDb(template, { sortOrder: index, publicationStatus: "PUBLISHED" }));
 }

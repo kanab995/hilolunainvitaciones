@@ -219,6 +219,31 @@ export const templates: readonly Template[] = [
     },
   },
   {
+    id: "tpl_aurora_xv",
+    slug: "aurora-xv",
+    name: "Aurora XV",
+    status: "implemented",
+    eventType: "quinceanera",
+    style: "elegant",
+    secondaryStyles: ["romantic"],
+    thumbnail: { alt: "Plantilla Aurora XV", tone: "blush" },
+    description:
+      "Una invitación romántica y luminosa para unos XV años premium: marfil cálido, rosa empolvado y dorado suave, con flores claras y detalles de lujo discreto.",
+    premium: false,
+    minimumPlan: "FREE",
+    features: standardFeatures,
+    preview: {
+      sample: {
+        eyebrow: "Mis XV años",
+        names: ["Valentina"],
+        date: "14 de febrero de 2027",
+        venue: ["Salón Aurora", "Querétaro"],
+        button: "Abrir invitación",
+      },
+      screens: standardScreens,
+    },
+  },
+  {
     id: "tpl_tuscany",
     slug: "tuscany",
     name: "Tuscany",
