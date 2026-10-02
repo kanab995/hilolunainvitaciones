@@ -23,18 +23,19 @@ import { buildDemoAggregate, buildTemplateRows, DEMO_EVENT_ID, DEMO_EVENT_SLUG, 
 const ROOT = process.cwd();
 
 describe("Seed", () => {
-  it("incluye Magnolia, Level 12, Aurora XV y Celeste (implemented, publicadas), Ivory y Étoile (concept) y seis plantillas comingSoon", () => {
+  it("incluye Magnolia, Level 12, Aurora XV, Celeste y Spider Friends (implemented, publicadas), Ivory y Étoile (concept) y seis plantillas comingSoon", () => {
     const rows = buildTemplateRows();
     const by = (slug: string) => rows.find((row) => row.slug === slug);
-    expect(rows).toHaveLength(12);
+    expect(rows).toHaveLength(13);
     expect(by("magnolia")).toMatchObject({ designStatus: "IMPLEMENTED", publicationStatus: "PUBLISHED" });
     expect(by("level-12")).toMatchObject({ designStatus: "IMPLEMENTED", publicationStatus: "PUBLISHED" });
     expect(by("aurora-xv")).toMatchObject({ designStatus: "IMPLEMENTED", publicationStatus: "PUBLISHED" });
     expect(by("celeste")).toMatchObject({ designStatus: "IMPLEMENTED", publicationStatus: "PUBLISHED" });
+    expect(by("spider-friends")).toMatchObject({ designStatus: "IMPLEMENTED", publicationStatus: "PUBLISHED" });
     expect(by("ivory")?.designStatus).toBe("CONCEPT");
     expect(by("etoile")?.designStatus).toBe("CONCEPT");
     for (const slug of ["tuscany", "noir", "blossom", "riviera", "dream", "safari"]) expect(by(slug)?.designStatus, slug).toBe("COMING_SOON");
-    expect(new Set(rows.map((row) => row.slug)).size).toBe(12);
+    expect(new Set(rows.map((row) => row.slug)).size).toBe(13);
   });
 
   it("el evento demo: usuario, slug, fecha canónica y pocos invitados en estados variados", () => {
@@ -85,11 +86,12 @@ describe("Repositorios (origen de demostración, sin DATABASE_URL)", () => {
     const data = await getOwnedDashboardData(DEMO_USER.id, "demo");
     expect(data?.event).toMatchObject({ id: DEMO_EVENT_ID, title: "Andrea & Fernando" });
     expect(await getOwnedDashboardData(DEMO_USER.id, "nope")).toBeUndefined();
-    expect(await getTemplates()).toHaveLength(12);
+    expect(await getTemplates()).toHaveLength(13);
     expect((await getTemplateBySlug("magnolia"))?.status).toBe("implemented");
     expect((await getTemplateBySlug("level-12"))?.status).toBe("implemented");
     expect((await getTemplateBySlug("aurora-xv"))?.status).toBe("implemented");
     expect((await getTemplateBySlug("celeste"))?.status).toBe("implemented");
+    expect((await getTemplateBySlug("spider-friends"))?.status).toBe("implemented");
     expect(await getTemplateBySlug("no-existe")).toBeUndefined();
   });
 });

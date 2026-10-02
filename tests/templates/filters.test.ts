@@ -12,8 +12,8 @@ describe("filtro de categoría de /templates (lib/templates/filter.ts)", () => {
     expect(filterTemplates(templates, { category: null, style: null })).toHaveLength(templates.length);
   });
 
-  it('Cumpleaños (eventType "birthday"): solo Level 12', () => {
-    expect(slugsOf(filterTemplates(templates, { category: "birthday", style: null }))).toEqual(["level-12"]);
+  it('Cumpleaños (eventType "birthday"): Level 12 y Spider Friends', () => {
+    expect(slugsOf(filterTemplates(templates, { category: "birthday", style: null }))).toEqual(["level-12", "spider-friends"]);
   });
 
   it('XV años (eventType "quinceanera"): Étoile, Aurora XV y Dream — Aurora XV está incluida', () => {
@@ -44,8 +44,8 @@ describe("filtro de categoría de /templates (lib/templates/filter.ts)", () => {
   });
 
   it("una categoría sin ninguna plantilla coincidente devuelve una lista vacía (estado sin resultados)", () => {
-    const catalogWithoutKidsStyle = templates.filter((t) => t.slug !== "safari");
-    expect(filterTemplates(catalogWithoutKidsStyle, { category: "kids", style: null })).toEqual([]);
+    // "graduation" es un EventCategoryId válido pero ningún template del catálogo lo usa todavía.
+    expect(filterTemplates(templates, { category: "graduation", style: null })).toEqual([]);
   });
 
   it("categoría + estilo sin ninguna coincidencia en el catálogo real también da una lista vacía", () => {
@@ -99,7 +99,7 @@ describe("categoryFilters: un chip por categoría del MVP", () => {
 });
 
 describe("enlaces de plantillas con categoría (no rotos)", () => {
-  it.each(["level-12", "aurora-xv", "celeste"])("/templates/%s resuelve y tiene demo pública /i/demo-%s", (slug) => {
+  it.each(["level-12", "aurora-xv", "celeste", "spider-friends"])("/templates/%s resuelve y tiene demo pública /i/demo-%s", (slug) => {
     expect(routes.template(slug)).toBe(`/templates/${slug}`);
     expect(templates.some((t) => t.slug === slug)).toBe(true);
     expect(routes.templateDemo(slug)).toBe(`/i/demo-${slug}`);

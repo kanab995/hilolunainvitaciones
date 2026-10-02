@@ -33,14 +33,14 @@ describe("getRelatedTemplates: solo sugiere plantillas listas (isTemplateReady)"
     expect(slugsOf(getRelatedTemplates(magnolia, templates))).toEqual(["aurora-xv", "celeste", "level-12"]);
   });
 
-  it("solo quedan 3 plantillas listas en total (sin contarse a sí misma): un límite mayor no rellena con plantillas no listas", () => {
+  it("solo quedan 4 plantillas listas en total (sin contarse a sí misma): un límite mayor no rellena con plantillas no listas", () => {
     const level12 = templates.find((t) => t.slug === "level-12")!;
-    const related = getRelatedTemplates(level12, templates, 5);
-    expect(related).toHaveLength(3);
-    expect(slugsOf(related).sort()).toEqual(["aurora-xv", "celeste", "magnolia"]);
+    const related = getRelatedTemplates(level12, templates, 6);
+    expect(related).toHaveLength(4);
+    expect(slugsOf(related).sort()).toEqual(["aurora-xv", "celeste", "magnolia", "spider-friends"]);
   });
 
-  it("si la propia plantilla es de las 4 listas, solo puede sugerir las otras 3 como máximo", () => {
+  it("si la propia plantilla es de las 5 listas, el límite por defecto (3) sigue aplicando", () => {
     for (const template of templates.filter(isTemplateReady)) {
       expect(getRelatedTemplates(template, templates).length).toBeLessThanOrEqual(3);
     }

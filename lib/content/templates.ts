@@ -96,11 +96,13 @@ export const templateFeatureCopy: Record<TemplateFeatureId, { title: string; des
 };
 
 /**
- * Chips de categoría. Orden: las categorías con plantilla implementada primero (Bodas,
- * Cumpleaños, XV años, Bautizo), luego las que aún no tienen ninguna (Infantil, Baby Shower) —
- * seguirán mostrando el estado sin resultados hasta que exista una plantilla de ese tipo. El
- * chip "Infantil" incluye también las plantillas de estilo infantil (Safari es
- * "Baby Shower · Infantil" en [02]; ver Q-14 en docs/PROJECT_SPEC.md).
+ * Chips de categoría. Orden: las categorías con alguna plantilla implementada primero (Bodas,
+ * Cumpleaños, XV años, Bautizo, Infantil), luego las que aún no tienen ninguna (Baby Shower) —
+ * seguirá mostrando el estado sin resultados hasta que exista una plantilla de ese tipo. El chip
+ * "Infantil" incluye también las plantillas de estilo infantil, no solo `eventType: "kids"` (Safari
+ * es "Baby Shower · Infantil" en [02], ver Q-14 en docs/PROJECT_SPEC.md; Spider Friends es
+ * `eventType: "birthday"` con `secondaryStyles: ["kids"]`, así que aparece en Cumpleaños Y en
+ * Infantil).
  */
 export const categoryFilters: readonly TemplateCategoryFilter[] = [
   { id: "wedding", label: "Bodas", eventTypes: ["wedding"] },
@@ -409,6 +411,31 @@ export const templates: readonly Template[] = [
         names: ["Mateo"],
         date: "8 de mayo de 2027",
         venue: ["Jardín Las Palmas", "Mérida"],
+        button: "Abrir invitación",
+      },
+      screens: standardScreens,
+    },
+  },
+  {
+    id: "tpl_spider_friends",
+    slug: "spider-friends",
+    name: "Spider Friends",
+    status: "implemented",
+    eventType: "birthday",
+    style: "themed",
+    secondaryStyles: ["kids"],
+    thumbnail: { alt: "Plantilla Spider Friends", tone: "sand" },
+    description:
+      "Una invitación infantil llena de energía para una fiesta de superhéroes arácnidos originales: ciudad, telarañas, globos y mucha aventura para festejar como todo un héroe.",
+    premium: false,
+    minimumPlan: "FREE",
+    features: standardFeatures,
+    preview: {
+      sample: {
+        eyebrow: "¡Nico cumple 6!",
+        names: ["Nico"],
+        date: "15 de mayo de 2027",
+        venue: ["Salón Ciudad Aventura"],
         button: "Abrir invitación",
       },
       screens: standardScreens,

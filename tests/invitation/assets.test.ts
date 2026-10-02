@@ -86,6 +86,15 @@ const CELESTE: TemplateAssetSet = {
   date: "2026-10-02",
 };
 
+const SPIDER_FRIENDS: TemplateAssetSet = {
+  template: "spider-friends",
+  folder: "public/templates/spider-friends",
+  files: ["cover-bg.png", "decor-corners.png", "location-venue.png", "gallery-1.png", "gallery-2.png", "gallery-3.png", "gallery-4.png", "gallery-5.png", "dress-code.png", "gift-registry.png"],
+  section: "### 5.5 Imágenes incorporadas — plantilla Spider Friends",
+  rowMustContain: ["Composición vectorial propia (SVG)", "Hilo Luna — diseñado y codificado por el asistente bajo dirección del propietario", "Original para Hilo Luna"],
+  date: "2026-10-02",
+};
+
 /** Texto del documento desde el encabezado de ESTA plantilla hasta el siguiente encabezado `##`/`###`. */
 function sectionOf(heading: string): string {
   const start = licenses.indexOf(heading);
@@ -95,7 +104,7 @@ function sectionOf(heading: string): string {
   return rest.slice(0, next >= 0 ? next : undefined);
 }
 
-describe.each([MAGNOLIA, LEVEL_12, AURORA_XV, CELESTE])("registro de assets de $template (docs/ASSET_LICENSES.md)", ({ template, folder, files, section, rowMustContain, date }) => {
+describe.each([MAGNOLIA, LEVEL_12, AURORA_XV, CELESTE, SPIDER_FRIENDS])("registro de assets de $template (docs/ASSET_LICENSES.md)", ({ template, folder, files, section, rowMustContain, date }) => {
   const publicFiles = readdirSync(join(ROOT, folder)).filter((file) => file.endsWith(".png"));
   const referenced = referencedIn(template);
   const scoped = sectionOf(section);
