@@ -34,7 +34,8 @@ export function filterTemplates(catalog: readonly Template[], { category, style 
 
 /**
  * Lee `?category=` y `?style=` (docs/ROUTES.md §5). Los valores desconocidos se ignoran.
- * "birthday" es válido aunque no tenga chip (enlace desde la home): dará un estado sin resultados.
+ * "kids" y "baby-shower" son válidos aunque hoy no tenga ninguna plantilla: dan el estado sin
+ * resultados hasta que exista una.
  */
 export function parseTemplateFilters(
   params: { get(name: string): string | null },

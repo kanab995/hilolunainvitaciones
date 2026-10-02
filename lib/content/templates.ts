@@ -96,16 +96,18 @@ export const templateFeatureCopy: Record<TemplateFeatureId, { title: string; des
 };
 
 /**
- * Chips de categoría, en el orden del mockup [02]. El chip "Infantil" incluye también las
- * plantillas de estilo infantil (Safari es "Baby Shower · Infantil" en [02]; ver Q-14 en
- * docs/PROJECT_SPEC.md). "Cumpleaños" no tiene chip en [02]: sigue siendo un valor válido de
- * `?category=` (enlace desde la home) y muestra el estado sin resultados.
+ * Chips de categoría. Orden: las categorías con plantilla implementada primero (Bodas,
+ * Cumpleaños, XV años, Bautizo), luego las que aún no tienen ninguna (Infantil, Baby Shower) —
+ * seguirán mostrando el estado sin resultados hasta que exista una plantilla de ese tipo. El
+ * chip "Infantil" incluye también las plantillas de estilo infantil (Safari es
+ * "Baby Shower · Infantil" en [02]; ver Q-14 en docs/PROJECT_SPEC.md).
  */
 export const categoryFilters: readonly TemplateCategoryFilter[] = [
   { id: "wedding", label: "Bodas", eventTypes: ["wedding"] },
+  { id: "birthday", label: "Cumpleaños", eventTypes: ["birthday"] },
   { id: "quinceanera", label: "XV años", eventTypes: ["quinceanera"] },
-  { id: "kids", label: "Infantil", eventTypes: ["kids"], styles: ["kids"] },
   { id: "baptism", label: "Bautizo", eventTypes: ["baptism"] },
+  { id: "kids", label: "Infantil", eventTypes: ["kids"], styles: ["kids"] },
   { id: "baby-shower", label: "Baby Shower", eventTypes: ["baby-shower"] },
 ];
 

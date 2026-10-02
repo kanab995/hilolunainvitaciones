@@ -7,7 +7,7 @@ import { TemplateFilters } from "@/components/templates/template-filters";
 import { TemplateGrid } from "@/components/templates/template-grid";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { templatesPageCopy } from "@/lib/content/templates";
+import { categoryFilters, templatesPageCopy } from "@/lib/content/templates";
 import {
   filterTemplates,
   getAvailableStyles,
@@ -30,6 +30,20 @@ export function TemplateGallery({ catalog }: { catalog: readonly Template[] }) {
   const filters = useMemo(() => parseTemplateFilters(searchParams, catalog), [searchParams, catalog]);
   const styleOptions = useMemo(() => getAvailableStyles(catalog), [catalog]);
   const visible = useMemo(() => filterTemplates(catalog, filters), [catalog, filters]);
+
+  /**
+   * Si el filtro activo es solo una categoría (sin estilo) y no hay resultados, el mensaje nombra
+   * la categoría: es una categoría real sin plantillas todavía, no una combinación rara de filtros.
+   */
+  const emptyCopy = useMemo(() => {
+    if (filters.category && !filters.style) {
+      const label = categoryFilters.find((item) => item.id === filters.category)?.label;
+      if (label) {
+        return { title: `Aún no hay plantillas de ${label}`, description: "Pronto agregaremos más diseños para esta categoría." };
+      }
+    }
+    return templatesPageCopy.empty;
+  }, [filters]);
 
   /** Next sincroniza `useSearchParams` con `history.replaceState`: la URL es la única fuente de verdad. */
   const update = (next: TemplateFilterState) => {
@@ -58,8 +72,8 @@ export function TemplateGallery({ catalog }: { catalog: readonly Template[] }) {
         <EmptyState
           variant="dashed"
           icon={<SearchX />}
-          title={templatesPageCopy.empty.title}
-          description={templatesPageCopy.empty.description}
+          title={emptyCopy.title}
+          description={emptyCopy.description}
           action={
             <Button variant="secondary" onClick={() => update(NO_FILTERS)}>
               {templatesPageCopy.empty.action}
