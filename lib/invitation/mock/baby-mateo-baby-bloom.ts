@@ -60,7 +60,8 @@ export const babyMateoBabyBloomInvitation: Invitation = {
       addressLines: ["Camino de la Luna 120", "Querétaro, Qro."],
       time: "4:00 PM",
       mapUrl: "https://www.google.com/maps/search/?api=1&query=Jard%C3%ADn+Luna+Azul+Quer%C3%A9taro",
-      photo: { src: `${DEMO_IMAGES}/location-venue.png`, alt: "Jardín elegante decorado con globos pastel, flores y detalles dorados para baby shower", ...PHOTO },
+      // Única foto horizontal del set (plano abierto del jardín): dimensiones propias, no PHOTO.
+      photo: { src: `${DEMO_IMAGES}/location-venue.png`, alt: "Jardín elegante decorado con globos pastel, flores y detalles dorados para baby shower", width: 1402, height: 1122 },
     },
   ],
 
