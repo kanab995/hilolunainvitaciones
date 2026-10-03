@@ -4,12 +4,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { BillingOverviewCard } from "@/components/billing/billing-overview";
 import { PaymentStatus } from "@/components/billing/payment-status";
+import { PricingComparison } from "@/components/billing/pricing-comparison";
+import { PricingFaq } from "@/components/billing/pricing-faq";
 import { PricingPlans } from "@/components/billing/pricing-plans";
 import { UpgradeEventDialog } from "@/components/billing/upgrade-event-dialog";
 import { UpgradePrompt } from "@/components/billing/upgrade-prompt";
 import { GuestManager } from "@/components/guests/guest-manager";
 import { billingCopy } from "@/lib/billing/copy";
 import { planRows } from "@/lib/billing/plan-summary";
+import { getPlanConfig } from "@/lib/billing/plans";
 import { mainNav } from "@/lib/content/navigation";
 import { EMPTY_FILTERS } from "@/lib/guests/filter";
 import { routes } from "@/lib/routes";
@@ -25,8 +28,7 @@ vi.mock("@/components/ui/dialog", () => {
 });
 
 const ROOT = process.cwd();
-const templates = [{ minimumPlan: "FREE" as const }];
-const pricing = (signedIn: boolean) => renderToStaticMarkup(<PricingPlans signedIn={signedIn} templates={templates} />);
+const pricing = (signedIn: boolean) => renderToStaticMarkup(<PricingPlans signedIn={signedIn} />);
 const card = (html: string, plan: string) => (html.split("<article").find((chunk) => chunk.includes(`data-plan="${plan}"`)) ?? "").split("</article>")[0] ?? "";
 
 describe("/pricing: un pago único por evento (36–38, 81)", () => {
@@ -39,15 +41,14 @@ describe("/pricing: un pago único por evento (36–38, 81)", () => {
   });
 
   it("(81/36) el encabezado y la explicación son los del nuevo modelo", () => {
-    expect(billingCopy.pricing.title).toBe("Una invitación para tu gran día. Un solo pago.");
-    expect(billingCopy.pricing.subtitle).toBe("Paga una sola vez por tu evento.");
-    expect(billingCopy.pricing.description).toBe("Sin mensualidades. Elige el plan ideal para tu evento y disfruta de Hilo Luna hasta 30 días después de tu celebración.");
+    expect(billingCopy.pricing.title).toBe("Elige el plan ideal para tu evento");
+    expect(billingCopy.pricing.subtitle).toContain("sin mensualidades");
     expect(visibleText(pricing(false))).toContain("Tu invitación permanecerá disponible hasta 30 días después del evento.");
   });
 
   it("(4) las filas muestran los límites POR EVENTO (30/100/300 invitados; 5/15/40 imágenes) y ningún límite de eventos", () => {
     const text = visibleText(pricing(false));
-    for (const expected of ["Hasta 30 invitados", "Hasta 100 invitados", "Hasta 300 invitados", "Galería de hasta 5 imágenes", "Galería de hasta 15 imágenes", "Galería de hasta 40 imágenes", "Enlaces personalizados para cada invitado", "Código QR de tu invitación", "Agregar al calendario"]) expect(text, expected).toContain(expected);
+    for (const expected of ["Hasta 30 invitados", "Hasta 100 invitados", "Hasta 300 invitados", "Hasta 5 imágenes en galería", "Hasta 15 imágenes en galería", "Hasta 40 imágenes en galería", "Enlace personalizado", "Código QR", "Agregar al calendario"]) expect(text, expected).toContain(expected);
     expect(text).not.toMatch(/Eventos sin límite|\b\d+ eventos?\b/);
     expect(planRows("PREMIUM", 1).map((row) => row.id)).not.toContain("events");
   });
@@ -58,7 +59,7 @@ describe("/pricing: un pago único por evento (36–38, 81)", () => {
     expect(card(anonymous, "ESSENTIAL")).toContain('href="/sign-up?redirect_url=%2Fdashboard%2Fevents%2Fnew%3Fplan%3Dessential"');
     expect(card(anonymous, "PREMIUM")).toContain('href="/sign-up?redirect_url=%2Fdashboard%2Fevents%2Fnew%3Fplan%3Dpremium"');
     expect(visibleText(card(anonymous, "PREMIUM"))).toContain("Elegir Premium");
-    expect(visibleText(card(anonymous, "FREE"))).toContain("Comenzar gratis");
+    expect(visibleText(card(anonymous, "FREE"))).toContain("Empezar gratis");
     const signedIn = pricing(true);
     expect(card(signedIn, "ESSENTIAL")).toContain('href="/dashboard/events/new?plan=essential"');
     expect(card(signedIn, "PREMIUM")).toContain('href="/dashboard/events/new?plan=premium"');
@@ -69,6 +70,87 @@ describe("/pricing: un pago único por evento (36–38, 81)", () => {
   it("(58/37) el menú de marketing enlaza a /pricing", () => {
     expect(routes.pricing).toBe("/pricing");
     expect(mainNav.some((item) => item.href === routes.pricing)).toBe(true);
+  });
+});
+
+describe("/pricing: mejora comercial de copy (Esencial destacado, Ideal para, comparación, FAQ)", () => {
+  it('Esencial lleva la insignia «Más elegido»; Gratis y Premium no', () => {
+    const html = pricing(false);
+    expect(visibleText(card(html, "ESSENTIAL"))).toContain("Más elegido");
+    expect(visibleText(card(html, "FREE"))).not.toContain("Más elegido");
+    expect(visibleText(card(html, "PREMIUM"))).not.toContain("Más elegido");
+  });
+
+  it('cada tarjeta explica «Ideal para» con el texto real del plan (billingCopy.pricing.idealFor)', () => {
+    const html = pricing(false);
+    for (const plan of ["FREE", "ESSENTIAL", "PREMIUM"] as const) {
+      expect(visibleText(card(html, plan))).toContain(billingCopy.pricing.idealFor[plan]);
+    }
+  });
+
+  it('la nota de mejora de plan muestra la diferencia real entre Esencial y Premium ($300 MXN, calculada, no escrita a mano)', () => {
+    expect(visibleText(pricing(false))).toContain("subir de Esencial a Premium pagando solo la diferencia: $300 MXN.");
+  });
+
+  it("la tabla de comparación muestra los tres planes, sus precios reales y las filas clave sin saturar", () => {
+    const html = renderToStaticMarkup(<PricingComparison />);
+    const text = visibleText(html);
+    for (const expected of ["Gratis", "Esencial", "Premium", "$0 MXN", "$499 MXN", "$799 MXN", "Hasta 30", "Hasta 100", "Hasta 300", "Ideal para"]) {
+      expect(text, expected).toContain(expected);
+    }
+  });
+
+  it("la FAQ de precios muestra las preguntas y respuestas reales, siempre visibles en el HTML (no depende de abrir un acordeón)", () => {
+    const html = renderToStaticMarkup(<PricingFaq />);
+    const text = visibleText(html);
+    for (const { question, answer } of billingCopy.pricing.faq) {
+      expect(text, question).toContain(question);
+      expect(text, answer).toContain(answer);
+    }
+  });
+
+  it("ningún texto de precios exagera o inventa cifras falsas (cientos de diseños, miles de usuarios, ilimitado, el mejor del mercado)", () => {
+    const text = [visibleText(pricing(false)), visibleText(renderToStaticMarkup(<PricingComparison />)), visibleText(renderToStaticMarkup(<PricingFaq />))].join(" ");
+    for (const forbidden of ["cientos de diseños", "miles de usuarios", "el mejor del mercado", "ilimitado", "gratis para siempre"]) {
+      expect(text.toLowerCase(), forbidden).not.toContain(forbidden);
+    }
+  });
+
+  it("ningún texto de precios afirma una política fiscal que el producto todavía no implementa (docs/BILLING.md: Stripe Tax pendiente)", () => {
+    const text = [billingCopy.pricing.priceNote, billingCopy.pricing.subtitle, billingCopy.pricing.description, ...billingCopy.pricing.faq.flatMap((item) => [item.question, item.answer])].join(" ");
+    expect(text).not.toMatch(/impuesto/i);
+  });
+
+  it("Gratis se percibe como limitado: su tarjeta NO menciona mesa de regalos, música, QR, calendario ni enlace personalizado (Esencial sí)", () => {
+    const html = pricing(false);
+    const freeText = visibleText(card(html, "FREE"));
+    for (const paidOnly of ["Mesa de regalos", "Música", "Código QR", "Agregar al calendario", "Enlace personalizado"]) {
+      expect(freeText, paidOnly).not.toContain(paidOnly);
+    }
+    const essentialText = visibleText(card(html, "ESSENTIAL"));
+    for (const paidOnly of ["Mesa de regalos", "Música", "Código QR", "Agregar al calendario", "Enlace personalizado"]) {
+      expect(essentialText, paidOnly).toContain(paidOnly);
+    }
+  });
+
+  it("la tabla detallada no contradice a las tarjetas: mesa de regalos y música marcan Gratis sin destacar y Esencial/Premium incluidas", () => {
+    const text = visibleText(renderToStaticMarkup(<PricingComparison />));
+    expect(text).toContain("Mesa de regalos");
+    expect(text).toContain("Música");
+  });
+
+  it("Premium se percibe como mejor para eventos grandes (bodas, XV años) en su copy e «ideal para»", () => {
+    const html = pricing(false);
+    const premiumText = visibleText(card(html, "PREMIUM"));
+    expect(premiumText).toContain("Bodas, XV años y eventos grandes");
+    expect(premiumText).toMatch(/[Mm]ás capacidad|[Mm]ás completa|eventos grandes/);
+  });
+
+  it("no se tocó la lógica de billing: FREE sigue con todas las features reales en ALL_ON (D-32, sin cambios de entitlements)", () => {
+    const free = getPlanConfig("FREE");
+    expect(free.features).toEqual({ publish: true, personalizedGuestLinks: true, qr: true, calendar: true, customMedia: true });
+    expect(free.limits).toEqual({ maxGuestsPerEvent: 30, maxGalleryImages: 5, maxPublicRsvpResponses: 50 });
+    expect(free.pricing.displayPrice).toBe(0);
   });
 });
 
@@ -270,8 +352,8 @@ describe("Auditoría de copy: ya no hay modelo mensual ni suscripciones (37, 80)
   it("ningún texto de la interfaz habla de «/mes», «al mes», «mensual», «renovación» ni «suscripción»", () => {
     for (const file of files) {
       const source = readFileSync(file, "utf8");
-      // «mensualidades»/«renovación mensual» solo aparecen negadas («Sin mensualidades», «No existe renovación mensual automática»: el aviso legal (D-37) aclara justamente que no hay suscripción).
-      expect(source.replace(/[Ss]in mensualidades|No existe renovaci[óo]n mensual autom[áa]tica/g, ""), relative(ROOT, file)).not.toMatch(/\/mes\b|al mes|mensual|renovaci|suscripci|cancelAtPeriodEnd|past_due|PAST_DUE|TRIALING/);
+      // «mensualidades»/«renovación mensual» solo aparecen negadas («Sin mensualidades», «No existe renovación mensual automática») o preguntadas y negadas en la FAQ de precios («¿El pago es mensual?» → «No…»): el aviso legal (D-37) aclara justamente que no hay suscripción.
+      expect(source.replace(/[Ss]in mensualidades|No existe renovaci[óo]n mensual autom[áa]tica|¿El pago es mensual\?/g, ""), relative(ROOT, file)).not.toMatch(/\/mes\b|al mes|mensual|renovaci|suscripci|cancelAtPeriodEnd|past_due|PAST_DUE|TRIALING/);
     }
   });
 

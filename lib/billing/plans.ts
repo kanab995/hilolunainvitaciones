@@ -65,7 +65,7 @@ export const planConfigs: Readonly<Record<PlanId, PlanConfig>> = {
   FREE: {
     id: "FREE",
     name: "Gratis",
-    description: "Para crear y probar tu invitación.",
+    description: "Para conocer Hilo Luna y crear una invitación sencilla.",
     rank: 0,
     features: ALL_ON,
     limits: { maxGuestsPerEvent: 30, maxGalleryImages: 5, maxPublicRsvpResponses: 50 },
@@ -74,7 +74,7 @@ export const planConfigs: Readonly<Record<PlanId, PlanConfig>> = {
   ESSENTIAL: {
     id: "ESSENTIAL",
     name: "Esencial",
-    description: "Para una celebración con más invitados y una galería más completa.",
+    description: "Todo lo necesario para compartir una invitación elegante y funcional.",
     rank: 1,
     features: ALL_ON,
     limits: { maxGuestsPerEvent: 100, maxGalleryImages: 15, maxPublicRsvpResponses: 150 },
@@ -83,7 +83,7 @@ export const planConfigs: Readonly<Record<PlanId, PlanConfig>> = {
   PREMIUM: {
     id: "PREMIUM",
     name: "Premium",
-    description: "Para una lista de invitados grande y la galería más amplia.",
+    description: "Más capacidad y una experiencia más completa para celebraciones importantes.",
     rank: 2,
     features: ALL_ON,
     limits: { maxGuestsPerEvent: 300, maxGalleryImages: 40, maxPublicRsvpResponses: 250 },

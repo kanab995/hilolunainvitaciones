@@ -1,10 +1,11 @@
-import { Check, Minus } from "lucide-react";
+import { Check } from "lucide-react";
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Heading, Text } from "@/components/ui/typography";
 import { billingCopy } from "@/lib/billing/copy";
-import { planRows, templatesAllowedFor } from "@/lib/billing/plan-summary";
-import { formatPlanPrice, getPlanConfig, isPaidPlanId, PLAN_IDS, type PlanId } from "@/lib/billing/plans";
+import { cardHighlights } from "@/lib/billing/plan-summary";
+import { formatPlanPrice, formatPrice, getPlanConfig, isPaidPlanId, PLAN_IDS, type PlanId } from "@/lib/billing/plans";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
@@ -26,26 +27,40 @@ function PlanCta({ plan, signedIn }: { plan: PlanId; signedIn: boolean }) {
 }
 
 /**
- * Tarjetas de planes (`/pricing`, D-32: un pago único por evento). Editorial y sobrio, con los mismos tokens del producto. Las filas y
- * los precios salen de la configuración de planes (una sola fuente: nada de «499» o «799» escrito aquí) y el precio se muestra
- * siempre con «Pago único por evento».
+ * Tarjetas de planes (`/pricing`, D-32: un pago único por evento). Editorial y sobrio, con los mismos tokens del producto. Los
+ * precios y cuotas salen de la configuración de planes (una sola fuente: nada de «499» o «799» escrito aquí); los perks
+ * destacados por tarjeta salen de `cardHighlights` (`lib/billing/plan-summary.ts`) — ahí está documentada la diferencia entre
+ * "qué se promueve por plan" (esta tarjeta) y "qué existe técnicamente" (`planConfigs`, sin cambios).
+ *
+ * Esencial lleva el borde/realce y la insignia «Más elegido» (el plan que se quiere vender más); Gratis queda visualmente más
+ * sobrio y con una lista de perks más corta a propósito (se siente "de prueba" sin afirmar que le falte algo que sí tiene).
  */
-export function PricingPlans({ signedIn, templates }: { signedIn: boolean; templates: readonly { minimumPlan: PlanId }[] }) {
+export function PricingPlans({ signedIn }: { signedIn: boolean }) {
   const copy = billingCopy.pricing;
 
   return (
     <div className="flex flex-col gap-8">
-      <ul className="grid gap-5 lg:grid-cols-3 lg:gap-6">
+      <ul className="grid items-stretch gap-5 lg:grid-cols-3 lg:gap-6">
         {PLAN_IDS.map((id) => {
           const plan = getPlanConfig(id);
-          const rows = planRows(id, templatesAllowedFor(id, templates));
+          const featured = id === "ESSENTIAL";
           return (
-            <li key={id} className="flex">
-              <article aria-labelledby={`plan-${id}`} data-plan={id} className="flex w-full flex-col gap-6 rounded-lu-card border border-lu-border-subtle bg-lu-surface p-6 shadow-lu-card md:p-7">
+            <li key={id} className={cn("flex", featured && "lg:-mt-3 lg:mb-3")}>
+              <article
+                aria-labelledby={`plan-${id}`}
+                data-plan={id}
+                className={cn(
+                  "flex w-full flex-col gap-6 rounded-lu-card border bg-lu-surface p-6 md:p-7",
+                  featured ? "border-lu-brown-400 shadow-lu-float ring-1 ring-lu-brown-400/25" : "border-lu-border-subtle shadow-lu-card",
+                )}
+              >
                 <header className="flex flex-col gap-3">
-                  <Heading as="h2" id={`plan-${id}`} size="title-lg">
-                    {plan.name}
-                  </Heading>
+                  <div className="flex items-center justify-between gap-2">
+                    <Heading as="h2" id={`plan-${id}`} size="title-lg">
+                      {plan.name}
+                    </Heading>
+                    {featured ? <Badge tone="accent">{copy.recommendedBadge}</Badge> : null}
+                  </div>
                   <Text size="base">{plan.description}</Text>
                   <div className="flex min-h-14 flex-col justify-end gap-0.5">
                     <p data-plan-price className="font-lu-display text-lu-title-xl text-lu-text">
@@ -55,16 +70,17 @@ export function PricingPlans({ signedIn, templates }: { signedIn: boolean; templ
                       {id === "FREE" ? copy.freeNote : copy.oneTime}
                     </Text>
                   </div>
+                  <Text size="sm" tone="muted">
+                    <span className="font-medium text-lu-text-secondary">{copy.comparison.rowLabels.idealFor}: </span>
+                    {copy.idealFor[id]}
+                  </Text>
                 </header>
 
                 <ul aria-label={`Incluye ${plan.name}`} className="flex flex-1 flex-col gap-3">
-                  {rows.map((row) => (
-                    <li key={row.id} className={cn("flex items-start gap-3 text-lu-base", row.included ? "text-lu-text-secondary" : "text-lu-text-subtle")}>
-                      {row.included ? <Check aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-lu-success" strokeWidth={2} /> : <Minus aria-hidden="true" className="mt-0.5 size-4 shrink-0" strokeWidth={2} />}
-                      <span>
-                        {row.included ? null : <span className="sr-only">No incluido: </span>}
-                        {row.label}
-                      </span>
+                  {cardHighlights(id).map((row) => (
+                    <li key={row.id} className="flex items-start gap-3 text-lu-base text-lu-text-secondary">
+                      <Check aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-lu-success" strokeWidth={2} />
+                      <span>{row.label}</span>
                     </li>
                   ))}
                 </ul>
@@ -75,6 +91,10 @@ export function PricingPlans({ signedIn, templates }: { signedIn: boolean; templ
           );
         })}
       </ul>
+
+      <Text size="sm" tone="muted" className="mx-auto max-w-2xl text-center">
+        {copy.upgradeNote(formatPrice(getPlanConfig("PREMIUM").pricing.displayPrice - getPlanConfig("ESSENTIAL").pricing.displayPrice))}
+      </Text>
 
       <section aria-labelledby="pricing-upcoming" className="mx-auto flex max-w-2xl flex-col items-center gap-2 text-center">
         <Text size="sm" tone="muted">

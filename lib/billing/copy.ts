@@ -1,4 +1,4 @@
-import type { FeatureId, LimitId } from "@/lib/billing/plans";
+import type { FeatureId, LimitId, PlanId } from "@/lib/billing/plans";
 import type { PurchaseStatusId } from "@/lib/billing/purchase";
 
 /** Textos de planes y compras (módulo central de copy; español México/LatAm). Modelo: un pago único por evento. */
@@ -51,21 +51,90 @@ export const billingCopy = {
 
   pricing: {
     eyebrow: "Planes",
-    title: "Una invitación para tu gran día. Un solo pago.",
-    subtitle: "Paga una sola vez por tu evento.",
-    description: "Sin mensualidades. Elige el plan ideal para tu evento y disfruta de Hilo Luna hasta 30 días después de tu celebración.",
+    title: "Elige el plan ideal para tu evento",
+    subtitle: "Paga una sola vez por evento, sin mensualidades.",
+    description: "Crea tu invitación digital con diseño elegante, RSVP, galería, ubicación, cuenta regresiva y enlace personalizado.",
+    /** Línea corta bajo el hero: aclara que el precio mostrado es el total (sin afirmar una política fiscal que todavía no existe, ver docs/BILLING.md — misma sustitución acordada con el propietario la vez anterior). */
+    priceNote: "El precio que ves es el total a pagar: no se suman cargos adicionales al confirmarlo.",
     oneTime: "Pago único por evento",
     freeNote: "Sin costo, para siempre.",
+    /** Solo se muestra en el plan Esencial (`components/billing/pricing-plans.tsx`). */
+    recommendedBadge: "Más elegido",
+    idealFor: {
+      FREE: "Explorar la plataforma antes de elegir un plan completo.",
+      ESSENTIAL: "Bautizos, cumpleaños, baby shower, reuniones familiares y eventos medianos.",
+      PREMIUM: "Bodas, XV años y eventos grandes.",
+    } satisfies Record<PlanId, string>,
+    /** Versión corta de `idealFor`, para la franja comparativa (`PricingSummaryStrip`). */
+    idealForShort: {
+      FREE: "Ideal para probar",
+      ESSENTIAL: "Ideal para la mayoría de eventos",
+      PREMIUM: "Ideal para bodas, XV y eventos grandes",
+    } satisfies Record<PlanId, string>,
     upcomingTitle: "Próximamente",
     upcoming: "Marca personalizada y soporte prioritario llegarán más adelante; hoy no forman parte de ningún plan.",
-    footnote: "Cada plan se compra para un evento. Puedes mejorar de Esencial a Premium pagando solo la diferencia. Los impuestos, si aplican, se muestran al pagar.",
+    /** Nota de mejora de plan, con el precio real (`formatPrice`, nunca escrito a mano): ver `PricingPlans`. */
+    upgradeNote: (price: string) => `¿Tu evento creció? Puedes subir de Esencial a Premium pagando solo la diferencia: ${price}.`,
+    footnote: "Cada plan se compra para un evento, así eliges el adecuado para cada celebración.",
     access: "Tu invitación permanecerá disponible hasta 30 días después del evento.",
     cta: {
-      FREE: "Comenzar gratis",
+      FREE: "Empezar gratis",
       ESSENTIAL: "Elegir Esencial",
       PREMIUM: "Elegir Premium",
     },
     goToEvents: "Crear un evento",
+    /** CTA de cierre, al final de la página (`PricingFinalCta`). */
+    finalCta: {
+      title: "¿Listo para crear tu invitación?",
+      description: "Empieza gratis y mejora de plan cuando lo necesites: tu contenido siempre se conserva.",
+      action: "Empezar gratis",
+      secondaryAction: "Ver plantillas",
+    },
+    comparison: {
+      title: "Comparación detallada",
+      description: "Lo esencial de cada plan, lado a lado.",
+      rowLabels: {
+        price: "Precio",
+        paymentType: "Tipo de pago",
+        guests: "Invitados",
+        gallery: "Imágenes de galería",
+        giftRegistry: "Mesa de regalos",
+        music: "Música",
+        idealFor: "Ideal para",
+      },
+      paymentTypeFree: "Sin costo",
+      paymentTypePaid: "Pago único",
+    },
+    faq: [
+      {
+        question: "¿El pago es mensual?",
+        answer: "No. En Hilo Luna el pago es único por evento. Sin mensualidades.",
+      },
+      {
+        question: "¿Los precios incluyen cargos adicionales?",
+        answer: "No. El precio que ves en cada plan es el total a pagar: no se suma nada más al confirmarlo.",
+      },
+      {
+        question: "¿Puedo empezar gratis?",
+        answer: "Sí. Puedes crear una invitación con el plan Gratis y subir de plan cuando necesites más capacidad.",
+      },
+      {
+        question: "¿Qué plan me conviene?",
+        answer: "Gratis es ideal para probar. Esencial funciona para la mayoría de eventos familiares. Premium es mejor para bodas, XV años o eventos con más invitados y más fotos.",
+      },
+      {
+        question: "¿Puedo subir de Esencial a Premium?",
+        answer: "Sí. Si tu evento crece, puedes subir a Premium pagando solo la diferencia disponible.",
+      },
+      {
+        question: "¿Qué pasa si necesito más invitados?",
+        answer: "Puedes elegir Premium si tu evento requiere más capacidad. Si ya tienes Esencial, puedes subir a Premium pagando solo la diferencia.",
+      },
+      {
+        question: "¿El plan se aplica a todos mis eventos?",
+        answer: "No. Cada plan se compra por evento, así puedes elegir el plan adecuado para cada celebración.",
+      },
+    ] as readonly { question: string; answer: string }[],
   },
 
   /** Panel «Mejorar evento» (desde el dashboard de un evento). */
