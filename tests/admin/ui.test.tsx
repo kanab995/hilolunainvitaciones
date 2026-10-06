@@ -103,7 +103,7 @@ describe("(5/6) marco de la consola", () => {
   it("marca «Hilo Luna» + ADMIN, seis secciones y «Volver al panel»; la activa se marca con aria-current", () => {
     const html = shell();
     const text = visibleText(html);
-    expect(text).toContain("Hilo Luna");
+    expect(html).toContain('alt="Hilo Luna"'); // el logotipo es una imagen: el nombre va en el alt
     expect(text).toContain("ADMIN");
     for (const label of ["Resumen", "Usuarios", "Eventos", "Plantillas", "Compras", "Webhooks", "Volver al panel"]) expect(text, label).toContain(label);
     for (const href of ["/admin", "/admin/users", "/admin/events", "/admin/templates", "/admin/purchases", "/admin/webhooks", "/dashboard/events"]) expect(html, href).toContain(`href="${href}"`);

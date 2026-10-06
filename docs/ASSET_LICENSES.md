@@ -3,7 +3,7 @@
 > Registro de procedencia y licencias de **todo** activo de terceros o generado que llegue a producción (fuentes, imágenes, audio, íconos, ilustraciones).
 > **Regla de oro (CLAUDE.md):** no se introduce ningún activo de terceros sin registrar aquí su licencia **antes** de mergear.
 
-Última revisión: 2026-10-02 · Estado: **2 fuentes, dependencias de código, 10 imágenes de la plantilla Magnolia (§5.1), 10 imágenes de la plantilla Level 12 (§5.2), 11 imágenes de la plantilla Aurora XV (§5.3), 11 imágenes de la plantilla Celeste (§5.4), 10 imágenes de la plantilla Spider Friends (§5.5) y 10 imágenes de la plantilla Baby Bloom (§5.6); ningún audio ni ícono propio.** Se eliminaron los SVG de demostración de Next/Vercel y no se incluye favicon.
+Última revisión: 2026-10-02 · Estado: **2 fuentes, dependencias de código, 10 imágenes de la plantilla Magnolia (§5.1), 10 imágenes de la plantilla Level 12 (§5.2), 11 imágenes de la plantilla Aurora XV (§5.3), 11 imágenes de la plantilla Celeste (§5.4), 10 imágenes de la plantilla Spider Friends (§5.5) y 10 imágenes de la plantilla Baby Bloom (§5.6); ningún audio; logotipo, símbolo, favicon y fotos de perfil propios (§5.0).** Se eliminaron los SVG de demostración de Next/Vercel.
 
 ---
 
@@ -133,6 +133,19 @@ Plantilla de fila:
 
 | Nombre | Fuente | Autor/proveedor | Licencia | URL de origen | Fecha de obtención | Usado en | Estado / notas |
 |
+
+### 5.0 Identidad de marca — logotipo, símbolo, favicon y fotos de perfil (2026-10-06)
+
+Registrados **antes** de usarse en código. Origen: **dos imágenes aportadas por el propietario de Hilo Luna** (`logogo hiloluna` — símbolo, 1254 × 1254 sobre fondo crema — y `log hiloluna` — logotipo apilado con el rotulado «Hilo ✦ Luna», 1448 × 1086 con fondo transparente), que él declara creadas para la marca. El asistente solo las **recortó y reencuadró localmente con `sharp`** (símbolo y rotulado por separado, fondo transparente, márgenes de seguridad para fotos de perfil circulares y favicon); no se modificó el diseño. El rotulado es **arte de marca** del propietario (no es una fuente instalada ni cargada: no aplica §1.1). Sin logotipos ni marcas de terceros visibles.
+
+| Nombre | Fuente | Autor/proveedor | Licencia | URL de origen | Fecha de obtención | Usado en | Estado / notas |
+|---|---|---|---|---|---|---|---|
+| hiloluna-logo.png | `log hiloluna` (propietario), recortado | Propietario de Hilo Luna | Original para Hilo Luna, según declaración del propietario | — | 2026-10-06 | Material de marca (logotipo apilado: símbolo + rotulado) | `activo` · 1269 × 826, fondo transparente · `public/brand/hiloluna-logo.png` |
+| hiloluna-wordmark.png | `log hiloluna` (propietario), recorte del rotulado | Propietario de Hilo Luna | Original para Hilo Luna, según declaración del propietario | — | 2026-10-06 | `components/layout/wordmark.tsx` (encabezado, pie, panel, editor, 404, autenticación) | `activo` · 1269 × 310, fondo transparente · `public/brand/hiloluna-wordmark.png` |
+| hiloluna-symbol.png | `log hiloluna` (propietario), recorte del símbolo | Propietario de Hilo Luna | Original para Hilo Luna, según declaración del propietario | — | 2026-10-06 | Material de marca (símbolo solo, fondo transparente) | `activo` · 834 × 507 · `public/brand/hiloluna-symbol.png` |
+| hiloluna-symbol-gold.png | `logogo hiloluna` (propietario), sin cambios | Propietario de Hilo Luna | Original para Hilo Luna, según declaración del propietario | — | 2026-10-06 | Material de marca (símbolo en dorado sobre crema, versión de alta fidelidad) | `activo` · 1254 × 1254 · `public/brand/hiloluna-symbol-gold.png` |
+| profile-gold.png / profile-logo.png | `logogo hiloluna` / `log hiloluna` (propietario), reencuadrados | Propietario de Hilo Luna | Original para Hilo Luna, según declaración del propietario | — | 2026-10-06 | Fotos de perfil de TikTok e Instagram (1080 × 1080, contenido dentro del recorte circular) | `activo` · `public/brand/profile-*.png` |
+| icon.png / apple-icon.png | `log hiloluna` (propietario), recorte de la luna sobre fondo tinta | Propietario de Hilo Luna | Original para Hilo Luna, según declaración del propietario | — | 2026-10-06 | Favicon (`app/icon.png`, 512 × 512) e ícono de iOS (`app/apple-icon.png`, 180 × 180), servidos por la convención de metadatos de Next | `activo` |
 
 ### 5.1 Imágenes incorporadas — plantilla Magnolia (invitación pública `/i/demo-magnolia`)
 

@@ -1,8 +1,12 @@
+import Image from "next/image";
 import Link from "next/link";
 import { siteConfig } from "@/lib/site-config";
 import { cn } from "@/lib/utils";
 
-/** Logotipo tipográfico: el nombre de marca en serif (medido ≈ 36 px en escritorio). */
+/**
+ * Logotipo de la marca (rotulado «Hilo ✦ Luna» del propietario, `public/brand/hiloluna-wordmark.png`,
+ * docs/ASSET_LICENSES.md §5.0). El alt es el nombre de marca: es lo que lee un lector de pantalla.
+ */
 export function Wordmark({
   size = "md",
   href,
@@ -13,19 +17,24 @@ export function Wordmark({
   href?: string;
   className?: string;
 }) {
-  const classes = cn(
-    "font-lu-display text-lu-text",
-    size === "md" ? "text-lu-wordmark" : "text-lu-h3",
-    className,
+  const image = (
+    <Image
+      src="/brand/hiloluna-wordmark.png"
+      alt={siteConfig.name}
+      width={1269}
+      height={310}
+      sizes={size === "md" ? "164px" : "115px"}
+      className={cn("w-auto", size === "md" ? "h-10" : "h-7")}
+    />
   );
 
   if (href) {
     return (
-      <Link href={href} className={cn(classes, "rounded-lu-xs outline-none focus-visible:ring-2 focus-visible:ring-lu-brown-600 focus-visible:ring-offset-2 focus-visible:ring-offset-lu-canvas")}>
-        {siteConfig.name}
+      <Link href={href} className={cn("inline-flex rounded-lu-xs outline-none focus-visible:ring-2 focus-visible:ring-lu-brown-600 focus-visible:ring-offset-2 focus-visible:ring-offset-lu-canvas", className)}>
+        {image}
       </Link>
     );
   }
 
-  return <span className={classes}>{siteConfig.name}</span>;
+  return <span className={cn("inline-flex", className)}>{image}</span>;
 }
