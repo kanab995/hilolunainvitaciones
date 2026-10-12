@@ -28,12 +28,12 @@ describe("getFeaturedTemplates: solo listas, nunca una lista fija en código", (
     for (const template of featured) expect(isTemplateReady(template), template.slug).toBe(true);
   });
 
-  it("respeta el límite por defecto (8) y uno explícito", () => {
-    expect(getFeaturedTemplates(templates).length).toBeLessThanOrEqual(8);
+  it("respeta el límite por defecto (12) y uno explícito", () => {
+    expect(getFeaturedTemplates(templates).length).toBeLessThanOrEqual(12);
     expect(getFeaturedTemplates(templates, 2)).toHaveLength(2);
   });
 
-  it("con el catálogo real de hoy, devuelve las 6 listas (caben todas dentro del límite de 8)", () => {
+  it("con el catálogo real de hoy, devuelve las 9 listas (caben todas dentro del límite de 12)", () => {
     expect(slugsOf(getFeaturedTemplates(templates)).sort()).toEqual(
       slugsOf(templates.filter(isTemplateReady)).sort(),
     );

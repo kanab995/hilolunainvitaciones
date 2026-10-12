@@ -1,5 +1,6 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
+import { withAssetVersion } from "@/lib/images/asset-version";
 import { cn } from "@/lib/utils";
 import type { ImageRef } from "@/types/invitation";
 import type { PhotoMask } from "@/types/invitation-template";
@@ -29,8 +30,8 @@ type InvImageProps = {
   priority?: boolean;
   /** Punto focal del recorte (`object-position`). */
   position?: string;
-  /** Mezcla la imagen con el fondo (ilustraciones sobre fondo crema). */
-  blend?: boolean;
+  /** Mezcla la imagen con el fondo (ilustraciones sobre fondo crema). `screen` para fondos oscuros (D-45). */
+  blend?: boolean | "multiply" | "screen";
   children?: ReactNode;
 };
 
@@ -48,7 +49,7 @@ export function InvImage({ image, className, sizes, priority, position, blend, c
     <div className={cn("relative overflow-hidden bg-inv-surface", blend && "bg-transparent", className)}>
       {image?.src ? (
         <Image
-          src={image.src}
+          src={withAssetVersion(image.src)}
           alt={image.alt}
           width={image.width ?? DEFAULT_SIZE.width}
           height={image.height ?? DEFAULT_SIZE.height}
@@ -56,7 +57,7 @@ export function InvImage({ image, className, sizes, priority, position, blend, c
           priority={priority}
           // Vista previa local del editor (blob:): no pasa por el optimizador de Next.
           unoptimized={image.src.startsWith("blob:") || undefined}
-          className={cn("absolute inset-0 size-full object-cover", blend && "mix-blend-multiply")}
+          className={cn("absolute inset-0 size-full object-cover", blend === "screen" ? "mix-blend-screen" : blend && "mix-blend-multiply")}
           style={position ? { objectPosition: position } : undefined}
         />
       ) : (

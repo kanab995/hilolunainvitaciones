@@ -104,6 +104,38 @@ const BABY_BLOOM: TemplateAssetSet = {
   date: "2026-10-02",
 };
 
+/** Imágenes definitivas aportadas por el propietario (sustituyeron al placeholder vectorial del asistente). */
+const OWNER_ROW = ["Imagen aportada por el propietario", "Hilo Luna — aportada por el propietario", "Original para Hilo Luna"] as const;
+const LUZ_ROW = ["Imagen generada por IA (moodboard), aportada por el propietario", "Hilo Luna — aportada por el propietario", "Original para Hilo Luna"] as const;
+const NEW_SET_FILES = (extra: readonly string[]) => ["cover-bg.png", "decor-corners.png", ...extra, "gallery-1.png", "gallery-2.png", "gallery-3.png", "gallery-4.png", "gallery-5.png", "dress-code.png", "gift-registry.png"];
+
+const LUZ_DE_FE: TemplateAssetSet = {
+  template: "luz-de-fe",
+  folder: "public/templates/luz-de-fe",
+  files: NEW_SET_FILES(["location-church.png", "location-venue.png"]),
+  section: "### 5.7 Imágenes incorporadas — plantilla Luz de Fe",
+  rowMustContain: LUZ_ROW,
+  date: "2026-10-11",
+};
+
+const MAR_DE_AMOR: TemplateAssetSet = {
+  template: "mar-de-amor",
+  folder: "public/templates/mar-de-amor",
+  files: NEW_SET_FILES(["location-ceremony.png", "location-venue.png"]),
+  section: "### 5.8 Imágenes incorporadas — plantilla Mar de Amor",
+  rowMustContain: OWNER_ROW,
+  date: "2026-10-11",
+};
+
+const NOVA_GRAD: TemplateAssetSet = {
+  template: "nova-grad",
+  folder: "public/templates/nova-grad",
+  files: NEW_SET_FILES(["location-ceremony.png", "location-venue.png"]),
+  section: "### 5.9 Imágenes incorporadas — plantilla Nova Grad",
+  rowMustContain: OWNER_ROW,
+  date: "2026-10-11",
+};
+
 /** Texto del documento desde el encabezado de ESTA plantilla hasta el siguiente encabezado `##`/`###`. */
 function sectionOf(heading: string): string {
   const start = licenses.indexOf(heading);
@@ -113,7 +145,7 @@ function sectionOf(heading: string): string {
   return rest.slice(0, next >= 0 ? next : undefined);
 }
 
-describe.each([MAGNOLIA, LEVEL_12, AURORA_XV, CELESTE, SPIDER_FRIENDS, BABY_BLOOM])("registro de assets de $template (docs/ASSET_LICENSES.md)", ({ template, folder, files, section, rowMustContain, date }) => {
+describe.each([MAGNOLIA, LEVEL_12, AURORA_XV, CELESTE, SPIDER_FRIENDS, BABY_BLOOM, LUZ_DE_FE, MAR_DE_AMOR, NOVA_GRAD])("registro de assets de $template (docs/ASSET_LICENSES.md)", ({ template, folder, files, section, rowMustContain, date }) => {
   const publicFiles = readdirSync(join(ROOT, folder)).filter((file) => file.endsWith(".png"));
   const referenced = referencedIn(template);
   const scoped = sectionOf(section);

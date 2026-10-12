@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { NextConfig } from "next";
 import { cspFingerprint, securityHeaderRules } from "./server/security/csp";
 
@@ -23,6 +25,23 @@ function mediaImages(): NonNullable<NextConfig["images"]> {
   }
 }
 
+/**
+ * Imágenes estáticas de plantillas versionadas (D-45): `withAssetVersion` (`lib/images/asset-version.ts`) añade
+ * `?v=<huella de la carpeta>` al `src` de las de `/templates/<slug>/**`, y Next 16 exige que cada fuente local con query
+ * string esté en `images.localPatterns` (`search` es una coincidencia EXACTA, sin comodines, y la lista
+ * admite 25 entradas como máximo: por eso hay una huella por carpeta de plantilla, no por archivo). Se generan
+ * a partir de la misma tabla (`lib/images/asset-versions.json`), así que solo se acepta la combinación
+ * carpeta + huella vigente; cualquier otra ruta local sigue permitida SIN query string.
+ */
+function templateAssetPatterns(): NonNullable<NextConfig["images"]>["localPatterns"] {
+  try {
+    const table = JSON.parse(readFileSync(join(process.cwd(), "lib", "images", "asset-versions.json"), "utf8")) as Record<string, string>;
+    return [...Object.entries(table).map(([folder, version]) => ({ pathname: `${folder}/**`, search: `?v=${version}` })), { pathname: "/**", search: "" }];
+  } catch {
+    return undefined;
+  }
+}
+
 const nextConfig: NextConfig = {
   // Sin la cabecera `X-Powered-By: Next.js` (no aporta nada y revela el stack).
   poweredByHeader: false,
@@ -38,7 +57,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["@sentry/node"],
   // Huella de la CSP del build (se compara al arrancar: `server/config/startup.ts`).
   env: { HILOLUNA_CSP_FINGERPRINT: cspFingerprint(process.env) },
-  images: mediaImages(),
+  images: { ...mediaImages(), localPatterns: templateAssetPatterns() },
   experimental: {
     // Necesario para personalizar el 404 global con varios layouts raíz
     // (app/global-not-found.tsx). Ver docs/ROUTES.md §7.

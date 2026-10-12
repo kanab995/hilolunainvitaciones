@@ -2,6 +2,7 @@
 
 import { Eye, X } from "lucide-react";
 import Image from "next/image";
+import { withAssetVersion } from "@/lib/images/asset-version";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { publishInvitationAction, saveDraftAction } from "@/app/(site)/dashboard/(editor)/events/[id]/edit/actions";
@@ -153,7 +154,7 @@ export function EditorShell({ event }: { event: EditorEvent }) {
   if (!selectedRow) return null;
 
   const backdrop = template.decor.heroBackdrop;
-  const thumb = draft.cover.photo?.src ?? (backdrop?.kind === "image" ? backdrop.src : undefined);
+  const thumb = draft.cover.photo?.src ?? (backdrop?.kind === "image" ? withAssetVersion(backdrop.src) : undefined);
 
   const railHeader = (
     <div className="flex items-center gap-4 px-1 pb-1">

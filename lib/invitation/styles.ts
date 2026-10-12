@@ -36,6 +36,7 @@ export function templateToCssVars(template: InvitationTemplate, overrides?: Styl
     "--inv-button-fg": colors.buttonFg,
     "--inv-font-display": fonts.display,
     "--inv-font-body": fonts.body,
+    ...(fonts.italic === false ? { "--inv-italic": "normal" } : {}),
     "--inv-radius-card": RADIUS[componentStyles.card.radius],
     "--inv-radius-image": RADIUS[componentStyles.image.radius],
     "--inv-radius-button": BUTTON_RADIUS[componentStyles.button.shape],

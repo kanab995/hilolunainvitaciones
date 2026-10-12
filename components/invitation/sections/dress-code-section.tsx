@@ -16,6 +16,7 @@ export function DressCodeSection({ invitation, template, section, index, editing
   const { dressCode } = invitation;
   // Sin estilo, descripción, paleta ni ilustración no hay nada que mostrar al invitado.
   const empty = !dressCode || (!dressCode.style.trim() && !dressCode.description.trim() && dressCode.palette.length === 0 && !dressCode.illustration?.src);
+  const blendMode = template.effects.illustrationBlend ?? "multiply";
   if (empty) return editing ? <EditorPlaceholder section={section} template={template} index={index} message={invitationCopy.editorEmpty.dressCode} /> : null;
 
   return (
@@ -52,7 +53,7 @@ export function DressCodeSection({ invitation, template, section, index, editing
         </div>
         <InvImage
           image={dressCode.illustration}
-          blend
+          blend={blendMode === "none" ? false : blendMode}
           sizes="(min-width: 1024px) 512px, (min-width: 768px) 50vw, 46vw"
           className={cn("aspect-[4/5] w-full", photoMaskClass(template.effects.photoMask ?? "none", "left"))}
         />

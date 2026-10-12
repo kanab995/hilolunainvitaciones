@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MediaSlot, SceneBlobs } from "@/components/ui/media-slot";
 import { Heading, Text } from "@/components/ui/typography";
-import { eventTypeLabels, styleLabels, templateDetailCopy } from "@/lib/content/templates";
+import { getTemplateEventLabel, styleLabels, templateDetailCopy } from "@/lib/content/templates";
 import { routes } from "@/lib/routes";
 import { getTemplateStyles } from "@/lib/templates/filter";
 import { getTemplateCapabilities, getTemplateCoverImage } from "@/lib/templates/status";
@@ -37,7 +37,7 @@ type TemplateDetailProps = {
  */
 export function TemplateDetail({ template, related = [] }: TemplateDetailProps) {
   const capabilities = getTemplateCapabilities(template);
-  const meta = [eventTypeLabels[template.eventType], ...getTemplateStyles(template).map((style) => styleLabels[style])];
+  const meta = [getTemplateEventLabel(template), ...getTemplateStyles(template).map((style) => styleLabels[style])];
   const notice = capabilities.notice ? templateDetailCopy.status[capabilities.notice] : undefined;
   const cover = getTemplateCoverImage(template.slug);
 

@@ -27,7 +27,7 @@ export function CountdownDisplay({ targetIso, serverNowMs }: { targetIso: string
   const parts = getCountdown(targetIso, now);
 
   if (parts.isPast) {
-    return <p className="text-center font-inv-display text-2xl text-inv-ink italic">{invitationCopy.countdown.past}</p>;
+    return <p className="text-center font-inv-display text-2xl text-inv-ink inv-italic">{invitationCopy.countdown.past}</p>;
   }
 
   const units = [

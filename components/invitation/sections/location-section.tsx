@@ -94,7 +94,7 @@ function LocationBlock({
           <p className="font-inv-body text-[0.6875rem] font-medium tracking-[0.24em] text-inv-accent uppercase md:text-xs">
             {invitationCopy.locationKind[location.kind]}
           </p>
-          <h2 className="font-inv-display text-[1.75rem] leading-[1.1] font-medium text-inv-ink italic text-balance md:text-[2.5rem]">{location.name}</h2>
+          <h2 className="font-inv-display text-[1.75rem] leading-[1.1] font-medium text-inv-ink inv-italic text-balance md:text-[2.5rem]">{location.name}</h2>
           <div className="flex items-start gap-2.5 font-inv-body text-[0.8125rem] leading-snug text-inv-ink-muted md:text-[0.9375rem]">
             <MapPin aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-inv-accent" strokeWidth={1.5} />
             <address className="not-italic">

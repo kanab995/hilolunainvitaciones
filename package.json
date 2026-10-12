@@ -3,8 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/asset-versions.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/asset-versions.mjs",
     "build": "prisma migrate deploy && next build",
+    "assets:versions": "node scripts/asset-versions.mjs",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit",

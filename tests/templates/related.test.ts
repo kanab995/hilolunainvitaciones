@@ -28,18 +28,19 @@ describe("getRelatedTemplates: solo sugiere plantillas listas (isTemplateReady)"
     }
   });
 
-  it("mantiene el orden por categoría y estilo (D-44): Magnolia prioriza Aurora XV, Celeste y Baby Bloom (estilo romántico compartido) sobre Level 12", () => {
+  it("mantiene el orden por categoría y estilo (D-44): Magnolia prioriza a Mar de Amor (misma categoría y estilo romántico) y luego a Aurora XV y Celeste (estilo romántico compartido) sobre Level 12", () => {
     const magnolia = templates.find((t) => t.slug === "magnolia")!;
-    // Empate a puntaje (las 3 comparten el estilo "romantic" con Magnolia): se ordena por índice de
-    // catálogo. Level 12 no comparte categoría ni estilo con Magnolia, así que queda fuera del top 3.
-    expect(slugsOf(getRelatedTemplates(magnolia, templates))).toEqual(["aurora-xv", "celeste", "baby-bloom"]);
+    // Mar de Amor comparte categoría (boda) Y estilo "romantic" con Magnolia: va primero. Las demás
+    // empatan solo por el estilo "romantic" y se ordenan por índice de catálogo. Level 12 no comparte
+    // categoría ni estilo con Magnolia, así que queda fuera del top 3.
+    expect(slugsOf(getRelatedTemplates(magnolia, templates))).toEqual(["mar-de-amor", "aurora-xv", "celeste"]);
   });
 
-  it("solo quedan 5 plantillas listas en total (sin contarse a sí misma): un límite mayor no rellena con plantillas no listas", () => {
+  it("solo quedan 8 plantillas listas en total (sin contarse a sí misma): un límite mayor no rellena con plantillas no listas", () => {
     const level12 = templates.find((t) => t.slug === "level-12")!;
-    const related = getRelatedTemplates(level12, templates, 7);
-    expect(related).toHaveLength(5);
-    expect(slugsOf(related).sort()).toEqual(["aurora-xv", "baby-bloom", "celeste", "magnolia", "spider-friends"]);
+    const related = getRelatedTemplates(level12, templates, 12);
+    expect(related).toHaveLength(8);
+    expect(slugsOf(related).sort()).toEqual(["aurora-xv", "baby-bloom", "celeste", "luz-de-fe", "magnolia", "mar-de-amor", "nova-grad", "spider-friends"]);
   });
 
   it("si la propia plantilla es de las 6 listas, el límite por defecto (3) sigue aplicando", () => {

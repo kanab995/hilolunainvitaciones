@@ -128,7 +128,7 @@ export function PersonalizedRsvp({
   if (state?.ok && !editing) {
     return (
       <div ref={doneRef} tabIndex={-1} role="status" data-rsvp-done className="flex flex-col items-center gap-3 text-center outline-none">
-        <p className="font-inv-display text-2xl text-inv-ink italic">{copy.thanks(firstName)}</p>
+        <p className="font-inv-display text-2xl text-inv-ink inv-italic">{copy.thanks(firstName)}</p>
         <p className="font-inv-body text-base text-inv-ink-muted">{state.message}</p>
         {saved ? <p className="font-inv-body text-sm text-inv-ink">{summaryText(saved)}</p> : null}
         <button type="button" onClick={() => setEditing(true)} className={invButtonClass("outline")}>
@@ -143,7 +143,7 @@ export function PersonalizedRsvp({
     return (
       <div className="flex flex-col items-center gap-3 text-center" data-rsvp-current>
         <p className="font-inv-body text-xs tracking-[0.2em] text-inv-ink-muted uppercase">{copy.currentTitle}</p>
-        <p ref={summaryRef} className="font-inv-display text-2xl text-inv-ink italic">
+        <p ref={summaryRef} className="font-inv-display text-2xl text-inv-ink inv-italic">
           {summaryText(saved)}
         </p>
         <button type="button" onClick={() => setEditing(true)} className={invButtonClass(buttonVariant)}>

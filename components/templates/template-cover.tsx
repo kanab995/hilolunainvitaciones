@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { SampleInvitation } from "@/components/templates/template-card";
 import { MediaSlot } from "@/components/ui/media-slot";
-import { eventTypeLabels } from "@/lib/content/templates";
+import { getTemplateEventLabel } from "@/lib/content/templates";
 import { cn } from "@/lib/utils";
 import type { Template } from "@/types/templates";
 
@@ -19,7 +19,7 @@ export function TemplateCover({ template, className }: { template: Template; cla
         <Image src={thumbnail.src} alt={thumbnail.alt} fill priority sizes="(min-width: 1024px) 576px, 100vw" className="object-cover" />
       ) : (
         <MediaSlot tone={thumbnail.tone} scene="roses" className="size-full">
-          <SampleInvitation name={template.name} category={eventTypeLabels[template.eventType]} flip={false} />
+          <SampleInvitation name={template.name} category={getTemplateEventLabel(template)} flip={false} />
         </MediaSlot>
       )}
     </div>

@@ -99,12 +99,14 @@ describe("Compatibilidad plantilla ↔ tipo", () => {
   });
 
   it("la lista de candidatas por tipo solo incluye diseños aprobados", () => {
-    expect(templatesFor(templates, "wedding").map((t) => t.slug)).toEqual(["magnolia"]);
+    expect(templatesFor(templates, "wedding").map((t) => t.slug)).toEqual(["magnolia", "mar-de-amor"]);
     expect(templatesFor(templates, "birthday").map((t) => t.slug)).toEqual(["level-12", "spider-friends"]);
     // Étoile también es "quinceanera" pero sigue en concept: la única candidata aprobada es Aurora XV.
     expect(templatesFor(templates, "quinceanera").map((t) => t.slug)).toEqual(["aurora-xv"]);
-    expect(templatesFor(templates, "baptism").map((t) => t.slug)).toEqual(["celeste"]);
+    // Luz de Fe (Primera Comunión) usa "baptism": es el tipo existente más cercano (no hay "primera comunión" en el dominio).
+    expect(templatesFor(templates, "baptism").map((t) => t.slug)).toEqual(["celeste", "luz-de-fe"]);
     expect(templatesFor(templates, "baby-shower").map((t) => t.slug)).toEqual(["baby-bloom"]);
+    expect(templatesFor(templates, "graduation").map((t) => t.slug)).toEqual(["nova-grad"]);
   });
 });
 

@@ -4,6 +4,7 @@ import type {
   HeroBadgeData,
   HowItWorksStepData,
 } from "@/types/marketing";
+import { withAssetVersion } from "@/lib/images/asset-version";
 import { routes } from "@/lib/routes";
 
 /**
@@ -128,9 +129,9 @@ export const featuredTemplatesCopy = {
  * §5.2–5.4): es una composición de marketing, no la invitación en sí, así que no pasa por el motor.
  */
 export const galleryShowcaseImages = [
-  { src: "/templates/aurora-xv/gallery-1.png", alt: "" },
-  { src: "/templates/celeste/gallery-1.png", alt: "" },
-  { src: "/templates/level-12/gallery-1.png", alt: "" },
+  { src: withAssetVersion("/templates/aurora-xv/gallery-1.png"), alt: "" },
+  { src: withAssetVersion("/templates/celeste/gallery-1.png"), alt: "" },
+  { src: withAssetVersion("/templates/level-12/gallery-1.png"), alt: "" },
 ] as const;
 
 export const finalCtaCopy = {

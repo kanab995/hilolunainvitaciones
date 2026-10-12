@@ -53,7 +53,7 @@ export function GeneralRsvpForm({
   if (state?.ok) {
     return (
       <div ref={doneRef} tabIndex={-1} role="status" data-rsvp-done className="flex flex-col items-center gap-1 text-center outline-none">
-        <p className="font-inv-display text-2xl text-inv-ink italic">{copy.thanks}</p>
+        <p className="font-inv-display text-2xl text-inv-ink inv-italic">{copy.thanks}</p>
         <p className="font-inv-body text-sm text-inv-ink-muted">{state.message}</p>
       </div>
     );

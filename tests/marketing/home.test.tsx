@@ -14,7 +14,7 @@ import { isTemplateReady } from "@/lib/templates/status";
 const encoded = (path: string) => encodeURIComponent(path);
 const html = renderToStaticMarkup(<HomePage />);
 const NOT_READY = ["ivory", "etoile", "tuscany", "noir", "riviera", "dream", "blossom", "safari"] as const;
-const READY = ["magnolia", "level-12", "aurora-xv", "celeste", "spider-friends", "baby-bloom"] as const;
+const READY = ["magnolia", "level-12", "aurora-xv", "celeste", "spider-friends", "baby-bloom", "luz-de-fe", "mar-de-amor", "nova-grad"] as const;
 /** Las 4 que caben en el abanico fijo del hero (ver `components/marketing/hero-visual.tsx`). */
 const HERO_SLOTS = ["magnolia", "level-12", "aurora-xv", "celeste"] as const;
 
@@ -68,10 +68,11 @@ describe("homepage: copy honesto, sin claims falsos (sección 10)", () => {
 });
 
 describe("homepage: plantillas destacadas calculadas dinámicamente (getFeaturedTemplates, sin lista fija)", () => {
-  it("getFeaturedTemplates(templates) son exactamente las 6 plantillas implemented, en orden de variedad por categoría", () => {
-    // magnolia/level-12/aurora-xv/celeste/baby-bloom: primera aparición de su categoría, en orden de
-    // catálogo. spider-friends repite categoría (birthday, ya la tiene level-12) → va al final.
-    expect(getFeaturedTemplates(templates).map((t) => t.slug)).toEqual(["magnolia", "level-12", "aurora-xv", "celeste", "baby-bloom", "spider-friends"]);
+  it("getFeaturedTemplates(templates) son exactamente las 9 plantillas implemented, en orden de variedad por categoría", () => {
+    // magnolia/level-12/aurora-xv/celeste/baby-bloom/nova-grad: primera aparición de su categoría, en
+    // orden de catálogo. spider-friends (birthday), luz-de-fe (baptism) y mar-de-amor (wedding)
+    // repiten categoría → van al final, también en orden de catálogo.
+    expect(getFeaturedTemplates(templates).map((t) => t.slug)).toEqual(["magnolia", "level-12", "aurora-xv", "celeste", "baby-bloom", "nova-grad", "spider-friends", "luz-de-fe", "mar-de-amor"]);
   });
 
   it("un límite menor recorta por el mismo orden (variedad primero)", () => {
@@ -172,12 +173,15 @@ describe("homepage: imágenes locales, sin URLs externas en tiempo de ejecución
     for (const src of srcs) expect(src, src).not.toMatch(/^https?:\/\//);
   });
 
-  it("todas las imágenes referenciadas existen en public/", () => {
+  it("todas las imágenes referenciadas existen en public/ y llevan su huella de versión (?v=, D-45)", () => {
     const paths = new Set(
       [...html.matchAll(/url=([^&"]+)/g)].map((m) => decodeURIComponent(m[1] ?? "")).filter((p) => p.startsWith("/templates/")),
     );
     expect(paths.size).toBeGreaterThan(0);
-    for (const path of paths) expect(existsSync(join(process.cwd(), "public", path)), path).toBe(true);
+    for (const path of paths) {
+      expect(path, path).toMatch(/[?]v=[0-9a-f]{10}$/);
+      expect(existsSync(join(process.cwd(), "public", path.split("?")[0] ?? "")), path).toBe(true);
+    }
   });
 
   it("las imágenes decorativas (collages, fondos) tienen alt vacío; las interactivas (cards de plantilla) tienen alt descriptivo", () => {

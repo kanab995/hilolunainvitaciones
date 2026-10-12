@@ -45,7 +45,7 @@ export function RsvpPanel({
   if (sent) {
     return (
       <div role="status" className="flex flex-col items-center gap-1 text-center">
-        <p className="font-inv-display text-2xl text-inv-ink italic">{copy.thanks}</p>
+        <p className="font-inv-display text-2xl text-inv-ink inv-italic">{copy.thanks}</p>
         {demoNote}
       </div>
     );

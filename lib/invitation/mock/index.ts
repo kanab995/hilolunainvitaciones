@@ -1,9 +1,12 @@
 import { andreaFernandoInvitation } from "@/lib/invitation/mock/andrea-fernando";
 import { babyMateoBabyBloomInvitation } from "@/lib/invitation/mock/baby-mateo-baby-bloom";
+import { camilaNovaGradInvitation } from "@/lib/invitation/mock/camila-nova-grad";
 import { mateoCelesteInvitation } from "@/lib/invitation/mock/mateo-celeste";
 import { nicoSpiderFriendsInvitation } from "@/lib/invitation/mock/nico-spider-friends";
 import { santiagoLevel12Invitation } from "@/lib/invitation/mock/santiago-level-12";
+import { sofiaLuzDeFeInvitation } from "@/lib/invitation/mock/sofia-luz-de-fe";
 import { valentinaAuroraXvInvitation } from "@/lib/invitation/mock/valentina-aurora-xv";
+import { valeriaMateoMarDeAmorInvitation } from "@/lib/invitation/mock/valeria-mateo-mar-de-amor";
 import { getInvitationTemplate } from "@/lib/invitation/templates";
 import { changeTemplate } from "@/lib/invitation/change-template";
 import type { Invitation } from "@/types/invitation";
@@ -24,6 +27,9 @@ export const STANDALONE_DEMO_BASES: Readonly<Record<string, Invitation>> = {
   celeste: mateoCelesteInvitation,
   "spider-friends": nicoSpiderFriendsInvitation,
   "baby-bloom": babyMateoBabyBloomInvitation,
+  "luz-de-fe": sofiaLuzDeFeInvitation,
+  "mar-de-amor": valeriaMateoMarDeAmorInvitation,
+  "nova-grad": camilaNovaGradInvitation,
 };
 
 /**
@@ -32,7 +38,7 @@ export const STANDALONE_DEMO_BASES: Readonly<Record<string, Invitation>> = {
  * (Magnolia, Ivory, Étoile) comparten los datos de Andrea & Fernando con la plantilla indicada —así
  * se ve que los datos no dependen de la plantilla—; las de otro tipo de evento (`STANDALONE_DEMO_BASES`)
  * usan su propio contenido base. Solo `demo-magnolia`, `demo-level-12`, `demo-aurora-xv`,
- * `demo-celeste`, `demo-spider-friends` y `demo-baby-bloom` (`status = implemented`) se enlazan
+ * `demo-celeste`, `demo-spider-friends`, `demo-baby-bloom`, `demo-luz-de-fe`, `demo-mar-de-amor` y `demo-nova-grad` (`status = implemented`) se enlazan
  * desde la interfaz; `demo-ivory` y `demo-etoile` (`concept`) existen temporalmente para probar el
  * motor y NO se enlazan (`getTemplateCapabilities`).
  * Las plantillas `comingSoon` no tienen demo. La aplicación YA NO lo usa (lee la BD:
@@ -45,6 +51,9 @@ export function getMockInvitation(slug: string): Invitation | undefined {
   if (slug === mateoCelesteInvitation.slug) return mateoCelesteInvitation;
   if (slug === nicoSpiderFriendsInvitation.slug) return nicoSpiderFriendsInvitation;
   if (slug === babyMateoBabyBloomInvitation.slug) return babyMateoBabyBloomInvitation;
+  if (slug === sofiaLuzDeFeInvitation.slug) return sofiaLuzDeFeInvitation;
+  if (slug === valeriaMateoMarDeAmorInvitation.slug) return valeriaMateoMarDeAmorInvitation;
+  if (slug === camilaNovaGradInvitation.slug) return camilaNovaGradInvitation;
 
   const match = /^demo-(.+)$/.exec(slug);
   const templateSlug = match?.[1];

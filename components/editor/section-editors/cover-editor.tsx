@@ -1,6 +1,7 @@
 "use client";
 
 import { useEditor } from "@/components/editor/editor-context";
+import { withAssetVersion } from "@/lib/images/asset-version";
 import { OptionCardGroup, type OptionCard } from "@/components/editor/fields/option-card-group";
 import { PhotoField } from "@/components/editor/fields/photo-field";
 import { TextField } from "@/components/editor/fields/text-field";
@@ -97,7 +98,7 @@ export function CoverEditor({ section }: SectionEditorProps) {
         image={cover.photo}
         fallback={
           backdrop?.kind === "image"
-            ? { src: backdrop.src, alt: `Imagen predeterminada de ${template.name}`, caption: `Imagen predeterminada de ${template.name}` }
+            ? { src: withAssetVersion(backdrop.src), alt: `Imagen predeterminada de ${template.name}`, caption: `Imagen predeterminada de ${template.name}` }
             : undefined
         }
         defaultAlt="Foto de portada"

@@ -18,7 +18,7 @@ export function FooterSection({ invitation, template, section, index }: SectionP
       contentClassName="py-24 text-center md:py-32"
     >
       <footer className="inv-reveal flex flex-col items-center gap-3">
-        <p className="font-inv-display text-[2.25rem] leading-tight font-medium text-inv-ink italic md:text-5xl">{displayNames(invitation.names).join(" & ")}</p>
+        <p className="font-inv-display text-[2.25rem] leading-tight font-medium text-inv-ink inv-italic md:text-5xl">{displayNames(invitation.names).join(" & ")}</p>
         <Divider kind={template.componentStyles.divider} />
         <p className="font-inv-body text-xs tracking-[0.32em] text-inv-accent md:text-sm">
           {formatCompactDate(invitation.event.startsAt, invitation.event.timezone)}

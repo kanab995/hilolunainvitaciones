@@ -213,7 +213,7 @@ describe("filas de la lista lateral", () => {
 });
 
 describe("cambio de plantilla en el editor", () => {
-  it("Magnolia, Level 12, Aurora XV, Celeste, Spider Friends y Baby Bloom son seleccionables; Ivory y Étoile aparecen como próximamente; las comingSoon no se listan", () => {
+  it("Magnolia, Level 12, Aurora XV, Celeste, Spider Friends, Baby Bloom, Luz de Fe, Mar de Amor y Nova Grad son seleccionables; Ivory y Étoile aparecen como próximamente; las comingSoon no se listan", () => {
     const choices = getTemplateChoices();
     expect(choices.map((c) => [c.slug, c.status, c.selectable])).toEqual([
       ["magnolia", "implemented", true],
@@ -224,6 +224,9 @@ describe("cambio de plantilla en el editor", () => {
       ["celeste", "implemented", true],
       ["spider-friends", "implemented", true],
       ["baby-bloom", "implemented", true],
+      ["luz-de-fe", "implemented", true],
+      ["mar-de-amor", "implemented", true],
+      ["nova-grad", "implemented", true],
     ]);
     expect(canSelectTemplate("magnolia")).toBe(true);
     expect(canSelectTemplate("level-12")).toBe(true);
@@ -231,6 +234,9 @@ describe("cambio de plantilla en el editor", () => {
     expect(canSelectTemplate("celeste")).toBe(true);
     expect(canSelectTemplate("spider-friends")).toBe(true);
     expect(canSelectTemplate("baby-bloom")).toBe(true);
+    expect(canSelectTemplate("luz-de-fe")).toBe(true);
+    expect(canSelectTemplate("mar-de-amor")).toBe(true);
+    expect(canSelectTemplate("nova-grad")).toBe(true);
     expect(canSelectTemplate("ivory")).toBe(false);
     expect(canSelectTemplate("noir")).toBe(false);
   });

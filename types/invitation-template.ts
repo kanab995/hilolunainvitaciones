@@ -27,6 +27,11 @@ export interface TemplateColors {
 export interface TemplateFonts {
   display: string;
   body: string;
+  /**
+   * `false` cuando la familia display no tiene cursiva propia (p. ej. Cinzel, Bebas Neue): evita la
+   * cursiva sintética del navegador en nombres, sedes y cierre. Sin el campo (o `true`) = cursiva como siempre.
+   */
+  italic?: boolean;
 }
 
 /** Variantes de bloque que elige la plantilla (docs/ARCHITECTURE.md D-17; DESIGN_SYSTEM §5). */
@@ -49,6 +54,13 @@ export interface TemplateEffects {
   paperTexture?: boolean;
   vignette?: boolean;
   photoMask?: PhotoMask;
+  /**
+   * Cómo se mezcla la imagen del código de vestimenta con el fondo de la sección (D-45):
+   * `multiply` (por defecto; ilustración sobre fondo claro), `screen` (ilustración sobre negro, para
+   * plantillas oscuras: el negro desaparece) o `none` (fotografía a todo color, sin mezcla: así se
+   * ven sus colores reales).
+   */
+  illustrationBlend?: "multiply" | "screen" | "none";
 }
 
 /**

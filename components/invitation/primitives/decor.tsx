@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { withAssetVersion } from "@/lib/images/asset-version";
 import { cn } from "@/lib/utils";
 import type { DecorFragment, DecorSlot, InvitationTemplate } from "@/types/invitation-template";
 
@@ -62,7 +63,7 @@ export function Decor({
         className={cn("inv-decor pointer-events-none absolute z-0 overflow-hidden", slotPosition[slot], sizes[size].box, className)}
       >
         <Image
-          src={asset.src}
+          src={withAssetVersion(asset.src)}
           alt=""
           width={asset.width}
           height={asset.height}

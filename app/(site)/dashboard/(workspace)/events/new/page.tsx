@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { withAssetVersion } from "@/lib/images/asset-version";
 import { DashboardPlaceholder } from "@/components/dashboard/dashboard-placeholder";
 import { CreateEventWizard, type WizardTemplate } from "@/components/onboarding/create-event-wizard";
 import { Button } from "@/components/ui/button";
@@ -34,7 +35,7 @@ export default async function NewEventPage(props: PageProps<"/dashboard/events/n
     .map((template) => {
       // La miniatura sale del registro de plantillas del motor (imagen aprobada de la portada), no de la BD.
       const backdrop = getInvitationTemplate(template.slug)?.decor.heroBackdrop;
-      return { slug: template.slug, name: template.name, eventType: template.eventType, thumbSrc: backdrop?.kind === "image" ? backdrop.src : undefined };
+      return { slug: template.slug, name: template.name, eventType: template.eventType, thumbSrc: backdrop?.kind === "image" ? withAssetVersion(backdrop.src) : undefined };
     });
 
   const match = requested ? catalog.find((template) => template.slug === requested) : undefined;

@@ -23,7 +23,7 @@ export const templatesPageCopy = {
   description:
     "Explora nuestra colección de invitaciones digitales, creadas para cada historia, cada estilo y cada celebración.",
   metaDescription:
-    "Explora plantillas de invitaciones digitales para bodas, XV años, bautizos y baby showers, y elige la que se sienta como tú.",
+    "Explora plantillas de invitaciones digitales para bodas, XV años, bautizos, primeras comuniones, graduaciones y baby showers, y elige la que se sienta como tú.",
   filtersLabel: "Filtrar por categoría",
   allCategories: "Todas",
   styleLabel: "Filtrar por estilo",
@@ -60,6 +60,21 @@ export const templateDetailCopy = {
     cta: "Ver todas las plantillas",
   },
 } as const;
+
+/**
+ * Rótulo de evento propio de una plantilla cuando el tipo de evento del dominio es solo el más
+ * cercano (no existe un `EventType` "primera comunión"; D-45). Es solo presentación por `slug`
+ * (mismo criterio que `COVER_IMAGE_FOCAL_POINT` en `lib/templates/status.ts`): no cambia el tipo
+ * guardado ni los filtros. Sin entrada se usa `eventTypeLabels`.
+ */
+const templateEventLabelOverrides: Readonly<Record<string, string>> = {
+  "luz-de-fe": "Primera Comunión",
+};
+
+/** Etiqueta de evento que se muestra en tarjetas y detalle de una plantilla ("Boda", "Primera Comunión"…). */
+export function getTemplateEventLabel(template: Pick<Template, "slug" | "eventType">): string {
+  return templateEventLabelOverrides[template.slug] ?? eventTypeLabels[template.eventType];
+}
 
 /** Nombre singular de cada tipo de evento (metadatos de la tarjeta). */
 export const eventTypeLabels: Record<EventCategoryId, string> = {
@@ -107,9 +122,10 @@ export const categoryFilters: readonly TemplateCategoryFilter[] = [
   { id: "wedding", label: "Bodas", eventTypes: ["wedding"] },
   { id: "birthday", label: "Cumpleaños", eventTypes: ["birthday"] },
   { id: "quinceanera", label: "XV años", eventTypes: ["quinceanera"] },
-  { id: "baptism", label: "Bautizo", eventTypes: ["baptism"] },
+  { id: "baptism", label: "Bautizo y Comunión", eventTypes: ["baptism"] },
   { id: "kids", label: "Infantil", eventTypes: ["kids"], styles: ["kids"] },
   { id: "baby-shower", label: "Baby Shower", eventTypes: ["baby-shower"] },
+  { id: "graduation", label: "Graduación", eventTypes: ["graduation"] },
 ];
 
 /** Funciones y pantallas que hoy incluyen todas las plantillas (MOCK). Cada plantilla podrá tener las suyas. */
@@ -460,6 +476,82 @@ export const templates: readonly Template[] = [
         names: ["Baby Mateo"],
         date: "12 de junio de 2027",
         venue: ["Jardín Luna Azul"],
+        button: "Abrir invitación",
+      },
+      screens: standardScreens,
+    },
+  },
+  {
+    id: "tpl_luz_de_fe",
+    slug: "luz-de-fe",
+    name: "Luz de Fe",
+    status: "implemented",
+    // Sin tipo "primera comunión" en el dominio: bautizo es el más cercano (mismo tono sacramental). Ver `templateEventLabelOverrides`.
+    eventType: "baptism",
+    style: "elegant",
+    secondaryStyles: ["minimal"],
+    thumbnail: { alt: "Plantilla Luz de Fe", tone: "cream" },
+    description:
+      "Una invitación luminosa y ceremonial para una Primera Comunión: blanco cálido, dorado suave y luz natural, con ornamentos mínimos — paloma, lirios y olivo — y una composición limpia y emotiva. También sirve para otras celebraciones religiosas sobrias.",
+    premium: false,
+    minimumPlan: "FREE",
+    features: standardFeatures,
+    preview: {
+      sample: {
+        eyebrow: "Mi Primera Comunión",
+        names: ["Sofía"],
+        date: "8 de mayo de 2027",
+        venue: ["Parroquia de San Miguel Arcángel"],
+        button: "Abrir invitación",
+      },
+      screens: standardScreens,
+    },
+  },
+  {
+    id: "tpl_mar_de_amor",
+    slug: "mar-de-amor",
+    name: "Mar de Amor",
+    status: "implemented",
+    eventType: "wedding",
+    style: "destination",
+    secondaryStyles: ["romantic"],
+    thumbnail: { alt: "Plantilla Mar de Amor", tone: "sand" },
+    description:
+      "Una invitación fresca y editorial para una boda en la playa: lino, arena y atardecer sobre el mar, con palmas, conchas y una paleta marina — sin flores clásicas — para parejas que se casan con los pies en la arena.",
+    premium: false,
+    minimumPlan: "FREE",
+    features: standardFeatures,
+    preview: {
+      sample: {
+        eyebrow: "Nuestra boda",
+        names: ["Valeria", "&", "Mateo"],
+        date: "6 de noviembre de 2027",
+        venue: ["Playa Palmar del Sol", "Tulum"],
+        button: "Abrir invitación",
+      },
+      screens: standardScreens,
+    },
+  },
+  {
+    id: "tpl_nova_grad",
+    slug: "nova-grad",
+    name: "Nova Grad",
+    status: "implemented",
+    eventType: "graduation",
+    style: "modern",
+    secondaryStyles: ["themed"],
+    thumbnail: { alt: "Plantilla Nova Grad", tone: "sand" },
+    description:
+      "Una invitación nocturna y juvenil para celebrar una graduación: negro, oro y champán, con destellos, reflectores y confeti, y una portada editorial que pone el nombre del graduado en el centro de la fiesta.",
+    premium: false,
+    minimumPlan: "FREE",
+    features: standardFeatures,
+    preview: {
+      sample: {
+        eyebrow: "Graduación",
+        names: ["Camila"],
+        date: "17 de julio de 2027",
+        venue: ["Terraza Skyline", "Guadalajara"],
         button: "Abrir invitación",
       },
       screens: standardScreens,

@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 export function Emphasis({ text, emphasis }: { text: string; emphasis: "italic" | "none" }): ReactNode {
   return text.split("*").map((part, index) =>
     index % 2 === 1 && emphasis === "italic" ? (
-      <em key={index} className="italic">
+      <em key={index} className="inv-italic">
         {part}
       </em>
     ) : (

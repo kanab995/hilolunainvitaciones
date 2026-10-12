@@ -2,7 +2,7 @@ import { isTemplateReady } from "@/lib/templates/status";
 import type { Template } from "@/types/templates";
 
 /** Cuántas tarjetas muestra como máximo la sección de destacadas de la home. */
-const DEFAULT_LIMIT = 8;
+const DEFAULT_LIMIT = 12;
 
 /**
  * Plantillas destacadas de la home ("Plantillas que se sienten como tu evento"): se calculan aquí,

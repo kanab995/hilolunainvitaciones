@@ -1,3 +1,4 @@
+import { withAssetVersion } from "@/lib/images/asset-version";
 import { getInvitationTemplate } from "@/lib/invitation/templates";
 import { routes } from "@/lib/routes";
 import type { Template } from "@/types/templates";
@@ -63,5 +64,5 @@ export function isTemplateReady(template: Pick<Template, "status">): boolean {
 export function getTemplateCoverImage(slug: string): { src: string; position: "center" | "top" } | undefined {
   const backdrop = getInvitationTemplate(slug)?.decor.heroBackdrop;
   if (backdrop?.kind !== "image") return undefined;
-  return { src: backdrop.src, position: COVER_IMAGE_FOCAL_POINT[slug] ?? "center" };
+  return { src: withAssetVersion(backdrop.src), position: COVER_IMAGE_FOCAL_POINT[slug] ?? "center" };
 }

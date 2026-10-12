@@ -1,5 +1,5 @@
 import { TemplateCard } from "@/components/templates/template-card";
-import { eventTypeLabels, styleLabels, templates } from "@/lib/content/templates";
+import { getTemplateEventLabel, styleLabels, templates } from "@/lib/content/templates";
 import { getTemplateStyles } from "@/lib/templates/filter";
 import { getTemplateCoverImage } from "@/lib/templates/status";
 import { routes } from "@/lib/routes";
@@ -24,7 +24,7 @@ export function CatalogTemplateCard({
   className?: string;
 }) {
   const flip = templates.findIndex((item) => item.id === template.id) % 2 === 1;
-  const category = eventTypeLabels[template.eventType];
+  const category = getTemplateEventLabel(template);
   const cover = getTemplateCoverImage(template.slug);
   return (
     <TemplateCard

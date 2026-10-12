@@ -11,7 +11,7 @@ const slugsOf = (list: readonly { slug: string }[]) => list.map((t) => t.slug).s
 
 describe("isTemplateReady: qué entra al catálogo público", () => {
   it("solo las plantillas implemented están listas", () => {
-    expect(slugsOf(templates.filter(isTemplateReady))).toEqual(["aurora-xv", "baby-bloom", "celeste", "level-12", "magnolia", "spider-friends"]);
+    expect(slugsOf(templates.filter(isTemplateReady))).toEqual(["aurora-xv", "baby-bloom", "celeste", "level-12", "luz-de-fe", "magnolia", "mar-de-amor", "nova-grad", "spider-friends"]);
   });
 
   it("concept y comingSoon NO están listas (pero siguen en el catálogo interno, sin borrarse)", () => {
@@ -25,7 +25,7 @@ describe("isTemplateReady: qué entra al catálogo público", () => {
 });
 
 describe("getTemplateCoverImage: imagen real de portada por plantilla", () => {
-  it.each(["magnolia", "level-12", "aurora-xv", "celeste", "spider-friends", "baby-bloom"])("%s (implemented) tiene una imagen real aprobada", (slug) => {
+  it.each(["magnolia", "level-12", "aurora-xv", "celeste", "spider-friends", "baby-bloom", "luz-de-fe", "mar-de-amor", "nova-grad"])("%s (implemented) tiene una imagen real aprobada", (slug) => {
     const cover = getTemplateCoverImage(slug);
     expect(cover, slug).toBeDefined();
     expect(cover?.src, slug).toMatch(new RegExp(`^/templates/${slug}/`));
@@ -48,17 +48,21 @@ describe("getTemplateCoverImage: imagen real de portada por plantilla", () => {
     expect(getTemplateCoverImage("celeste")?.position).toBe("center");
     expect(getTemplateCoverImage("spider-friends")?.position).toBe("center");
     expect(getTemplateCoverImage("baby-bloom")?.position).toBe("center");
+    expect(getTemplateCoverImage("luz-de-fe")?.position).toBe("center");
+    expect(getTemplateCoverImage("mar-de-amor")?.position).toBe("center");
+    expect(getTemplateCoverImage("nova-grad")?.position).toBe("center");
   });
 });
 
 describe("filtros de categoría sobre el catálogo listo (solo plantillas implemented)", () => {
   const ready = templates.filter(isTemplateReady);
 
-  it("Bodas, XV años, Bautizo y Baby Shower tienen exactamente una plantilla lista cada una; Cumpleaños tiene dos", () => {
-    expect(slugsOf(filterTemplates(ready, { category: "wedding", style: null }))).toEqual(["magnolia"]);
+  it("XV años y Baby Shower tienen una plantilla lista; Bodas, Bautizo y Cumpleaños dos; Graduación una", () => {
+    expect(slugsOf(filterTemplates(ready, { category: "wedding", style: null }))).toEqual(["magnolia", "mar-de-amor"]);
     expect(slugsOf(filterTemplates(ready, { category: "birthday", style: null }))).toEqual(["level-12", "spider-friends"]);
     expect(slugsOf(filterTemplates(ready, { category: "quinceanera", style: null }))).toEqual(["aurora-xv"]);
-    expect(slugsOf(filterTemplates(ready, { category: "baptism", style: null }))).toEqual(["celeste"]);
+    expect(slugsOf(filterTemplates(ready, { category: "baptism", style: null }))).toEqual(["celeste", "luz-de-fe"]);
+    expect(slugsOf(filterTemplates(ready, { category: "graduation", style: null }))).toEqual(["nova-grad"]);
     expect(slugsOf(filterTemplates(ready, { category: "baby-shower", style: null }))).toEqual(["baby-bloom"]);
   });
 
@@ -82,7 +86,7 @@ describe("tarjeta del catálogo: imagen real en vez de degradado para plantillas
     return renderToStaticMarkup(CatalogTemplateCard({ template }));
   };
 
-  it.each(["magnolia", "level-12", "aurora-xv", "celeste", "spider-friends", "baby-bloom"])("%s: la tarjeta usa next/image con la portada real, no el placeholder", (slug) => {
+  it.each(["magnolia", "level-12", "aurora-xv", "celeste", "spider-friends", "baby-bloom", "luz-de-fe", "mar-de-amor", "nova-grad"])("%s: la tarjeta usa next/image con la portada real, no el placeholder", (slug) => {
     const html = renderCard(slug);
     expect(html).toContain("/_next/image?url=");
     expect(html).toContain(encoded(`/templates/${slug}/cover-bg.png`));
@@ -110,7 +114,7 @@ describe("TemplateGrid del catálogo público: enlaces y demos de las plantillas
     }
   });
 
-  it.each(["level-12", "aurora-xv", "celeste", "magnolia", "spider-friends", "baby-bloom"])("el grid enlaza a /templates/%s", (slug) => {
+  it.each(["level-12", "aurora-xv", "celeste", "magnolia", "spider-friends", "baby-bloom", "luz-de-fe", "mar-de-amor", "nova-grad"])("el grid enlaza a /templates/%s", (slug) => {
     expect(html).toContain(`href="/templates/${slug}"`);
   });
 });

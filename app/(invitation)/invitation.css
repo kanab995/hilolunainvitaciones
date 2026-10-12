@@ -110,6 +110,17 @@
   mask-image: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent);
 }
 
+/* Cursiva del titular display: por defecto cursiva; una plantilla cuya familia no tiene cursiva la apaga (--inv-italic: normal). */
+@utility inv-italic {
+  font-style: var(--inv-italic, italic);
+}
+
+/* Velo de legibilidad bajo el texto de la portada `editorial`: una capa del color de fondo que se desvanece hacia arriba (máscara, no un degradado de interfaz). */
+@utility inv-scrim {
+  -webkit-mask-image: linear-gradient(to top, #000 38%, transparent);
+  mask-image: linear-gradient(to top, #000 38%, transparent);
+}
+
 @utility inv-photo-arch {
   overflow: hidden;
   border-top-left-radius: 9999px;
