@@ -40,3 +40,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Notas internas del propietario junto a los assets (se sirven publicamente si se versionan): nunca se publican
+/public/templates/*/README*

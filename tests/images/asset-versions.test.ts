@@ -2,12 +2,24 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import nextConfig from "../../next.config";
+import type { Invitation } from "@/types/invitation";
+import type { InvitationTemplate } from "@/types/invitation-template";
 import { withAssetVersion, versionedAssetPatterns } from "@/lib/images/asset-version";
 import versions from "@/lib/images/asset-versions.json";
 import { camilaNovaGradInvitation } from "@/lib/invitation/mock/camila-nova-grad";
 import { sofiaLuzDeFeInvitation } from "@/lib/invitation/mock/sofia-luz-de-fe";
 import { valeriaMateoMarDeAmorInvitation } from "@/lib/invitation/mock/valeria-mateo-mar-de-amor";
 import { andreaFernandoInvitation } from "@/lib/invitation/mock/andrea-fernando";
+import { mateoCelesteInvitation } from "@/lib/invitation/mock/mateo-celeste";
+import { nicoSpiderFriendsInvitation } from "@/lib/invitation/mock/nico-spider-friends";
+import { santiagoLevel12Invitation } from "@/lib/invitation/mock/santiago-level-12";
+import { valentinaAuroraXvInvitation } from "@/lib/invitation/mock/valentina-aurora-xv";
+import { babyMateoBabyBloomInvitation } from "@/lib/invitation/mock/baby-mateo-baby-bloom";
+import { auroraXvTemplate } from "@/lib/invitation/templates/aurora-xv";
+import { babyBloomTemplate } from "@/lib/invitation/templates/baby-bloom";
+import { celesteTemplate } from "@/lib/invitation/templates/celeste";
+import { level12Template } from "@/lib/invitation/templates/level-12";
+import { spiderFriendsTemplate } from "@/lib/invitation/templates/spider-friends";
 import { luzDeFeTemplate } from "@/lib/invitation/templates/luz-de-fe";
 import { magnoliaTemplate } from "@/lib/invitation/templates/magnolia";
 import { marDeAmorTemplate } from "@/lib/invitation/templates/mar-de-amor";
@@ -139,7 +151,7 @@ describe("las referencias del código apuntan a archivos físicos con las dimens
     { slug: "nova-grad", template: novaGradTemplate, invitation: camilaNovaGradInvitation },
   ] as const;
 
-  const refsOf = ({ template, invitation }: (typeof CASES)[number]): Ref[] => {
+  const refsOf = ({ template, invitation }: { template: InvitationTemplate; invitation: Invitation }): Ref[] => {
     const refs: Ref[] = [];
     for (const asset of Object.values(template.decor)) if (asset && asset.kind === "image") refs.push({ src: asset.src, width: asset.width, height: asset.height });
     const images = [...invitation.locations.map((l) => l.photo), ...invitation.gallery, invitation.dressCode?.illustration, invitation.giftRegistry?.photo];
@@ -166,6 +178,21 @@ describe("las referencias del código apuntan a archivos físicos con las dimens
       .map((file) => `/templates/${testCase.slug}/${file}`)
       .sort();
     expect(used).toEqual(onDisk);
+  });
+
+  it.each([
+    { slug: "celeste", template: celesteTemplate, invitation: mateoCelesteInvitation },
+    { slug: "spider-friends", template: spiderFriendsTemplate, invitation: nicoSpiderFriendsInvitation },
+    { slug: "level-12", template: level12Template, invitation: santiagoLevel12Invitation },
+    { slug: "aurora-xv", template: auroraXvTemplate, invitation: valentinaAuroraXvInvitation },
+    { slug: "baby-bloom", template: babyBloomTemplate, invitation: babyMateoBabyBloomInvitation },
+  ] as const)("$slug (plantilla anterior): las dimensiones declaradas coinciden con el PNG real", (testCase) => {
+    const refs = refsOf(testCase);
+    expect(refs.length).toBeGreaterThanOrEqual(8);
+    for (const ref of refs) {
+      expect(existsSync(join(ROOT, "public", ref.src)), ref.src).toBe(true);
+      expect({ width: ref.width, height: ref.height }, ref.src).toEqual(png(ref.src));
+    }
   });
 
   it("decor-corners.png es una hoja 2 × 2 cuadrada con canal alfa (fondo transparente)", () => {

@@ -47,7 +47,7 @@ const CASES: readonly Case[] = [
     texts: ["Sofía", "Mi Primera Comunión", "Con alegría recibimos este día de fe y amor.", "Parroquia de San Miguel Arcángel", "Jardín Los Lirios", "Misa de Primera Comunión", "Momentos de luz", "Tonos claros", "Confirmar asistencia", "Gracias por acompañarme en este día de fe y amor"],
     foreign: ["Andrea", "Santiago", "Valentina", "Nico", "Baby Mateo", "Valeria", "Camila"],
     eventType: "baptism",
-    layout: { hero: "centered", locations: "stacked", gallery: "carousel", timeline: "horizontal" },
+    layout: { hero: "split", locations: "stacked", gallery: "carousel", timeline: "horizontal" },
     photos: 9,
   },
   {
@@ -216,9 +216,10 @@ describe("las plantillas nuevas se distinguen de verdad (no solo por color)", ()
     expect(new Set(NEW.map((t) => `${t.fonts.display}|${t.fonts.body}`)).size).toBe(3);
   });
 
-  it("las variantes de portada de Mar de Amor y Nova Grad no son la `centered` de las plantillas anteriores", () => {
+  it("las variantes de portada de las tres plantillas nuevas no son la `centered` de las anteriores (Luz de Fe usa `split` para no tapar su cruz)", () => {
     expect(OLD.length).toBeGreaterThanOrEqual(6);
     expect(OLD.every((t) => t.layout.hero === "centered")).toBe(true);
+    expect(luzDeFeTemplate.layout.hero).toBe("split");
     expect(marDeAmorTemplate.layout.hero).toBe("split");
     expect(novaGradTemplate.layout.hero).toBe("editorial");
   });

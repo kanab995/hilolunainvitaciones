@@ -4,6 +4,7 @@ import type { Invitation } from "@/types/invitation";
 const DEMO_IMAGES = "/templates/celeste";
 /** Todas las fotos de demostración miden 1122 × 1402 (igual que Magnolia, Level 12 y Aurora XV). */
 const PHOTO = { width: 1122, height: 1402 } as const;
+const LANDSCAPE = { width: 1448, height: 1086 } as const;
 
 /**
  * Invitación MOCK de "Mateo" (bautizo, brief del propietario para la plantilla Celeste). SOLO DATOS:
@@ -60,7 +61,7 @@ export const mateoCelesteInvitation: Invitation = {
       addressLines: ["Calle de la Fe 45", "Querétaro, Qro."],
       time: "12:00 hrs",
       mapUrl: "https://www.google.com/maps/search/?api=1&query=Parroquia+de+San+Jer%C3%B3nimo+Quer%C3%A9taro",
-      photo: { src: `${DEMO_IMAGES}/location-church.png`, alt: "Interior de una parroquia luminosa decorada con flores blancas y velas", ...PHOTO },
+      photo: { src: `${DEMO_IMAGES}/location-church.png`, alt: "Interior de una parroquia luminosa decorada con flores blancas y velas", ...LANDSCAPE },
     },
     {
       id: "loc_reception",
@@ -69,7 +70,7 @@ export const mateoCelesteInvitation: Invitation = {
       addressLines: ["Camino a los Olivos 88", "Querétaro, Qro."],
       time: "13:30 hrs",
       mapUrl: "https://www.google.com/maps/search/?api=1&query=Jard%C3%ADn+Los+Olivos+Quer%C3%A9taro",
-      photo: { src: `${DEMO_IMAGES}/location-venue.png`, alt: "Jardín luminoso con flores blancas y detalles en azul cielo para la recepción", ...PHOTO },
+      photo: { src: `${DEMO_IMAGES}/location-venue.png`, alt: "Jardín luminoso con flores blancas y detalles en azul cielo para la recepción", ...LANDSCAPE },
     },
   ],
 

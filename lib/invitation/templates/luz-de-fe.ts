@@ -12,6 +12,10 @@ const cornerSheet = `${assets}/decor-corners.png`;
  * olivo). SOLO presentación; ningún dato de usuario ni lógica. Se distingue de Celeste (bautizo) por
  * la tipografía ceremonial (Cinzel + Lora), la galería en carrusel, el itinerario horizontal, las
  * sedes apiladas con foto en arco y el botón de contorno, no solo por el color.
+ *
+ * Portada `split` y no `centered`: la foto de portada lleva una cruz grabada en el centro (36–60 % del
+ * alto) y el arco centrado de `centered` la tapaba. En `split` la imagen ocupa la parte superior sin
+ * texto encima y la tarjeta solo solapa su último tramo, así que la cruz queda visible en móvil y escritorio.
  */
 export const luzDeFeTemplate: InvitationTemplate = {
   slug: "luz-de-fe",
@@ -28,7 +32,7 @@ export const luzDeFeTemplate: InvitationTemplate = {
     buttonFg: "#fffdf8",
   },
   fonts: cinzelLora,
-  layout: { hero: "centered", locations: "stacked", gallery: "carousel", timeline: "horizontal" },
+  layout: { hero: "split", locations: "stacked", gallery: "carousel", timeline: "horizontal" },
   // Fotografías a todo color en el código de vestimenta: sin mezcla con el fondo (D-45).
   effects: { photoMask: "arch", illustrationBlend: "none" },
   decor: {

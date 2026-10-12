@@ -4,6 +4,8 @@ import type { Invitation } from "@/types/invitation";
 const DEMO_IMAGES = "/templates/level-12";
 /** Todas las fotos de demostración miden 1122 × 1402 (igual que las de Magnolia). */
 const PHOTO = { width: 1122, height: 1402 } as const;
+const LANDSCAPE = { width: 1402, height: 1122 } as const;
+const ARENA = { width: 1448, height: 1086 } as const;
 
 /**
  * Invitación MOCK de "Santiago" (cumpleaños número 12, brief del propietario para la plantilla
@@ -52,7 +54,7 @@ export const santiagoLevel12Invitation: Invitation = {
       addressLines: ["Av. de los Videojuegos 212", "Ciudad de México"],
       time: "17:00 hrs",
       mapUrl: "https://www.google.com/maps/search/?api=1&query=Zona+Gamer+Ciudad+de+Mexico",
-      photo: { src: `${DEMO_IMAGES}/location-arena.png`, alt: "Entrada en forma de arco de neón sobre un piso de rejilla luminosa", ...PHOTO },
+      photo: { src: `${DEMO_IMAGES}/location-arena.png`, alt: "Entrada en forma de arco de neón sobre un piso de rejilla luminosa", ...ARENA },
     },
   ],
 
@@ -69,7 +71,7 @@ export const santiagoLevel12Invitation: Invitation = {
     { id: "gal_controller", src: `${DEMO_IMAGES}/gallery-1.png`, alt: "Control de videojuego genérico con contorno de neón", ...PHOTO },
     { id: "gal_arcade", src: `${DEMO_IMAGES}/gallery-2.png`, alt: "Gabinetes de arcade abstractos sobre un piso en perspectiva", ...PHOTO },
     { id: "gal_trophy", src: `${DEMO_IMAGES}/gallery-3.png`, alt: "Trofeo con resplandor morado y turquesa", ...PHOTO },
-    { id: "gal_levelup", src: `${DEMO_IMAGES}/gallery-4.png`, alt: "Medalla de nivel desbloqueado con barra de progreso iluminada", ...PHOTO },
+    { id: "gal_levelup", src: `${DEMO_IMAGES}/gallery-4.png`, alt: "Medalla de nivel desbloqueado con barra de progreso iluminada", ...LANDSCAPE },
     { id: "gal_balloons", src: `${DEMO_IMAGES}/gallery-5.png`, alt: "Globos de colores bajo un letrero de neón con el número 12", ...PHOTO },
   ],
 

@@ -31,7 +31,7 @@ export const level12Template: InvitationTemplate = {
   effects: { photoMask: "fade" },
   decor: {
     // Composición de la portada: piso en perspectiva, resplandores y el "12" como marca de agua luminosa.
-    heroBackdrop: { kind: "image", src: coverBackdrop, alt: "", width: 941, height: 1672 },
+    heroBackdrop: { kind: "image", src: coverBackdrop, alt: "", width: 1122, height: 1402 },
     // Resplandores suaves en las esquinas de la portada (sin asset: mancha difusa del acento).
     heroCornerLeft: { kind: "placeholder", tone: "accent" },
     heroCornerRight: { kind: "placeholder", tone: "accent" },

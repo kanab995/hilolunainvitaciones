@@ -4,6 +4,7 @@ import type { Invitation } from "@/types/invitation";
 const DEMO_IMAGES = "/templates/spider-friends";
 /** Todas las fotos de demostración miden 1122 × 1402 (igual que Magnolia, Level 12, Aurora XV y Celeste). */
 const PHOTO = { width: 1122, height: 1402 } as const;
+const LANDSCAPE = { width: 1402, height: 1122 } as const;
 
 /**
  * Invitación MOCK de "Nico" (cumpleaños número 6, brief del propietario para la plantilla Spider
@@ -70,7 +71,7 @@ export const nicoSpiderFriendsInvitation: Invitation = {
   ],
 
   gallery: [
-    { id: "gal_cake", src: `${DEMO_IMAGES}/gallery-1.png`, alt: "Pastel infantil con telarañas genéricas, ciudad y el número 6", ...PHOTO },
+    { id: "gal_cake", src: `${DEMO_IMAGES}/gallery-1.png`, alt: "Pastel infantil con telarañas genéricas, ciudad y el número 6", ...LANDSCAPE },
     { id: "gal_sweets", src: `${DEMO_IMAGES}/gallery-2.png`, alt: "Mesa de cupcakes en tonos rojo, azul y amarillo", ...PHOTO },
     { id: "gal_kids", src: `${DEMO_IMAGES}/gallery-3.png`, alt: "Niños con antifaces genéricos celebrando el cumpleaños", ...PHOTO },
     { id: "gal_favors", src: `${DEMO_IMAGES}/gallery-4.png`, alt: "Bolsas de regalo con decoración de ciudad y telarañas genéricas", ...PHOTO },

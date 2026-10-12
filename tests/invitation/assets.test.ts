@@ -105,8 +105,8 @@ const BABY_BLOOM: TemplateAssetSet = {
 };
 
 /** Imágenes definitivas aportadas por el propietario (sustituyeron al placeholder vectorial del asistente). */
-const OWNER_ROW = ["Imagen aportada por el propietario", "Hilo Luna — aportada por el propietario", "Original para Hilo Luna"] as const;
-const LUZ_ROW = ["Imagen generada por IA (moodboard), aportada por el propietario", "Hilo Luna — aportada por el propietario", "Original para Hilo Luna"] as const;
+const OWNER_ROW = ["Imagen aportada por el propietario", "Hilo Luna — aportada por el propietario", "Por confirmar: procedencia y licencia no declaradas por el propietario"] as const;
+const LUZ_ROW = ["Imagen generada por IA (moodboard), aportada por el propietario", "Hilo Luna — aportada por el propietario", "Por confirmar: generador de IA y términos de uso no declarados"] as const;
 const NEW_SET_FILES = (extra: readonly string[]) => ["cover-bg.png", "decor-corners.png", ...extra, "gallery-1.png", "gallery-2.png", "gallery-3.png", "gallery-4.png", "gallery-5.png", "dress-code.png", "gift-registry.png"];
 
 const LUZ_DE_FE: TemplateAssetSet = {
