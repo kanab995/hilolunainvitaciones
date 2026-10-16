@@ -20,7 +20,9 @@ import { paidPurchase, purchaseWorld } from "../helpers/billing-world";
 import { makeWorld, pngBytes } from "../helpers/media-world";
 
 const ROOT = process.cwd();
-const code = (file: string) => readFileSync(join(ROOT, file), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+// Saltos de línea normalizados: en un checkout de Windows (`core.autocrlf=true`) los fuentes llegan con CRLF y las expresiones que buscan
+// "\n" fallarían aunque el código sea correcto (en Linux/Vercel llegan con LF).
+const code = (file: string) => readFileSync(join(ROOT, file), "utf8").replace(/\r\n/g, "\n").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
 /** Cada evento tiene SU plan (el de sus compras pagadas). `counts` = uso actual por evento. */
 function eventLimits(plans: Record<string, PlanId>, counts: { guests?: Record<string, number>; gallery?: Record<string, number> } = {}) {

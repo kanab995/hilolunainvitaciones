@@ -375,6 +375,11 @@ El snapshot publicado (D-06) guarda el `ResolvedMusic` ya resuelto.
 
 ## 11. Calidad y tooling (propuesta)
 
+- **Saltos de línea (Windows):** el repositorio se guarda con LF, pero un checkout limpio en Windows con `core.autocrlf=true` produce archivos CRLF. Los tests que leen código fuente y buscan `
+` deben normalizar antes (`.replace(/
+/g, "
+")`). Reproducir: `git worktree add --detach <carpeta> HEAD`, enlazar `node_modules` y ejecutar `npx vitest run` dentro; debe pasar igual que en Linux (Vercel).
+
 - `tsconfig` (**aplicado**): `strict`, `noUncheckedIndexedAccess`, `noImplicitOverride`, `noFallthroughCasesInSwitch`, `allowJs: false`, alias `@/*` → `./*`.
 - ESLint (config de Next) + regla de límites de importación de §3. Prettier con plugin de Tailwind.
 - Scripts: `lint` (`eslint .`), `typecheck` (`next typegen && tsc --noEmit`), `build` **(existen)**; `db:migrate`, `db:seed` (previstos).
