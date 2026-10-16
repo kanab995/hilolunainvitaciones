@@ -47,6 +47,7 @@ export function EditorShell({ event }: { event: EditorEvent }) {
   // Fijo mientras dure la edición: las Server Actions revalidan páginas y `event` puede llegar renovado; el
   // borrador (y el autoguardado, que compara contra este valor) no debe reiniciarse por eso.
   const [initial] = useState(event.invitation);
+  const [musicLibrary] = useState(event.musicLibrary);
   const { draft, api } = useInvitationDraft(initial);
   const [images] = useState(() => createObjectUrlRegistry());
   const [selectedId, setSelectedId] = useState(() => initial.sections[0]?.id ?? "");
@@ -149,7 +150,7 @@ export function EditorShell({ event }: { event: EditorEvent }) {
     setMobileView("edit");
   };
 
-  const context = useMemo<EditorContextValue>(() => ({ draft, api, errors, template, images, media, selectRow }), [draft, api, errors, template, images, media]);
+  const context = useMemo<EditorContextValue>(() => ({ draft, api, errors, template, images, media, selectRow, musicLibrary }), [draft, api, errors, template, images, media, musicLibrary]);
 
   if (!selectedRow) return null;
 

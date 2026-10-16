@@ -5,26 +5,10 @@ import { useEditor } from "@/components/editor/editor-context";
 import { SectionHeadingFields } from "@/components/editor/fields/section-heading-fields";
 import { TextAreaField, TextField } from "@/components/editor/fields/text-field";
 import type { SectionEditorProps } from "@/components/editor/section-editors/types";
-import { Switch } from "@/components/ui/switch";
+import { ToggleRow } from "@/components/editor/fields/toggle-row";
 import { isoToZonedParts, zonedPartsToIso } from "@/lib/editor/datetime";
 import { LIMITS } from "@/lib/editor/validation";
 import type { RSVPSettings } from "@/types/invitation";
-
-function ToggleRow({ id, label, hint, checked, onChange }: { id: string; label: string; hint: string; checked: boolean; onChange: (checked: boolean) => void }) {
-  return (
-    <div className="flex items-start justify-between gap-6">
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id} className="text-lu-sm font-medium text-lu-text">
-          {label}
-        </label>
-        <p id={`${id}-hint`} className="max-w-sm text-lu-sm text-lu-text-muted">
-          {hint}
-        </p>
-      </div>
-      <Switch id={id} aria-describedby={`${id}-hint`} checked={checked} onCheckedChange={onChange} />
-    </div>
-  );
-}
 
 /**
  * RSVP: configuración de la confirmación (habilitada, fecha límite, mensaje, texto del botón,

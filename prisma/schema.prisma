@@ -117,6 +117,14 @@ enum MusicSourceType {
   EXTERNAL
 }
 
+/// Estado de una pista de la biblioteca musical (D-46). Solo `ACTIVE` se ofrece en el editor y suena en una invitación; pasar a `ACTIVE`
+/// exige la documentación de derechos completa (`lib/music/license.ts`). `DISABLED` la retira de TODAS las invitaciones sin borrar nada.
+enum MusicTrackStatus {
+  DRAFT
+  ACTIVE
+  DISABLED
+}
+
 /// "Tal vez" (MAYBE) cuenta como pendiente en las métricas (CLAUDE.md, decisión 8).
 enum RsvpStatus {
   PENDING
@@ -246,6 +254,8 @@ model User {
   adminAuditLogs   AdminAuditLog[]
   /// Correos transaccionales enviados a esta cuenta como propietaria de un evento (D-36). `Restrict`: el historial de envíos no se borra en cascada.
   emailDeliveries  EmailDelivery[]
+  /// Pistas cuya licencia verificó esta cuenta de administración (D-46).
+  verifiedMusicTracks MusicTrack[] @relation("MusicTrackVerifiedBy")
 
   @@index([createdAt])
 }
@@ -640,11 +650,73 @@ model MusicSettings {
   autoplayAfterInteraction Boolean         @default(false)
   volume                   Float           @default(0.6)
   loop                     Boolean         @default(true)
+  /// Interruptor del anfitrión (D-46): apagar la música CONSERVA la canción elegida (encender la recupera). Las filas anteriores nacen `true`.
+  isEnabled                Boolean         @default(true)
   libraryTrackId           String?
   uploadAssetId            String?
   updatedAt                DateTime        @updatedAt
 
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event        Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  /// `Restrict`: una pista elegida por algún evento no se puede borrar (se desactiva con `DISABLED`).
+  libraryTrack MusicTrack? @relation(fields: [libraryTrackId], references: [id], onDelete: Restrict)
+
+  @@index([libraryTrackId])
+}
+
+// ───────── Biblioteca musical (D-46) ─────────
+
+/// Categoría de la biblioteca (Romántica, Instrumental…). Se administra desde la consola; nunca se borra si tiene pistas.
+model MusicCategory {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tracks MusicTrack[]
+
+  @@index([sortOrder])
+}
+
+/// Pista de la biblioteca de Hilo Luna con su DOCUMENTACIÓN DE DERECHOS. El audio vive en el almacenamiento (`audioKey`, prefijo
+/// `library/music/`), nunca en PostgreSQL. Los documentos firmados NO se suben al bucket (es público): `licenseEvidenceRef` dice dónde se guardan.
+model MusicTrack {
+  id                      String           @id @default(cuid())
+  title                   String
+  /// Autor o compositor (persona o estudio).
+  author                  String
+  categoryId              String
+  status                  MusicTrackStatus @default(DRAFT)
+  /// Clave del MP3 en el almacenamiento (`library/music/<id>-<aleatorio>.mp3`). Reemplazar el audio crea una clave nueva.
+  audioKey                String?          @unique
+  audioMimeType           String?
+  audioSizeBytes          Int?
+  durationSec             Int?
+  /// Licencia o autorización escrita.
+  licenseSource           String?
+  licenseName             String?
+  licenseUrl              String?
+  licenseTerms            String?
+  licenseEvidenceRef      String?
+  rightsHosting           Boolean          @default(false)
+  rightsPublicPerformance Boolean          @default(false)
+  rightsCommercialUse     Boolean          @default(false)
+  attributionRequired     Boolean          @default(false)
+  attributionText         String?
+  licenseVerifiedAt       DateTime?        @db.Timestamptz
+  licenseVerifiedById     String?
+  /// Fin de la licencia (nulo = sin vencimiento). Vencida, la pista deja de sonar aunque siga `ACTIVE`.
+  licenseExpiresAt        DateTime?        @db.Timestamptz
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+
+  category   MusicCategory   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  verifiedBy User?           @relation("MusicTrackVerifiedBy", fields: [licenseVerifiedById], references: [id], onDelete: Restrict)
+  selections MusicSettings[]
+
+  @@index([status, categoryId])
 }
 
 // ───────── Archivos gestionados ─────────

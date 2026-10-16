@@ -7,6 +7,7 @@ import { billingCopy } from "@/lib/billing/copy";
 import type { PlanId } from "@/lib/billing/plans";
 import { saveOwnedDraft, type DraftBuild, type SaveDraftOutcome, type TemplateAccess } from "@/server/repositories/draft";
 import { releaseUnusedMedia } from "@/server/services/media-service";
+import { checkLibrarySelection, type LibrarySelectionCheck } from "@/server/services/music-library";
 import { checkTemplatePlanForEvent } from "@/server/services/plan-limits";
 import type { SaveDraftResult } from "@/types/draft-sync";
 import { logger } from "@/server/observability/logger";
@@ -26,9 +27,11 @@ export interface DraftServiceDeps {
   canSelectTemplate: (slug: string) => boolean;
   /** ¿El plan DE ESTE EVENTO permite una plantilla con este plan mínimo? (D-32; solo al cambiar de plantilla). */
   templatePlanAllowed: (eventId: string, minimumPlan: PlanId) => Promise<boolean>;
+  /** D-46: ¿puede este evento elegir esta pista de la biblioteca? (plan con `musicLibrary` + pista reproducible). */
+  checkLibraryTrack: (eventId: string, trackId: string) => Promise<LibrarySelectionCheck>;
 }
 
-const defaultDeps: DraftServiceDeps = { resolveOwnedEvent, save: saveOwnedDraft, release: (userId, eventId, ids) => releaseUnusedMedia(userId, eventId, ids), canSelectTemplate, templatePlanAllowed: async (eventId, minimumPlan) => (await checkTemplatePlanForEvent(eventId, minimumPlan)).ok };
+const defaultDeps: DraftServiceDeps = { resolveOwnedEvent, save: saveOwnedDraft, release: (userId, eventId, ids) => releaseUnusedMedia(userId, eventId, ids), canSelectTemplate, templatePlanAllowed: async (eventId, minimumPlan) => (await checkTemplatePlanForEvent(eventId, minimumPlan)).ok, checkLibraryTrack: (eventId, trackId) => checkLibrarySelection(eventId, trackId) };
 
 const messages = {
   denied: "No encontramos este evento.",
@@ -36,6 +39,8 @@ const messages = {
   conflict: "Este evento se modificó en otra ventana. Recarga el editor para ver la última versión.",
   invalid: "Revisa los campos marcados para poder guardar.",
   template: "Esa plantilla no está disponible para este evento.",
+  musicPlan: billingCopy.featureUnavailable.musicLibrary,
+  musicTrack: "Esa canción ya no está disponible. Elige otra de la biblioteca.",
   plan: billingCopy.planRequiredGeneric,
   unavailable: "Guardar no está disponible en este entorno (falta la base de datos).",
   error: "No pudimos guardar los cambios. Inténtalo de nuevo.",
@@ -52,9 +57,16 @@ export async function saveInvitationDraft(eventRef: string, raw: unknown, deps: 
     if (!parsed.ok) return { ok: false, code: "invalid", message: parsed.message };
     const dto = parsed.value;
 
+    // D-46: la pista de la biblioteca se comprueba ANTES de la transacción (plan + pista reproducible). Solo cuenta si el anfitrión CAMBIÓ
+    // de canción (se decide abajo con el borrador actual): conservar la misma nunca bloquea el guardado, aunque el evento haya perdido su
+    // plan o la pista se haya desactivado (nada se borra; simplemente no suena).
+    const libraryCheck = dto.music?.source === "library" ? await deps.checkLibraryTrack(event.id, dto.music.libraryTrackId) : undefined;
+
     const outcome = await deps.save(user.id, event.id, dto.baseRevision, (current) => {
       if (dto.templateSlug !== current.templateSlug && !deps.canSelectTemplate(dto.templateSlug)) return { ok: false, message: messages.template };
-      const next = applyDraftPayload(current, dto);
+      const changedTrack = dto.music?.source === "library" && !(current.music?.sourceType === "library" && current.music.libraryTrackId === dto.music.libraryTrackId);
+      if (changedTrack && libraryCheck && !libraryCheck.ok) return { ok: false, message: libraryCheck.code === "plan_required" ? messages.musicPlan : messages.musicTrack };
+      const next = applyDraftPayload(current, dto, libraryCheck?.ok ? libraryCheck.track : undefined);
       // Las mismas reglas del editor (`validateInvitation`): una sola fuente de validación.
       return Object.keys(validateInvitation(next)).length > 0 ? { ok: false, message: messages.invalid } : { ok: true, invitation: next };
     }, (minimumPlan) => deps.templatePlanAllowed(event.id, minimumPlan));

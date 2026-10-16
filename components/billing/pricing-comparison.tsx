@@ -13,8 +13,9 @@ import { cn } from "@/lib/utils";
  * `lib/billing/plans.ts`) — no se listan aquí como fila para no repetir lo que ya dicen las
  * tarjetas, y nunca con una `✗` que contradiga lo que el producto hace de verdad.
  *
- * Mesa de regalos y música SÍ son `ALL_ON` también hoy (ninguna de las dos es un `FeatureId`
- * gateado): se marcan `Minus` en Gratis como curaduría COMERCIAL, igual que en `cardHighlights`
+ * Mesa de regalos es `ALL_ON` también hoy (no es un `FeatureId` gateado): se marca `Minus` en Gratis como
+ * curaduría COMERCIAL, igual que en `cardHighlights`. La música SÍ coincide con una capacidad real desde D-46:
+ * la biblioteca musical (`musicLibrary`) es exclusiva de Esencial y Premium
  * (`lib/billing/plan-summary.ts`) — una promesa de qué se promueve por plan, no una limitación
  * técnica real. Documentado ahí con el mismo criterio para que ambos componentes no se contradigan.
  */

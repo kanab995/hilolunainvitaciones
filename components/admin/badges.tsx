@@ -5,6 +5,7 @@ import type { UserRoleId } from "@/lib/admin/roles";
 import { planLabel, type PlanId } from "@/lib/billing/plans";
 import type { EventAccessState, PurchaseKindId, PurchaseStatusId } from "@/lib/billing/purchase";
 import type { EmailDeliveryKindId, EmailDeliveryStatusId } from "@/lib/email/delivery";
+import type { MusicTrackStatusId } from "@/lib/music/limits";
 import type { PublicationState } from "@/types/published";
 
 /**
@@ -90,6 +91,17 @@ export function TemplateVisibilityBadge({ status }: { status: TemplatePublicatio
   return (
     <Badge tone={visibilityTone[status]} dot data-visibility={status}>
       {adminCopy.templates.publicationShort[status]}
+    </Badge>
+  );
+}
+
+const musicStatusTone = { DRAFT: "neutral", ACTIVE: "success", DISABLED: "declined" } as const;
+
+/** Estado de una pista de la biblioteca musical (D-46). */
+export function MusicTrackStatusBadge({ status }: { status: MusicTrackStatusId }) {
+  return (
+    <Badge tone={musicStatusTone[status]} dot data-music-status={status}>
+      {adminCopy.music.status[status]}
     </Badge>
   );
 }

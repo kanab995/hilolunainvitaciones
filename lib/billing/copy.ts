@@ -15,6 +15,7 @@ export const billingCopy = {
     qr: "El plan de este evento no incluye códigos QR.",
     calendar: "El plan de este evento no incluye el calendario de la invitación.",
     customMedia: "El plan de este evento no incluye subir tus propias imágenes.",
+    musicLibrary: "La biblioteca musical está disponible en Esencial y Premium.",
   } satisfies Record<FeatureId, string>,
   planRequired: (planName: string) => `Esta plantilla requiere ${planName} para este evento.`,
   planRequiredGeneric: "Esta plantilla requiere un plan superior para este evento. Mejora tu evento para usarla.",

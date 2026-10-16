@@ -8,6 +8,7 @@ import { getDataSource } from "@/server/data-source";
 import { prisma } from "@/server/db/client";
 import { StoreUnavailableError } from "@/server/db/errors";
 import { summarizeOrphanCandidates } from "@/server/repositories/media-orphans";
+import { findMusicEntityNames } from "@/server/repositories/music";
 
 /**
  * LECTURAS DE LA CONSOLA INTERNA (D-33). Único módulo que toca Prisma para `/admin/**`. Reglas:
@@ -639,10 +640,14 @@ export async function listAuditLog(take: number): Promise<AdminAuditRow[]> {
     take,
     select: { id: true, action: true, entityType: true, entityId: true, before: true, after: true, createdAt: true, admin: { select: { id: true, name: true, email: true } } },
   });
-  const templateIds = [...new Set(rows.filter((row) => row.entityType === "Template").map((row) => row.entityId))];
-  const templates = templateIds.length === 0 ? [] : await prisma.template.findMany({ where: { id: { in: templateIds } }, select: { id: true, name: true } });
-  const names = new Map(templates.map((template) => [template.id, template.name]));
-  return rows.map((row) => ({ ...row, entityName: row.entityType === "Template" ? (names.get(row.entityId) ?? null) : null }));
+  const idsOf = (type: string) => [...new Set(rows.filter((row) => row.entityType === type).map((row) => row.entityId))];
+  const templateIds = idsOf("Template");
+  const [templates, music] = await Promise.all([
+    templateIds.length === 0 ? [] : prisma.template.findMany({ where: { id: { in: templateIds } }, select: { id: true, name: true } }),
+    findMusicEntityNames(idsOf("MusicTrack"), idsOf("MusicCategory")),
+  ]);
+  const names = new Map([...templates.map((template) => [template.id, template.name] as const), ...music]);
+  return rows.map((row) => ({ ...row, entityName: names.get(row.entityId) ?? null }));
 }
 
 export async function listRecentAuditLog(take: number): Promise<AdminAuditRow[]> {

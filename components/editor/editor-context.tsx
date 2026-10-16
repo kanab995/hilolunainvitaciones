@@ -7,6 +7,7 @@ import type { ObjectUrlRegistry } from "@/lib/editor/local-images";
 import type { ValidationErrors } from "@/lib/editor/validation";
 import type { Invitation } from "@/types/invitation";
 import type { InvitationTemplate } from "@/types/invitation-template";
+import type { EditorMusicLibrary } from "@/types/music";
 
 /**
  * Lo que necesita cualquier editor de sección: el borrador (solo lectura), la API única para
@@ -23,6 +24,8 @@ export interface EditorContextValue {
   media: MediaController;
   /** Cambia a la fila indicada (p. ej. de "Cuenta regresiva" a "Fecha"). */
   selectRow: (id: string) => void;
+  /** Biblioteca musical de Hilo Luna para este evento (D-46). */
+  musicLibrary: EditorMusicLibrary;
 }
 
 const EditorContext = createContext<EditorContextValue | null>(null);

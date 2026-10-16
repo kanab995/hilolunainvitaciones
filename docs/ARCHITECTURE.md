@@ -318,7 +318,7 @@ Los servicios dependen de estas interfaces; nunca de un proveedor concreto.
 - Reproducción de fondo **solo** con audio de la **biblioteca licenciada de Hilo Luna** o **audio subido** por el usuario con derechos confirmados.
 - Los enlaces externos (Spotify, YouTube, otra URL) son **solo enlaces**.
 - La reproducción **solo** empieza tras una interacción del usuario ("Abrir invitación").
-- **No se implementa ningún proveedor** ahora: se define el esquema, las interfaces y las reglas.
+- **No se implementa ningún proveedor** ahora: se define el esquema, las interfaces y las reglas. *(Actualizado: la biblioteca de Hilo Luna se implementó en **D-46**; la subida de audio propio sigue sin implementarse.)*
 
 **Configuración (contenido del bloque `MUSIC`)**
 
@@ -371,7 +371,7 @@ El snapshot publicado (D-06) guarda el `ResolvedMusic` ya resuelto.
 - Cada pista de biblioteca y cada archivo propio se registra en `docs/ASSET_LICENSES.md` §6.
 - Límites de subida propuestos [E]: audio ≤ 10 MB y ≤ 10 min; MIME `audio/mpeg`, `audio/mp4`, `audio/ogg`. Storage y procesado dependen de la integración diferida.
 
-**Pendiente:** N-01 (proveedor de la biblioteca), N-02 (términos legales de subida).
+**Pendiente:** N-02 (términos legales de subida). N-01 resuelto en **D-46** (música original encargada con autorización escrita, alojada en R2; infraestructura implementada, sin pistas públicas todavía).
 
 ## 11. Calidad y tooling (propuesta)
 
@@ -575,6 +575,26 @@ Contexto: la invitación pública debe tener lenguaje visual propio (regla 7) y 
 (9) **Versionado de las imágenes de plantilla (caché).** Causa de que se siguieran viendo imágenes antiguas tras reemplazar un archivo con el mismo nombre: `next/image` sirve las variantes optimizadas desde el optimizador de Next, que las guarda `images.minimumCacheTTL` (**4 h** por defecto en Next 16) **sin mecanismo de invalidación**; ni el navegador ni Vercel podían saber que el original había cambiado. Solución: `withAssetVersion()` (`lib/images/asset-version.ts`) añade `?v=<huella>` al `src` de toda imagen de `/templates/<slug>/**` en cada punto que la dibuja (`InvImage`, `Decor`, portada, `getTemplateCoverImage`, panel, editor, asistente de alta); la huella es el sha-256 del CONTENIDO de la carpeta de la plantilla (`scripts/asset-versions.mjs` → `lib/images/asset-versions.json`, que regeneran `predev` y `prebuild`, o `npm run assets:versions`). Cambia un archivo → cambia la URL → no hay nada que invalidar a mano. Los DATOS (demos, snapshots publicados, `docs`) conservan la ruta limpia: las URLs de invitaciones existentes no cambian. Next 16 exige que una fuente local con query esté en `images.localPatterns` (`search` es una coincidencia exacta, **máximo 25 entradas**): hay una entrada por carpeta de plantilla + una para el resto de rutas sin query (`next.config.ts`). `tests/images/asset-versions.test.ts` falla si el JSON no coincide con los archivos reales, si una referencia apunta a un archivo inexistente o con otro tamaño, o si se pasa de 25 entradas. **No** se usa `images.loader = "custom"`: desactiva el optimizador interno (`/_next/image` responde 404). Al acercarse a 24 plantillas habrá que cambiar de estrategia (p. ej. un `localPatterns` con la query sin restringir, o importar las imágenes estáticamente).
 
 (10) **Portada `editorial` con foto real**: lleva un velo del color de fondo (`inv-scrim`, máscara que se desvanece hacia arriba) bajo el texto para garantizar el contraste sobre fotos con brillos o lentejuelas.
+
+### D-46 · **Aprobada (propietario, Etapa 1 de «música e impresión»)** · Biblioteca musical licenciada: infraestructura, editor y reproductor
+
+→ Decisiones del propietario: audio alojado en **Cloudflare R2** (el mismo almacenamiento de D-27, prefijo `library/music/`); catálogo inicial de música **original creada o encargada para Hilo Luna** con licencia o autorización ESCRITA que cubra alojamiento, reproducción pública y uso comercial en las invitaciones de clientes; la biblioteca es **exclusiva de Esencial y Premium**; los enlaces externos existentes se conservan en todos los planes; se amplía D-33 **solo** para administrar pistas, categorías y licencias (ADMIN + `AdminAuditLog`). **Ninguna pista se hace pública en esta etapa**: solo se probó con pistas de QA en una base de datos temporal.
+
+(1) **Datos** (migración aditiva `20261016120000_add_music_library`): `MusicCategory` (6 categorías sembradas: Romántica, Instrumental, Elegante, Alegre, Infantil, Ambiental), `MusicTrack` (título, autor, categoría, `status` DRAFT/ACTIVE/DISABLED, audio por `audioKey`, y la documentación: fuente, licencia, URL, condiciones, **referencia** al comprobante firmado —nunca el contrato en el bucket, que es público—, los tres derechos por separado, atribución, vencimiento, fecha y autor de la verificación), `MusicSettings.isEnabled` (apagar conserva la canción) y clave foránea `MusicSettings.libraryTrackId → MusicTrack` (`Restrict`; en producción todas las filas eran nulas). Restricción CHECK `MusicTrack_active_requires_rights`: la BASE DE DATOS rechaza una pista `ACTIVE` sin audio ni documentación completa y verificada.
+
+(2) **Una sola regla de derechos** (`lib/music/license.ts`): `activationProblems` / `isTrackPlayable` (`ACTIVE` + audio + documentación + verificación vigente; una licencia vencida deja de sonar aunque siga `ACTIVE`). La consola, el editor y la invitación la usan; la CHECK repite su parte estructural.
+
+(3) **Plan**: capacidad nueva `musicLibrary` en `lib/billing/plans.ts` (Gratis `false`; Esencial y Premium `true`). Coincide con lo que `/pricing` ya anunciaba («Música» solo en planes de pago); la tabla de `/pricing` no cambia. Elegir una pista NUEVA exige el plan; conservar la misma nunca bloquea un guardado (un evento que pierde su plan conserva su elección y simplemente deja de sonar: nada se borra).
+
+(4) **Editor**: «Biblioteca Hilo Luna» deja de ser «Próximamente»: categorías, muestra (un único `<audio>` creado al pulsar, `preload="none"`, `components/editor/use-music-sample.ts`), «Usar», «Música activada» y «Empezar al abrir la invitación». El payload de guardado lleva SOLO `{ source: "library", libraryTrackId, isEnabled, … }`: título, autor y audio los pone el servidor (`checkLibrarySelection`). Un payload sin `source` sigue siendo un enlace externo (clientes anteriores). «Sin música» ahora sí quita la biblioteca.
+
+(5) **Publicación y reproducción**: el snapshot guarda la pista por **id**, nunca la URL; `/i/[slug]` resuelve en cada petición (`resolvePublicMusic`) con el estado ACTUAL de la pista y del plan. Desactivar una pista la silencia en todas las invitaciones sin republicar ni tocar snapshots. Reproductor (`components/invitation/music-player.tsx` + `lib/music/player.ts`): un `<audio preload="none">`, sin `autoplay`, arranca dentro del gesto de «Abrir invitación» (requisito de iOS) o con el botón flotante de 44 px; se pausa con la pestaña oculta; la vista previa del editor nunca empieza sola; crédito visible solo si la licencia lo exige. El enlace externo sigue sin mostrarse en la invitación pública (igual que antes).
+
+(6) **Consola** (`/admin/music`, `/admin/music/[id]`): crear/editar categorías y pistas (nacen en `DRAFT`), subir el MP3 directo a R2 con URL firmada (el servidor comprueba tamaño ≤ 15 MB y firma MP3; el audio de una pista activa no se reemplaza), documentar la licencia (bloqueada mientras la pista está activa; editarla anula la verificación), verificar (solo documentación completa; queda el autor y la fecha) y activar/desactivar. Cada cambio deja su fila en `AdminAuditLog`.
+
+(7) **CSP**: `media-src` admite `blob:` (la consola mide la duración del MP3 antes de subirlo, igual que `img-src` ya admitía `blob:` para imágenes). No abre ningún origen externo.
+
+**Pendiente (fuera de esta etapa):** conseguir y documentar las pistas reales (owner); subida de audio propio por el cliente (`upload`, sigue «Próximamente»); reproducción en dispositivos reales iPhone/Android (lista manual: el entorno de pruebas no tiene audio de hardware).
 
 ### D-17 · **Aprobada (propietario)** · `InvitationTheme` con `layout` y `effects`
 → El tema declara la variante de cada bloque estructural (`hero`, `locations`, `gallery`, `timeline`) y efectos visuales (`paperTexture`, `vignette`, `photoMask`) como **configuración de plantilla**, no opciones del usuario. Permite plantillas realmente distintas sin duplicar lógica (un bloque, varias variantes). Alternativa descartada: elegir variantes solo con `TemplateDefinition.variants` (dos mecanismos para lo mismo). Ver `design/DESIGN_SYSTEM.md` §5.

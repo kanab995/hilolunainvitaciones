@@ -146,9 +146,11 @@ describe("/pricing: mejora comercial de copy (Esencial destacado, Ideal para, co
     expect(premiumText).toMatch(/[Mm]ás capacidad|[Mm]ás completa|eventos grandes/);
   });
 
-  it("no se tocó la lógica de billing: FREE sigue con todas las features reales en ALL_ON (D-32, sin cambios de entitlements)", () => {
+  it("FREE conserva todas sus features de D-32; la ÚNICA excepción es la biblioteca musical (D-46, aprobada por el propietario)", () => {
     const free = getPlanConfig("FREE");
-    expect(free.features).toEqual({ publish: true, personalizedGuestLinks: true, qr: true, calendar: true, customMedia: true });
+    expect(free.features).toEqual({ publish: true, personalizedGuestLinks: true, qr: true, calendar: true, customMedia: true, musicLibrary: false });
+    expect(getPlanConfig("ESSENTIAL").features.musicLibrary).toBe(true);
+    expect(getPlanConfig("PREMIUM").features.musicLibrary).toBe(true);
     expect(free.limits).toEqual({ maxGuestsPerEvent: 30, maxGalleryImages: 5, maxPublicRsvpResponses: 50 });
     expect(free.pricing.displayPrice).toBe(0);
   });

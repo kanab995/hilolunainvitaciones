@@ -70,4 +70,12 @@ export const invitationCopy = {
     yesNo: { yes: "Sí", no: "No" },
     choose: "Elige una opción",
   },
+  /** Reproductor de la biblioteca musical (D-46). */
+  music: {
+    song: (title: string, author: string) => (author ? `«${title}» de ${author}` : `«${title}»`),
+    play: (song: string) => `Reproducir música: ${song}`,
+    pause: (song: string) => `Pausar música: ${song}`,
+    blocked: "Tu navegador no permitió reproducir la música automáticamente. Toca el botón de música para escucharla.",
+    credit: (attribution: string) => `Música: ${attribution}`,
+  },
 } as const;

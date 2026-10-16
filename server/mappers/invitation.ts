@@ -66,7 +66,7 @@ export type GiftRowData = Pick<GiftRegistry, "id" | "name" | "url" | "position">
 export type MusicRowData = Pick<
   MusicSettings,
   "sourceType" | "trackUrl" | "externalUrl" | "title" | "artist" | "autoplayAfterInteraction" | "volume" | "loop" | "libraryTrackId" | "uploadAssetId"
->;
+> & { isEnabled?: boolean };
 export type SectionRowData = Pick<SectionRow, "id" | "type" | "position" | "isVisible" | "settings" | "content">;
 
 /** Una invitación con todo lo que necesita para dibujarse. */
@@ -158,6 +158,8 @@ export function dbMusicToDomain(row: MusicRowData): DomainMusic {
     autoplayAfterInteraction: sourceType === "external" ? false : row.autoplayAfterInteraction,
     volume: row.volume,
     loop: row.loop,
+    // Solo se expone cuando está APAGADA: así las invitaciones anteriores a D-46 conservan exactamente su forma.
+    isEnabled: row.isEnabled === false ? false : undefined,
     libraryTrackId: row.libraryTrackId ?? undefined,
     uploadAssetId: row.uploadAssetId ?? undefined,
   });
@@ -302,13 +304,15 @@ export function domainInvitationToDb(invitation: Invitation): InvitationWriteMod
     music: invitation.music
       ? {
           sourceType: musicSourceToDb[invitation.music.sourceType],
-          trackUrl: invitation.music.trackUrl ?? null,
+          // La URL del audio de la biblioteca NUNCA se guarda: se resuelve al mostrar con el estado actual de la pista (D-46).
+          trackUrl: invitation.music.sourceType === "library" ? null : (invitation.music.trackUrl ?? null),
           externalUrl: invitation.music.externalUrl ?? null,
           title: invitation.music.title,
           artist: invitation.music.artist ?? null,
           autoplayAfterInteraction: invitation.music.sourceType === "external" ? false : invitation.music.autoplayAfterInteraction,
           volume: invitation.music.volume,
           loop: invitation.music.loop,
+          isEnabled: invitation.music.isEnabled ?? true,
           libraryTrackId: invitation.music.libraryTrackId ?? null,
           uploadAssetId: invitation.music.uploadAssetId ?? null,
         }

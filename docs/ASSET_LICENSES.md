@@ -397,13 +397,15 @@ Notas comunes: `location-ceremony.png` es un archivo extra respecto de la lista 
 
 ## 6. Audio
 
-Ninguno incorporado. **Biblioteca licenciada de Hilo Luna**: el proveedor/licencia está **pendiente de decidir** (pregunta abierta N-01 en `PROJECT_SPEC`); hasta entonces no existe pista alguna en el repo ni en producción.
+Ninguno incorporado. **Biblioteca licenciada de Hilo Luna (D-46)**: decisión del propietario — música **original creada o encargada para Hilo Luna**, con licencia o autorización ESCRITA que cubra alojamiento, reproducción pública y uso comercial dentro de las invitaciones de clientes. La infraestructura existe (consola `/admin/music`), pero **no hay ninguna pista real**: las pruebas usaron un tono sintético en una base de datos temporal. El audio NO vive en el repositorio: se sube a R2 desde la consola.
 
 | Nombre | Fuente | Autor/proveedor | Licencia | URL de origen | Fecha de obtención | Cobertura de licencia (comercial, territorio, sincronización, plazo) | Estado |
 |---|---|---|---|---|---|---|---|
 | — | — | — | — | — | — | — | — |
 
-Cada pista de la biblioteca debe tener además su registro en la tabla `MusicTrack` (ver `DATABASE_SCHEMA.md`) con los mismos datos de licencia. **Sin licencia documentada no hay pista.**
+Cada pista de la biblioteca debe tener además su registro en la tabla `MusicTrack` (ver `DATABASE_SCHEMA.md` §21) con los mismos datos de licencia. **Sin licencia documentada no hay pista**, y el sistema lo impone: una pista solo puede pasar a `ACTIVE` con audio, fuente, nombre de la licencia, condiciones, referencia al comprobante firmado, los TRES derechos (alojamiento, reproducción pública, uso comercial), el crédito si la licencia lo exige y una verificación firmada por un administrador (`lib/music/license.ts` + restricción CHECK de la base de datos). Los contratos firmados se guardan FUERA del bucket (es público): en `MusicTrack` solo queda la referencia a dónde están.
+
+**Procedimiento para incorporar una pista** (consola `/admin/music`): 1) crear la pista (nace en Borrador); 2) subir el MP3 (128–192 kbps, 15 s–10 min, ≤ 15 MB); 3) documentar la licencia; 4) añadir su fila a la tabla de arriba; 5) «Marcar documentación como verificada»; 6) «Activar». Para retirarla: «Desactivar» (la silencia en todas las invitaciones sin borrar nada).
 
 Audio subido por usuarios: no es un asset de Hilo Luna; se guarda con `rightsConfirmedAt` (aceptación explícita del usuario de que tiene los derechos). Hilo Luna debe contar con términos de servicio y un procedimiento de retirada por reclamación (**pendiente**, requiere revisión legal).
 

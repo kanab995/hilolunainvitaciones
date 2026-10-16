@@ -123,9 +123,9 @@ describe("(51.4) el payload no puede cambiar roles", () => {
       // (El tipo `AdminUser` de la puerta de acceso declara `role: "ADMIN"`; no es una escritura.)
       if (file !== "server/auth/admin.ts") expect(text, file).not.toMatch(/\brole:\s*["'`]ADMIN/);
     }
-    // El único módulo que escribe en el servidor desde la consola es la acción de plantillas.
+    // Los únicos módulos que escriben desde la consola: plantillas (D-33) y biblioteca musical (D-46, ampliación aprobada por el propietario).
     const actions = [...sources.keys()].filter((file) => /actions?\.ts$/.test(file));
-    expect(actions.sort()).toEqual(["app/(site)/admin/actions.ts", "app/(site)/admin/templates/actions.ts"]);
+    expect(actions.sort()).toEqual(["app/(site)/admin/actions.ts", "app/(site)/admin/music/actions.ts", "app/(site)/admin/templates/actions.ts"]);
   });
 });
 
@@ -154,7 +154,8 @@ describe("la autorización solo sale del rol en PostgreSQL", () => {
 
   it("todas las páginas, el layout y las acciones de /admin llaman a requireAdmin()", () => {
     const files = [...filesUnder(["app/(site)/admin"]).entries()].filter(([file]) => /(page|layout|actions)\.tsx?$/.test(file));
-    expect(files.length).toBe(14);
+    // 14 de D-33/D-34/D-36 + 3 de la biblioteca musical (D-46: listado, detalle de pista y acciones).
+    expect(files.length).toBe(17);
     for (const [file, text] of files) expect(text, file).toMatch(/requireAdmin\(\)/);
   });
 

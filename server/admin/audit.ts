@@ -14,10 +14,20 @@ const AUDIT_PAGE_SIZE = 50;
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 
 function label(field: string, value: unknown): string {
+  if (typeof value === "boolean") return value ? adminCopy.music.categories.yes : adminCopy.music.categories.no;
+  if (typeof value === "number") return String(value);
   if (typeof value !== "string") return adminCopy.common.none;
+  if (field === "status") return adminCopy.music.status[value as "DRAFT" | "ACTIVE" | "DISABLED"] ?? value;
   if (field === "minimumPlan") return isPlanId(value) ? planLabel(value) : value;
   if (field === "publicationStatus") return (adminCopy.templates.publicationShort as Record<string, string>)[value] ?? value;
   return value;
+}
+
+function targetLabel(row: repo.AdminAuditRow): string {
+  if (row.entityType === "Template") return adminCopy.audit.templateTarget(row.entityName);
+  if (row.entityType === "MusicTrack") return adminCopy.audit.musicTrackTarget(row.entityName);
+  if (row.entityType === "MusicCategory") return adminCopy.audit.musicCategoryTarget(row.entityName);
+  return row.entityType;
 }
 
 export function toAuditEntry(row: repo.AdminAuditRow): AdminAuditEntryDto {
@@ -28,7 +38,7 @@ export function toAuditEntry(row: repo.AdminAuditRow): AdminAuditEntryDto {
     id: row.id,
     createdAt: row.createdAt,
     actor: { id: row.admin.id, name: row.admin.name, email: row.admin.email },
-    target: row.entityType === "Template" ? adminCopy.audit.templateTarget(row.entityName) : row.entityType,
+    target: targetLabel(row),
     changes: fields.filter((field) => field in after || field in before).map((field) => ({ field: adminCopy.audit.fields[field], from: label(field, before[field]), to: label(field, after[field]) })),
   };
 }

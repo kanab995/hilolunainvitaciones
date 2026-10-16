@@ -131,6 +131,12 @@ export interface MusicSettings {
   /** 0..1 */
   volume: number;
   loop: boolean;
+  /**
+   * Interruptor del anfitrión (D-46): `false` apaga la música CONSERVANDO la canción elegida. Ausente = encendida (datos y snapshots
+   * anteriores a D-46).
+   */
+  isEnabled?: boolean;
+  /** Pista de la biblioteca de Hilo Luna (`sourceType = "library"`); título y autor los pone el SERVIDOR desde la pista. */
   libraryTrackId?: string;
   uploadAssetId?: string;
 }

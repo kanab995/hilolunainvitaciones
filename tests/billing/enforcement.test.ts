@@ -232,6 +232,7 @@ describe("Publicar y cambiar de plantilla son por EVENTO (34, 35)", () => {
         asked.push(`${eventId}:${minimum}`);
         return (await checkTemplatePlanForEvent(eventId, minimum, eventLimits({}).deps)).ok;
       },
+      checkLibraryTrack: async () => ({ ok: false, code: "unavailable" }),
     };
     const payload = invitationToDraftPayload(fresh(), 5);
     expect(await saveInvitationDraft("evt_A", payload, deps)).toEqual({ ok: false, code: "plan_required", message: "Esta plantilla requiere un plan superior para este evento. Mejora tu evento para usarla." });

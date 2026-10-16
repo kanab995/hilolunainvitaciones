@@ -41,6 +41,8 @@ export const routes = {
   adminEvents: "/admin/events",
   adminEvent: (id: string) => `/admin/events/${id}`,
   adminTemplates: "/admin/templates",
+  adminMusic: "/admin/music",
+  adminMusicTrack: (id: string) => `/admin/music/${id}`,
   adminPurchases: "/admin/purchases",
   adminPurchase: (id: string) => `/admin/purchases/${id}`,
   adminWebhooks: "/admin/webhooks",

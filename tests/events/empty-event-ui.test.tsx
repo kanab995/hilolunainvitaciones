@@ -101,6 +101,7 @@ function editorHtml(node: (invitation: Invitation) => React.ReactElement, invita
     images: { create: () => "blob:x", revoke: noop, revokeAll: noop, has: () => false, size: 0 },
     media: { cover: { status: idle, enabled: false, disabledReason: "x", onFile: noop, onRemove: noop }, location: () => undefined, gallery: { status: idle, enabled: false, add: noop, remove: noop, removeStatus: () => idle } },
     selectRow: noop,
+    musicLibrary: { allowed: false, categories: [], tracks: [] },
   } as unknown as EditorContextValue;
   return renderToStaticMarkup(<EditorProvider value={context}>{node(invitation)}</EditorProvider>);
 }
