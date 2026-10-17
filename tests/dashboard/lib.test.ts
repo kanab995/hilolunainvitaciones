@@ -36,13 +36,14 @@ describe("format", () => {
 describe("navegación lateral", () => {
   const items = getDashboardNav("demo");
 
-  it("expone los seis destinos con sus rutas", () => {
+  it("expone los siete destinos con sus rutas (D-47 añade «Versión para imprimir»)", () => {
     expect(items.map((item) => [item.label, item.href])).toEqual([
       ["Mis eventos", "/dashboard/events"],
       ["Plantillas", "/templates"],
       ["Lista de invitados", "/dashboard/events/demo/guests"],
       ["Confirmaciones", "/dashboard/events/demo/rsvp"],
       ["Mensajes", "/dashboard/events/demo/messages"],
+      ["Versión para imprimir", "/dashboard/events/demo/print"],
       ["Configuración", "/dashboard/events/demo/settings"],
     ]);
   });

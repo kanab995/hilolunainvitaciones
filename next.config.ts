@@ -55,6 +55,14 @@ const nextConfig: NextConfig = {
    * donde Node sí tiene `fs`. `@sentry/node` solo se importa desde server/observability/monitoring.ts.
    */
   serverExternalPackages: ["@sentry/node"],
+  /**
+   * Versión para imprimir (D-47): las fuentes TTF del PDF se leen del disco en tiempo de ejecución (`server/print/fonts.ts`), así que
+   * el rastreo de archivos no las ve solo. Se incluyen SOLO en las rutas que imprimen; nunca se sirven al navegador (no están en `public/`).
+   */
+  outputFileTracingIncludes: {
+    "/dashboard/events/\\[id\\]/print": ["./assets/print/fonts/**"],
+    "/dashboard/events/\\[id\\]/print/**": ["./assets/print/fonts/**"],
+  },
   // Huella de la CSP del build (se compara al arrancar: `server/config/startup.ts`).
   env: { HILOLUNA_CSP_FINGERPRINT: cspFingerprint(process.env) },
   images: { ...mediaImages(), localPatterns: templateAssetPatterns() },

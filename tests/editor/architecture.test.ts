@@ -75,8 +75,8 @@ describe("arquitectura del editor", () => {
     expect(sample.match(/new Audio\(/g)).toHaveLength(1);
   });
 
-  it("las únicas dependencias añadidas al stack base son Prisma (D-22), Clerk (D-24), el SDK de AWS S3 (D-27), el generador de QR (D-30), el SDK oficial de Stripe (D-31), el de Resend (D-36), el de Sentry (D-37) y `server-only` (D-41); ni drag & drop, formularios ni Zod", () => {
+  it("las únicas dependencias añadidas al stack base son Prisma (D-22), Clerk (D-24), el SDK de AWS S3 (D-27), el generador de QR (D-30), el SDK oficial de Stripe (D-31), el de Resend (D-36), el de Sentry (D-37), `server-only` (D-41) y `pdf-lib` + `@pdf-lib/fontkit` (D-47); ni drag & drop, formularios ni Zod", () => {
     const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as { dependencies: Record<string, string> };
-    expect(Object.keys(pkg.dependencies).sort()).toEqual(["@aws-sdk/client-s3", "@aws-sdk/s3-request-presigner", "@clerk/nextjs", "@prisma/client", "@sentry/node", "class-variance-authority", "cn", "lucide-react", "next", "prisma", "qrcode-generator", "radix-ui", "react", "react-dom", "resend", "server-only", "shadcn", "stripe", "tw-animate-css"]);
+    expect(Object.keys(pkg.dependencies).sort()).toEqual(["@aws-sdk/client-s3", "@aws-sdk/s3-request-presigner", "@clerk/nextjs", "@pdf-lib/fontkit", "@prisma/client", "@sentry/node", "class-variance-authority", "cn", "lucide-react", "next", "pdf-lib", "prisma", "qrcode-generator", "radix-ui", "react", "react-dom", "resend", "server-only", "shadcn", "stripe", "tw-animate-css"]);
   });
 });

@@ -58,6 +58,12 @@ export const routes = {
   eventRsvp: (id: string) => `/dashboard/events/${id}/rsvp`,
   eventSettings: (id: string) => `/dashboard/events/${id}/settings`,
   eventMessages: (id: string) => `/dashboard/events/${id}/messages`,
+  /** Versión para imprimir (D-47): vista previa con marca de agua y, cuando proceda, el PDF de imprenta. */
+  eventPrint: (id: string) => `/dashboard/events/${id}/print`,
+  /** Imagen de vista previa (`side` = front|back|envelope y las opciones en la query). Privada: sesión + propiedad. */
+  eventPrintPreview: (id: string, query: string) => `/dashboard/events/${id}/print/preview?${query}`,
+  /** PDF de imprenta. Privado y protegido (D-47: con la compra apagada, solo prueba interna de administración). */
+  eventPrintFile: (id: string, query: string) => `/dashboard/events/${id}/print/file?${query}`,
 
   /** Invitación pública (decisión del propietario: prefijo /i/). */
   invitation: (slug: string) => `/i/${slug}`,

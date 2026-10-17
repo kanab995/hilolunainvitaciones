@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, ChartColumn, House, LayoutGrid, Mail, Settings, Users } from "lucide-react";
+import { ArrowRight, ChartColumn, House, LayoutGrid, Mail, Printer, Settings, Users } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -20,6 +20,7 @@ const icons: Record<DashboardNavIcon, ComponentType<{ strokeWidth?: number }>> =
   guests: Users,
   rsvp: ChartColumn,
   messages: Mail,
+  print: Printer,
   settings: Settings,
 };
 

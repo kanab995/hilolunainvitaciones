@@ -206,7 +206,7 @@ describe("Asistente de creación (pantalla 1)", () => {
 describe("Navegación del panel sin eventos", () => {
   it("un usuario sin eventos no ve enlaces de secciones de evento (ningún enlace muerto)", () => {
     expect(getDashboardNav(null).map((item) => item.id)).toEqual(["events", "templates"]);
-    expect(getDashboardNav("evt_new").map((item) => item.id)).toEqual(["events", "templates", "guests", "rsvp", "messages", "settings"]);
+    expect(getDashboardNav("evt_new").map((item) => item.id)).toEqual(["events", "templates", "guests", "rsvp", "messages", "print", "settings"]);
     expect(getDashboardNav("evt_new").find((item) => item.id === "guests")?.href).toBe("/dashboard/events/evt_new/guests");
   });
 
