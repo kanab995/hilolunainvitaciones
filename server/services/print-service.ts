@@ -1,5 +1,4 @@
-import { ADDONS, canDownloadPrintFile, isAddonEligiblePlan } from "@/lib/billing/addons";
-import type { PlanId } from "@/lib/billing/plans";
+import { ADDONS, canDownloadPrintFile } from "@/lib/billing/addons";
 import { buildPrintData, detectedPlace, initialsFromNames, isPrintableEventType, type PrintData } from "@/lib/print/data";
 import { PRINT_FORMAT_SPECS } from "@/lib/print/formats";
 import { layoutRomanticElegant } from "@/lib/print/layout";
@@ -13,7 +12,7 @@ import { renderPrintPdf } from "@/server/print/pdf";
 import { rasterizeSvg } from "@/server/print/raster";
 import { renderPrintSvg } from "@/server/print/svg";
 import { loadOwnedPublication, type OwnedPublication } from "@/server/repositories/publishing";
-import { getEventPlan } from "@/server/services/entitlement-service";
+import { getPrintAddonState, hasPaidPrintAddon, type PrintAddonState } from "@/server/services/addon-service";
 import type { AppUser } from "@/server/services/user-sync";
 
 /**
@@ -21,14 +20,18 @@ import type { AppUser } from "@/server/services/user-sync";
  *  - Los datos salen de la invitación PUBLICADA del evento del usuario (propiedad en la consulta); un borrador no se imprime.
  *  - El QR solo se incluye si la invitación está publicada y su acceso sigue vigente (un QR impreso hacia una invitación caducada no
  *    sirve), y siempre apunta a la URL pública GENERAL (nunca a un enlace personalizado de invitado).
- *  - La VISTA PREVIA es libre (imagen con marca de agua). El PDF limpio exige `canDownloadPrintFile`: con la compra apagada, solo una
- *    cuenta ADMIN y solo de SUS eventos (prueba interna). Un no autorizado recibe lo mismo que un evento inexistente.
+ *  - La VISTA PREVIA es libre (imagen con marca de agua). El PDF limpio exige `canDownloadPrintFile`: el complemento PAGADO de ESTE evento
+ *    del usuario (D-48; descargas ilimitadas desde la versión publicada vigente; un reembolso la retira) o la prueba interna de una cuenta
+ *    ADMIN de SUS eventos. Un no autorizado recibe lo mismo que un evento inexistente.
  *  - El diseño aprobado es de boda: otros tipos de evento esperan su texto (`isPrintableEventType`).
  */
 export interface PrintDeps {
   loadPublication: (userId: string, eventId: string) => Promise<OwnedPublication | undefined>;
   loadFonts: () => Promise<PrintFontSet>;
-  getPlan: (eventId: string) => Promise<PlanId>;
+  /** Estado del complemento del evento DEL usuario (plan, elegibilidad, venta abierta, compra, vigencia del QR). */
+  getAddonState: (userId: string, eventId: string) => Promise<PrintAddonState | undefined>;
+  /** ¿El complemento de este evento DEL usuario está pagado? */
+  hasPaidAddon: (userId: string, eventId: string) => Promise<boolean>;
   isAdmin: () => Promise<boolean>;
   publicUrl: (slug: string) => string;
   /** SVG → PNG; `undefined` si no hay rasterizador disponible (entonces NO hay vista previa: nunca se sirve el SVG vectorial). */
@@ -38,7 +41,8 @@ export interface PrintDeps {
 const defaultDeps: PrintDeps = {
   loadPublication: loadOwnedPublication,
   loadFonts: () => loadPrintFonts(),
-  getPlan: (eventId) => getEventPlan(eventId),
+  getAddonState: (userId, eventId) => getPrintAddonState({ id: userId }, eventId),
+  hasPaidAddon: (userId, eventId) => hasPaidPrintAddon(userId, eventId),
   isAdmin: isCurrentUserAdmin,
   publicUrl: getPublicInvitationUrl,
   rasterize: rasterizeSvg,
@@ -56,11 +60,10 @@ export type PrintPageView =
       defaultInitials: string;
       /** Ciudad y estado leídos de la dirección de la ceremonia («» si no se pudo leer con seguridad). */
       defaultPlace: string;
-      plan: PlanId;
-      /** ¿El plan del evento permite el complemento? (Esencial y Premium). */
-      eligible: boolean;
-      purchasable: boolean;
-      canDownload: boolean;
+      /** Compra del complemento: plan del evento, elegibilidad, si la venta está abierta, si ya se pagó y hasta cuándo funciona el QR. */
+      addon: PrintAddonState;
+      /** Descarga del PDF limpio: `purchase` (complemento pagado), `internal` (prueba de ADMIN, sin compra) o `none`. */
+      download: "purchase" | "internal" | "none";
       price: number;
       /** Avisos de composición con las opciones por defecto (texto ajustado, espacios comprimidos…). */
       warnings: readonly PrintWarning[];
@@ -71,7 +74,7 @@ export async function getPrintPageView(user: AppUser, eventId: string, deps: Pri
   if (!source) return { status: "not_found" };
   if (source.state === "draft") return { status: "draft" };
   if (!isPrintableEventType(source.invitation.eventType)) return { status: "unsupported" };
-  const plan = await deps.getPlan(eventId);
+  const addon = (await deps.getAddonState(user.id, eventId)) ?? { plan: "FREE", eligible: false, saleOpen: false, purchased: false, paidAt: null, pendingPayment: false, qrValidUntil: null };
   const fonts = await deps.loadFonts();
   const data = buildPrintData(source.invitation, source.expired ? {} : { publicUrl: deps.publicUrl(source.slug) });
   const scene = layoutRomanticElegant(data, { format: DEFAULT_PRINT_OPTIONS.format, includeBack: true }, fonts.metrics);
@@ -81,10 +84,8 @@ export async function getPrintPageView(user: AppUser, eventId: string, deps: Pri
     qrAvailable: !source.expired,
     defaultInitials: initialsFromNames(source.invitation.names).join(""),
     defaultPlace: detectedPlace(source.invitation) ?? "",
-    plan,
-    eligible: isAddonEligiblePlan("PRINT_FILE", plan),
-    purchasable: ADDONS.PRINT_FILE.purchasable,
-    canDownload: canDownloadPrintFile({ purchased: false, isAdmin: await deps.isAdmin() }),
+    addon,
+    download: addon.purchased ? "purchase" : (await deps.isAdmin()) ? "internal" : "none",
     price: ADDONS.PRINT_FILE.displayPrice,
     warnings: scene.warnings,
   };
@@ -122,8 +123,9 @@ export async function getPrintPreview(user: AppUser, eventId: string, options: P
 export type PrintFileResult = { ok: true; bytes: Uint8Array; filename: string } | { ok: false };
 
 export async function getPrintFile(user: AppUser, eventId: string, options: PrintOptions, deps: PrintDeps = defaultDeps): Promise<PrintFileResult> {
-  // Primero la autorización (barata), después la generación.
-  if (!canDownloadPrintFile({ purchased: false, isAdmin: await deps.isAdmin() })) return { ok: false };
+  // Primero la autorización (barata), después la generación. La compra se busca con el usuario en la consulta (evento propio).
+  const purchased = await deps.hasPaidAddon(user.id, eventId);
+  if (!canDownloadPrintFile({ purchased, isAdmin: purchased ? false : await deps.isAdmin() })) return { ok: false };
   const built = await build(user, eventId, options, deps);
   if (!built.ok) return { ok: false };
   const spec = PRINT_FORMAT_SPECS[options.format];
@@ -133,6 +135,6 @@ export async function getPrintFile(user: AppUser, eventId: string, options: Prin
     title: `${names || built.source.title} — Invitación ${spec.label}`,
     label: `${names.toLocaleUpperCase("es-MX")} · ${spec.label}`,
   });
-  logger.info("print.file.generated", { eventId, format: options.format, back: options.includeBack, marks: options.cropMarks, pages: built.scene.pages.length, bytes: bytes.length, internal: true });
+  logger.info("print.file.generated", { eventId, format: options.format, back: options.includeBack, marks: options.cropMarks, pages: built.scene.pages.length, bytes: bytes.length, internal: !purchased });
   return { ok: true, bytes, filename: `invitacion-${built.source.slug}-${options.format}${options.cropMarks ? "-marcas" : ""}.pdf` };
 }

@@ -1,3 +1,4 @@
+import { ADDONS, ADDON_IDS, isAddonSaleEnabled } from "@/lib/billing/addons";
 import { PRICE_ENV_KEYS } from "@/lib/billing/plans";
 import { siteConfig } from "@/lib/site-config";
 import { resolveStripeConfig } from "@/server/billing/stripe/config";
@@ -133,6 +134,14 @@ export function validateEnv(env: EnvSource, mode: EnvReport["mode"] = env.NODE_E
       // Las variables ausentes ya se reportaron arriba: aquí solo lo incoherente.
       if (has(env, named)) problem("stripe", production ? "error" : "warning", named, message);
     }
+  }
+
+  // Complementos (D-48): OPCIONALES. Apagados por defecto; si se encienden (`PRINT_ADDON_ENABLED=1`) deben tener su precio, o el botón de
+  // compra aparecería sin poder cobrarse. Encenderlos en producción es una decisión del propietario.
+  for (const addon of ADDON_IDS) {
+    const { enableEnvKey, stripePriceEnvKey } = ADDONS[addon];
+    if (isAddonSaleEnabled(addon, env) && !has(env, stripePriceEnvKey)) problem("stripe", production ? "error" : "warning", stripePriceEnvKey, `${enableEnvKey} está activo pero falta el precio de Stripe del complemento (pago único).`);
+    if (has(env, enableEnvKey) && !["0", "1", "true", "false", "yes", "no"].includes(value(env, enableEnvKey).toLowerCase())) problem("stripe", "warning", enableEnvKey, "Usa 1 para encender la venta del complemento o 0 para apagarla.");
   }
 
   // ───────── Límite de tasa (proveedor externo) ─────────

@@ -3,10 +3,14 @@ import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { PDFDocument } from "pdf-lib";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+
+// El botón de compra llama a una Server Action (sesión, base de datos): aquí solo importa cómo se pinta la tarjeta.
+vi.mock("@/app/(site)/dashboard/(workspace)/events/[id]/print/actions", () => ({ startPrintAddonCheckoutAction: vi.fn() }));
 import { PrintProductCard } from "@/components/print/print-product-card";
 import { DEFAULT_PRINT_OPTIONS } from "@/lib/print/options";
 import { loadPrintFonts, type PrintFontSet } from "@/server/print/fonts";
 import type { OwnedPublication } from "@/server/repositories/publishing";
+import type { PrintAddonState } from "@/server/services/addon-service";
 import { getPrintFile, getPrintPageView, getPrintPreview, type PrintDeps } from "@/server/services/print-service";
 import { demo } from "./fixtures";
 
@@ -19,11 +23,14 @@ beforeAll(async () => {
   fonts = await loadPrintFonts();
 });
 
+const addonState = (over: Partial<PrintAddonState> = {}): PrintAddonState => ({ plan: "ESSENTIAL", eligible: true, saleOpen: false, purchased: false, paidAt: null, pendingPayment: false, qrValidUntil: null, ...over });
+
 function deps(overrides: Partial<PrintDeps> = {}): PrintDeps {
   return {
     loadPublication: vi.fn(async () => published),
     loadFonts: async () => fonts,
-    getPlan: vi.fn(async () => "ESSENTIAL" as const),
+    getAddonState: vi.fn(async () => addonState()),
+    hasPaidAddon: vi.fn(async () => false),
     isAdmin: vi.fn(async () => false),
     publicUrl: (slug) => `https://hiloluna.com/i/${slug}`,
     rasterize: vi.fn(async () => new Uint8Array([0x89, 0x50, 0x4e, 0x47])),
@@ -38,13 +45,18 @@ describe("página «Versión para imprimir»", () => {
     expect(await getPrintPageView(user, "evt", deps({ loadPublication: async () => ({ ...published, invitation: { ...demo, eventType: "quinceanera" } }) }))).toEqual({ status: "unsupported" });
   });
 
-  it("lista: versión publicada, iniciales, plan elegible, compra apagada y precio de $199", async () => {
+  it("lista: versión publicada, iniciales, estado del complemento, sin descarga y precio de $199", async () => {
     const view = await getPrintPageView(user, "evt", deps());
-    expect(view).toMatchObject({ status: "ready", publicationVersion: 3, qrAvailable: true, defaultInitials: "AF", plan: "ESSENTIAL", eligible: true, purchasable: false, canDownload: false, price: 199, warnings: [] });
+    expect(view).toMatchObject({ status: "ready", publicationVersion: 3, qrAvailable: true, defaultInitials: "AF", addon: { plan: "ESSENTIAL", eligible: true }, download: "none", price: 199, warnings: [] });
+  });
+
+  it("descarga: «purchase» con el complemento pagado; «internal» para ADMIN sin compra", async () => {
+    expect(await getPrintPageView(user, "evt", deps({ getAddonState: async () => addonState({ purchased: true }) }))).toMatchObject({ download: "purchase" });
+    expect(await getPrintPageView(user, "evt", deps({ isAdmin: async () => true }))).toMatchObject({ download: "internal" });
   });
 
   it("un evento Gratis ve la vista previa pero no es elegible; un acceso vencido no ofrece QR", async () => {
-    expect(await getPrintPageView(user, "evt", deps({ getPlan: async () => "FREE" }))).toMatchObject({ status: "ready", eligible: false });
+    expect(await getPrintPageView(user, "evt", deps({ getAddonState: async () => addonState({ plan: "FREE", eligible: false }) }))).toMatchObject({ status: "ready", addon: { eligible: false } });
     expect(await getPrintPageView(user, "evt", deps({ loadPublication: async () => ({ ...published, expired: true }) }))).toMatchObject({ status: "ready", qrAvailable: false });
   });
 
@@ -71,7 +83,15 @@ describe("vista previa", () => {
   });
 });
 
-describe("PDF limpio (compra apagada)", () => {
+describe("PDF limpio", () => {
+  it("con el complemento PAGADO de este evento del usuario: el PDF, sin rol ADMIN; la compra se busca con el usuario y el evento", async () => {
+    const d = deps({ hasPaidAddon: vi.fn(async () => true) });
+    const result = await getPrintFile(user, "evt", DEFAULT_PRINT_OPTIONS, d);
+    expect(result.ok).toBe(true);
+    expect(d.hasPaidAddon).toHaveBeenCalledWith("usr_owner", "evt");
+    expect(d.isAdmin).not.toHaveBeenCalled();
+  });
+
   it("sin compra ni rol ADMIN no se genera NADA (ni se lee el evento)", async () => {
     const d = deps();
     expect(await getPrintFile(user, "evt", DEFAULT_PRINT_OPTIONS, d)).toEqual({ ok: false });
@@ -99,14 +119,47 @@ describe("PDF limpio (compra apagada)", () => {
 });
 
 describe("producto en la página", () => {
-  it("muestra $199 MXN, lo que incluye y el botón apagado «Muy pronto»", () => {
-    const html = renderToStaticMarkup(<PrintProductCard price={199} currency="MXN" eligible={false} purchasable={false} />);
+  const card = (over: Partial<PrintAddonState>) => renderToStaticMarkup(<PrintProductCard eventId="evt_1" price={199} currency="MXN" addon={addonState(over)} />);
+
+  it("venta apagada: $199 MXN con impuestos incluidos, lo que incluye y el botón apagado «Muy pronto»", () => {
+    const html = card({});
     expect(html).toContain("$199");
-    expect(html).toContain("MXN");
+    expect(html).toContain("impuestos incluidos");
     expect(html).toContain("Muy pronto");
     expect(html).toMatch(/<button[^>]*disabled/);
+    expect(html).toContain('data-addon-state="unavailable"');
+  });
+
+  it("venta abierta y evento elegible: «Comprar · $199 MXN» (envía SOLO el id del evento)", () => {
+    const html = card({ saleOpen: true });
+    expect(html).toContain("Comprar · $199 MXN");
+    expect(html).toContain('name="eventId" value="evt_1"');
+    expect(html).not.toMatch(/name="(price|amount|plan|userId)"/);
+  });
+
+  it("evento Gratis: no se puede comprar; «Mejorar evento»", () => {
+    const html = card({ plan: "FREE", eligible: false, saleOpen: true });
     expect(html).toContain("Disponible para eventos Esencial y Premium.");
-    expect(html).toContain("deja de funcionar 30 días después del evento");
+    expect(html).toContain("Mejorar evento");
+    expect(html).not.toContain("Comprar ·");
+  });
+
+  it("pago en confirmación: aviso y sin botón (no se puede pagar dos veces)", () => {
+    const html = card({ saleOpen: true, pendingPayment: true });
+    expect(html).toContain("Estamos confirmando tu pago");
+    expect(html).not.toContain("Comprar ·");
+  });
+
+  it("comprado: «Comprado», sin botón de compra, y la vigencia del QR con su fecha", () => {
+    const html = card({ saleOpen: true, purchased: true, paidAt: new Date("2027-03-01T18:00:00Z"), qrValidUntil: new Date("2027-06-16T18:00:00Z") });
+    expect(html).toContain("Comprado");
+    expect(html).toContain("1 de marzo de 2027");
+    expect(html).not.toContain("Comprar ·");
+    expect(html).toContain("El código QR impreso funcionará hasta el 16 de junio de 2027");
+  });
+
+  it("sin fecha conocida, la explicación general de la vigencia del QR", () => {
+    expect(card({})).toContain("deja de funcionar 30 días después del evento");
   });
 });
 
@@ -122,11 +175,11 @@ describe("arquitectura y seguridad de la versión impresa", () => {
     expect(read("app/(site)/dashboard/(workspace)/events/[id]/print/page.tsx")).toContain("loadDashboardPage(id, routes.eventPrint)");
   });
 
-  it("nada de la versión impresa cobra todavía: ni Stripe ni checkout", () => {
-    for (const file of ["server/services/print-service.ts", "lib/billing/addons.ts", "components/print/print-product-card.tsx", "components/print/print-studio.tsx"]) {
-      // Sin comentarios: el código, no la documentación, es lo que no puede tocar el cobro.
+  it("la versión impresa nunca toca el SDK de Stripe ni el cobro de PLANES: solo cobra a través del servicio del complemento", () => {
+    for (const file of ["server/services/print-service.ts", "server/services/addon-service.ts", "lib/billing/addons.ts", "components/print/print-product-card.tsx", "components/print/print-studio.tsx", "components/print/addon-checkout-form.tsx"]) {
+      // Sin comentarios: el código, no la documentación.
       const code = read(file).replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-      expect(code, file).not.toMatch(/stripe|checkout|createEventCheckout/i);
+      expect(code, file).not.toMatch(/from "stripe"|createEventCheckout|startEventCheckout|quoteEventPurchase/);
     }
   });
 

@@ -2,6 +2,7 @@ import { FileClock, Printer } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PaymentStatus, type PaymentBannerState } from "@/components/billing/payment-status";
 import { DashboardPlaceholder } from "@/components/dashboard/dashboard-placeholder";
 import { PrintProductCard } from "@/components/print/print-product-card";
 import { PrintStudio } from "@/components/print/print-studio";
@@ -12,25 +13,42 @@ import { loadDashboardPage } from "@/lib/dashboard/load-dashboard";
 import { printCopy } from "@/lib/print/copy";
 import { routes } from "@/lib/routes";
 import { requireAuth } from "@/server/auth/current-user";
+import { reconcilePrintAddon } from "@/server/services/addon-service";
 import { getPrintPageView } from "@/server/services/print-service";
 
 export const metadata: Metadata = { title: printCopy.page.title };
 
 const copy = printCopy.page;
+const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
 
 /**
- * VERSIÓN PARA IMPRIMIR de un evento (D-47, Etapa 2; pantalla aprobada por el propietario sin mockup). Sesión + propiedad
- * (`loadDashboardPage`). Se arma con la invitación PUBLICADA; la vista previa es libre y la compra del archivo está apagada.
+ * VERSIÓN PARA IMPRIMIR de un evento (D-47; compra del complemento, D-48; pantalla aprobada por el propietario sin mockup). Sesión + propiedad
+ * (`loadDashboardPage`). Se arma con la invitación PUBLICADA; la vista previa es libre y el PDF limpio se descarga tras pagar el complemento.
+ * `?payment=success` NO desbloquea nada: reconcilia una vez con el proveedor (mismas verificaciones que el webhook) y muestra «Estamos
+ * confirmando tu pago…» hasta que la compra quede PAGADA; `?payment=canceled` no cambia nada.
  */
 export default async function EventPrintPage(props: PageProps<"/dashboard/events/[id]/print">) {
   const { id } = await props.params;
+  const searchParams = await props.searchParams;
   const data = await loadDashboardPage(id, routes.eventPrint);
   const user = await requireAuth();
-  const view = await getPrintPageView(user, data.event.id);
+
+  let view = await getPrintPageView(user, data.event.id);
+  const payment = first(searchParams.payment);
+  if (view.status === "ready" && payment === "success" && view.addon.pendingPayment) {
+    try {
+      await reconcilePrintAddon(user, data.event.id);
+      view = await getPrintPageView(user, data.event.id);
+    } catch {
+      // La reconciliación es opcional: si falla, sigue valiendo el webhook.
+    }
+  }
   if (view.status === "not_found") notFound();
+  const banner: PaymentBannerState | undefined = payment === "canceled" ? "canceled" : payment === "success" && view.status === "ready" ? (view.addon.purchased ? "confirmed" : "confirming") : undefined;
 
   return (
     <DashboardPlaceholder title={copy.title} description={copy.description} eventId={data.event.id} eventTitle={data.event.title}>
+      {banner ? <PaymentStatus state={banner} messages={copy.payment} /> : null}
       {view.status === "draft" ? (
         <EmptyState
           variant="dashed"
@@ -62,8 +80,8 @@ export default async function EventPrintPage(props: PageProps<"/dashboard/events
             qrAvailable={view.qrAvailable}
             defaultInitials={view.defaultInitials}
             defaultPlace={view.defaultPlace}
-            canDownload={view.canDownload}
-            product={<PrintProductCard price={view.price} currency={ADDONS.PRINT_FILE.currency} eligible={view.eligible} purchasable={view.purchasable} />}
+            download={view.download}
+            product={<PrintProductCard eventId={data.event.id} price={view.price} currency={ADDONS.PRINT_FILE.currency} addon={view.addon} />}
           />
         </div>
       )}

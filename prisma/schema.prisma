@@ -198,6 +198,11 @@ enum PurchaseKind {
   UPGRADE
 }
 
+/// Complemento que se compra APARTE del plan de un evento (D-48). Hoy solo «Archivo listo para imprimir».
+enum AddonProduct {
+  PRINT_FILE
+}
+
 /// Tipo de correo transaccional (D-36). Uno por caso de uso implementado; nada de marketing ni recordatorios todavía.
 enum EmailDeliveryKind {
   RSVP_NOTIFICATION
@@ -244,18 +249,19 @@ model User {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  events           Event[]
-  mediaAssets      MediaAsset[]
-  billingCustomers BillingCustomer[]
+  events              Event[]
+  mediaAssets         MediaAsset[]
+  billingCustomers    BillingCustomer[]
   /// LEGACY (D-31): no se usa. Ver `Subscription`.
-  subscription     Subscription?
-  purchases        EventPurchase[]
+  subscription        Subscription?
+  purchases           EventPurchase[]
+  addonPurchases      EventAddonPurchase[]
   /// Acciones de administración hechas por esta cuenta (D-34). `Restrict`: el registro de auditoría no se borra en cascada.
-  adminAuditLogs   AdminAuditLog[]
+  adminAuditLogs      AdminAuditLog[]
   /// Correos transaccionales enviados a esta cuenta como propietaria de un evento (D-36). `Restrict`: el historial de envíos no se borra en cascada.
-  emailDeliveries  EmailDelivery[]
+  emailDeliveries     EmailDelivery[]
   /// Pistas cuya licencia verificó esta cuenta de administración (D-46).
-  verifiedMusicTracks MusicTrack[] @relation("MusicTrackVerifiedBy")
+  verifiedMusicTracks MusicTrack[]         @relation("MusicTrackVerifiedBy")
 
   @@index([createdAt])
 }
@@ -390,6 +396,40 @@ model EventPurchase {
   @@index([createdAt])
 }
 
+/// COMPRA DE UN COMPLEMENTO de un evento (D-48), en una tabla PROPIA: nunca participa en el cálculo del plan del evento (que solo lee
+/// `EventPurchase`), así que un complemento no puede conceder, quitar ni alterar un plan ni la mejora Esencial → Premium. Una fila por
+/// sesión de cobro (el historial no se sobrescribe); la escribe el checkout (`PENDING`) y el webhook verificado (`PAID`, `FAILED`,
+/// `CANCELED`, `REFUNDED`).
+model EventAddonPurchase {
+  id                        String          @id @default(cuid())
+  eventId                   String
+  userId                    String
+  addon                     AddonProduct
+  provider                  BillingProvider
+  providerCheckoutSessionId String
+  providerPaymentIntentId   String?
+  status                    PurchaseStatus  @default(PENDING)
+  /// Unidades menores (centavos), lo que se cobró de verdad.
+  amount                    Int
+  currency                  String
+  paidAt                    DateTime?       @db.Timestamptz
+  refundedAt                DateTime?       @db.Timestamptz
+  /// `<eventId>:<addon>` SOLO en la compra que desbloquea el complemento; NULL en el resto (los NULL no chocan). La base de datos impide
+  /// así un segundo desbloqueo pagado del mismo complemento para el mismo evento; un reembolso lo vuelve a NULL.
+  unlockKey                 String?         @unique
+  createdAt                 DateTime        @default(now())
+  updatedAt                 DateTime        @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([provider, providerCheckoutSessionId])
+  @@unique([provider, providerPaymentIntentId])
+  @@index([eventId, addon, status])
+  @@index([userId])
+  @@index([createdAt])
+}
+
 /// Eventos de webhook ya procesados (idempotencia): el mismo evento nunca se aplica dos veces. Solo guarda el id y
 /// el tipo del evento, jamás el cuerpo (puede traer datos personales).
 model WebhookEvent {
@@ -425,19 +465,20 @@ model Event {
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
-  owner         User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  invitation    Invitation?
-  locations     Location[]
-  timelineItems TimelineItem[]
-  galleryImages GalleryImage[]
-  giftRegistry  GiftRegistry[]
-  music         MusicSettings?
-  guestGroups   GuestGroup[]
-  guests        Guest[]
-  rsvps         Rsvp[]
-  rsvpQuestions RsvpQuestion[]
-  mediaAssets   MediaAsset[]
-  purchases     EventPurchase[]
+  owner          User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  invitation     Invitation?
+  locations      Location[]
+  timelineItems  TimelineItem[]
+  galleryImages  GalleryImage[]
+  giftRegistry   GiftRegistry[]
+  music          MusicSettings?
+  guestGroups    GuestGroup[]
+  guests         Guest[]
+  rsvps          Rsvp[]
+  rsvpQuestions  RsvpQuestion[]
+  mediaAssets    MediaAsset[]
+  purchases      EventPurchase[]
+  addonPurchases EventAddonPurchase[]
 
   @@index([ownerId])
   /// Resumen de la consola: eventos de pago por vencer / vencidos.
@@ -768,7 +809,7 @@ model GuestGroup {
 }
 
 model Guest {
-  id            String     @id @default(cuid())
+  id            String      @id @default(cuid())
   eventId       String
   groupId       String?
   name          String
@@ -776,17 +817,17 @@ model Guest {
   phone         String?
   /// Identificador PÚBLICO y opaco del enlace personalizado (`/i/<slug>?guest=<token>`): aleatorio
   /// (192 bits), único y sin relación con `id`. Se genera en el servidor y no se regenera.
-  inviteToken   String     @unique
+  inviteToken   String      @unique
   /// Acompañantes permitidos además del invitado (0 = solo el invitado).
-  maxCompanions Int        @default(0)
+  maxCompanions Int         @default(0)
   /// Respuesta vigente (copia de `Rsvp.status`); base de las métricas del dashboard.
-  status        RsvpStatus @default(PENDING)
+  status        RsvpStatus  @default(PENDING)
   /// Primera vez que abrió su invitación (actividad "está revisando su invitación").
-  firstViewedAt DateTime?  @db.Timestamptz
+  firstViewedAt DateTime?   @db.Timestamptz
   /// D-40: quién lo dio de alta. Nunca cambia después de creado.
   source        GuestSource @default(HOST)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
   event Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
   group GuestGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)

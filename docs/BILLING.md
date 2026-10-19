@@ -63,6 +63,7 @@ Eventos que se procesan: `checkout.session.completed`, `checkout.session.async_p
    - «Hilo Luna Esencial» → 499 MXN → `STRIPE_PRICE_ESSENTIAL_ONE_TIME`.
    - «Hilo Luna Premium» → 799 MXN → `STRIPE_PRICE_PREMIUM_ONE_TIME`.
    - «Hilo Luna: mejora de Esencial a Premium» → 300 MXN → `STRIPE_PRICE_ESSENTIAL_TO_PREMIUM`.
+   - «Hilo Luna: archivo listo para imprimir» → 199 MXN, impuestos incluidos → `STRIPE_PRICE_ADDON_PRINT_FILE` (complemento, §13; opcional).
 2. **Claves** (Desarrolladores → Claves de API): `STRIPE_SECRET_KEY` (`sk_test_…`) y `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (`pk_test_…`).
 3. **Webhook** (Desarrolladores → Webhooks → Añadir endpoint): URL `https://<tu-dominio>/api/webhooks/stripe`; eventos: los de §2.1. Copia su secreto `whsec_…` → `STRIPE_WEBHOOK_SECRET`. Sin él no se cobra (no se podrían activar los planes).
 4. **Recibos:** en Configuración → Correos electrónicos activa «Correos de recibos de pago exitoso». Hilo Luna no construye facturas ni UI de recibos.
@@ -134,3 +135,43 @@ Las compras se pueden consultar (solo lectura) en `/admin/purchases` y en el his
 5. [ ] Decisión de **impuestos / Stripe Tax** y datos fiscales: **PENDIENTE**.
 6. [ ] Política de reembolsos definida (los reembolsos se hacen en Stripe; un reembolso total retira el plan).
 7. [ ] Alertas por fallos 5xx del webhook en el panel de Stripe.
+
+## 13. Complemento «Archivo listo para imprimir» (D-48)
+
+Compra **opcional e independiente del plan**, por evento: **$199 MXN, impuestos aplicables incluidos**, solo para eventos **Esencial y Premium**.
+Vive en su propia tabla (`EventAddonPurchase`): **nunca** cambia el plan del evento, ni su acceso de pago, ni la mejora Esencial → Premium.
+
+**Flujo completo**
+
+1. **Vista previa** (`/dashboard/events/[id]/print`): libre, PNG con marca de agua, con la invitación PUBLICADA. Muestra el precio, qué incluye y
+   hasta qué fecha funcionará el QR impreso (fin del acceso del evento = 30 días después del evento).
+2. **«Comprar · $199 MXN»** solo aparece si: la venta está encendida (`PRINT_ADDON_ENABLED=1`) + Stripe configurado + `STRIPE_PRICE_ADDON_PRINT_FILE`
+   + plan Esencial o Premium + invitación de boda publicada + no comprado ya. Un evento Gratis ve «Mejorar evento».
+3. **Server Action** (`startPrintAddonCheckoutAction`): el navegador solo envía el id del evento. El servidor comprueba sesión y propiedad, que
+   se pueda imprimir, el plan, que no esté comprado, reutiliza una sesión abierta (o avisa «confirmando» si ya se pagó), verifica el `price_…`
+   real en Stripe (activo, pago único, 19 900 centavos MXN), crea o reutiliza el cliente y abre una sesión **`mode: payment`** con metadata
+   `{ hiloLunaUserId, eventId, addon: "PRINT_FILE" }` (sin `targetPlan`) y clave de idempotencia estable. Anota la compra `PENDING`.
+4. **Pago en Stripe** → regreso a la versión para imprimir con `?payment=success` (o `canceled`, sin cargo). El regreso **no desbloquea nada**:
+   reconcilia una vez con Stripe con las mismas verificaciones que el webhook y muestra «Estamos confirmando tu pago…».
+5. **Webhook** (el mismo endpoint firmado e idempotente): la ruta la decide el **precio cobrado**. Desbloquea solo si el precio es el del
+   complemento, la metadata no lo contradice, MXN y 19 900 exactos, y el evento es del usuario. Guarda la compra `PAID` con su `unlockKey`.
+6. **Descarga**: «Descargar PDF para imprimir» (formato, reverso, QR, iniciales, ciudad, marcas de corte), **ilimitada**, generada en cada
+   petición desde la versión publicada vigente y protegida por sesión + propiedad del evento + compra pagada. Nunca se guarda en el bucket.
+7. **Reembolso total** en Stripe → `charge.refunded` → la compra pasa a `REFUNDED`, se libera el desbloqueo y la descarga deja de estar
+   disponible (se puede volver a comprar). Un reembolso parcial no cambia nada. Reembolsar el PLAN no toca el complemento (se pagó aparte).
+
+**Contra cobros duplicados**: el botón no aparece si ya está comprado → el servicio rechaza `already_purchased` → una sesión abierta se reutiliza
+y una completada solo avisa → clave de idempotencia (doble clic = la misma sesión) → webhook idempotente (`WebhookEvent`) → la base de datos
+impide dos desbloqueos (`unlockKey` única + CHECK). Si aun así se cobraran dos pagos (dos pestañas a la vez), el segundo queda `PAID` sin
+desbloqueo y se registra `billing.addon_duplicate_payment` (Sentry): **reembólsalo** desde Stripe.
+
+**Activar** (solo con la autorización del propietario): crea el precio de pago único de 199 MXN (modo de prueba en staging, real en
+producción), ponlo en `STRIPE_PRICE_ADDON_PRINT_FILE` y enciende `PRINT_ADDON_ENABLED=1`. Encendido sin precio, la validación del entorno lo
+marca como error en producción. Para apagar la venta: `PRINT_ADDON_ENABLED=0` (las compras ya hechas siguen descargándose).
+
+**Probar en staging** (Stripe CLI, `4242 4242 4242 4242`): evento Esencial con invitación de boda publicada → comprar → volver → descargar;
+doble clic (una sola sesión); pago cancelado (sin cargo); reenviar el evento del webhook (idempotente); reembolso total (desaparece la
+descarga); evento Gratis (no puede comprar); el plan del evento no cambia en ningún caso.
+
+**Pendiente**: correo de confirmación del complemento (sería un tipo nuevo de `EmailDelivery`, D-36: requiere aprobación; Stripe puede enviar su
+recibo), historial del complemento en «Compras y planes» y en la consola de administración (Etapa 4), revisión fiscal.

@@ -4,6 +4,7 @@ import { isTransientDatabaseError, StoreUnavailableError } from "@/server/db/err
 import { sendPurchaseConfirmation, sendUpgradeConfirmation } from "@/server/email/service";
 import { runAfterResponse } from "@/server/email/run-after";
 import { prismaBillingStore, type BillingStore } from "@/server/repositories/billing";
+import { closeAddonPayment, confirmAddonPayment, isAddonPayment, refundAddonPayment } from "@/server/services/addon-sync";
 import { closePayment, confirmPayment, refundPayment, type GrantedPurchase } from "@/server/services/purchase-sync";
 import { logger } from "@/server/observability/logger";
 
@@ -16,7 +17,8 @@ import { logger } from "@/server/observability/logger";
  *     y NO conceden nada
  *  4. para confirmar un pago se consulta el estado REAL del pago al proveedor ANTES de abrir la transacción (el evento es solo el
  *     aviso; la metadata nunca basta)
- *  5. UNA transacción: registrar el evento (idempotencia) + aplicar la compra tras verificarla (`purchase-sync`). Un evento repetido
+ *  5. UNA transacción: registrar el evento (idempotencia) + aplicar la compra tras verificarla (`purchase-sync` para planes, `addon-sync`
+ *     para complementos, D-48: la ruta la decide el PRECIO cobrado; un pago de complemento jamás pasa por la lógica de planes). Un evento repetido
  *     no se aplica dos veces; si aplicar falla, la transacción se revierte, el evento no queda registrado y el proveedor reintenta (500).
  * Nunca se registran cuerpos ni datos de pago: solo el tipo y el id del evento.
  */
@@ -63,11 +65,15 @@ export async function handleBillingWebhook(input: { rawBody: string; signature: 
 
     const result = await deps.store.recordEventAndApply({ provider: provider.id, externalEventId: event.id, type: event.type }, async (ops) => {
       if (event.action === "confirm_payment") {
-        if (payment) await confirmPayment(ops, provider, payment, event.createdAt, (info) => (granted = info));
+        if (payment && isAddonPayment(provider, payment)) await confirmAddonPayment(ops, provider, payment, event.createdAt);
+        else if (payment) await confirmPayment(ops, provider, payment, event.createdAt, (info) => (granted = info));
       } else if (event.action === "close_payment") {
+        // La sesión es de un plan O de un complemento: cada cierre es «noop» si no es suyo.
         await closePayment(ops, provider.id, { outcome: event.outcome, checkoutSessionId: event.checkoutSessionId, paymentIntentId: event.paymentIntentId, metadata: event.metadata });
+        await closeAddonPayment(ops.addons, provider.id, { outcome: event.outcome, checkoutSessionId: event.checkoutSessionId, metadata: event.metadata });
       } else if (event.action === "refund_payment") {
         await refundPayment(ops, provider.id, event.paymentIntentId);
+        await refundAddonPayment(ops.addons, provider.id, event.paymentIntentId, event.createdAt);
       }
     });
 

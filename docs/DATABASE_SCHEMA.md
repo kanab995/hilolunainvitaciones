@@ -383,3 +383,16 @@ Migración aditiva `20260928000000_transactional_email`. No borra, renombra ni a
 - **Restricción CHECK `MusicTrack_active_requires_rights`**: una fila `ACTIVE` exige audio, duración, fuente, licencia, condiciones, comprobante, los tres derechos, verificación (fecha + autor) y el texto del crédito si la atribución es obligatoria. El vencimiento (`licenseExpiresAt`) lo aplica el código al leer (`isTrackPlayable`), porque la base de datos no conoce la hora.
 - **`MusicSettings`** gana `isEnabled` (`DEFAULT true`: las filas anteriores no cambian) y una FK `libraryTrackId → MusicTrack` (`Restrict`: una pista elegida no se puede borrar; se desactiva). `trackUrl` NUNCA se escribe para la biblioteca: la URL del audio se deriva de `audioKey` al mostrar.
 - **Snapshot publicado**: guarda `libraryTrackId`, nunca la URL; `/i/[slug]` resuelve la pista con su estado actual y el plan del evento (`musicLibrary`).
+
+## 22. Complementos: `EventAddonPurchase` (D-48)
+
+- **`EventAddonPurchase`** — compra de un complemento de un evento (hoy `AddonProduct.PRINT_FILE`, «Archivo listo para imprimir»), en una tabla
+  PROPIA: `getEffectiveEventPlan` solo lee `EventPurchase`, así que un complemento no puede conceder, quitar ni alterar un plan. Campos:
+  `eventId`, `userId` (FK `Restrict`), `addon`, `provider`, `providerCheckoutSessionId` (único con `provider`: una fila por sesión de cobro),
+  `providerPaymentIntentId` (único con `provider`), `status` (`PurchaseStatus`), `amount` (centavos), `currency`, `paidAt`, `refundedAt`.
+- **`unlockKey`** (`<eventId>:<addon>`, `@unique`): solo la compra que DESBLOQUEA la lleva; NULL en el resto (los NULL no chocan). La base de datos
+  impide un segundo desbloqueo pagado; un reembolso lo vuelve a NULL (se puede recomprar).
+- **CHECK** `EventAddonPurchase_unlock_requires_paid` (`unlockKey` solo con `status = PAID`) y `EventAddonPurchase_amount_non_negative`.
+- Índices: `(eventId, addon, status)`, `userId`, `createdAt`. Migración ADITIVA `20261019120000_add_event_addon_purchases` (no toca `EventPurchase`).
+- Escriben solo el checkout (`PENDING`) y el webhook verificado (`server/services/addon-sync.ts`); las lecturas de la interfaz llevan el
+  propietario en la consulta (`server/repositories/addon-purchases.ts`).

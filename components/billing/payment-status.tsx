@@ -11,13 +11,22 @@ const REFRESH_EVERY_MS = 4000;
 
 export type PaymentBannerState = "confirming" | "confirmed" | "canceled";
 
+/** Textos del aviso. Por defecto, los de la compra de un PLAN; la versión para imprimir (D-48) pasa los del complemento. */
+export interface PaymentBannerMessages {
+  confirming: string;
+  confirmingHint: string;
+  confirmed: string;
+  canceled: string;
+  refresh: string;
+}
+
 /**
  * Regreso del pago (`?payment=success|canceled` en el dashboard del evento). NO activa nada: solo informa y vuelve a leer el plan
  * desde el servidor, porque quien concede el plan es el webhook verificado. `confirming` = el pago aún no está confirmado: «Estamos
  * confirmando tu pago…», se refresca unas cuantas veces y se ofrece «Actualizar» a mano. Cuando el servidor ya no tiene un pago
  * pendiente pasa a `confirmed`. `canceled` = el pago se canceló: sin cargo y sin cambios.
  */
-export function PaymentStatus({ state }: { state: PaymentBannerState }) {
+export function PaymentStatus({ state, messages = billingCopy.upgradePanel }: { state: PaymentBannerState; messages?: PaymentBannerMessages }) {
   const router = useRouter();
   const refreshes = useRef(0);
 
@@ -31,7 +40,7 @@ export function PaymentStatus({ state }: { state: PaymentBannerState }) {
     return () => clearInterval(timer);
   }, [state, router]);
 
-  const copy = billingCopy.upgradePanel;
+  const copy = messages;
   return (
     <div role="status" aria-live="polite" data-payment-status={state} className="flex flex-col gap-3 rounded-lu-card border border-lu-border-subtle bg-lu-surface-tint p-4 md:flex-row md:items-center md:justify-between md:p-5">
       <div className="flex flex-col gap-1">

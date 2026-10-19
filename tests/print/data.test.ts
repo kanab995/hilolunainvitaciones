@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ADDONS, canDownloadPrintFile, formatAddonPrice, isAddonEligiblePlan } from "@/lib/billing/addons";
+import { ADDONS, canDownloadPrintFile, formatAddonPrice, isAddonEligiblePlan, isAddonSaleEnabled } from "@/lib/billing/addons";
 import { buildPrintData, initialOf, initialsFromNames, isPrintableEventType, parseInitials } from "@/lib/print/data";
 import { DEFAULT_PRINT_OPTIONS, parsePrintOptions, printOptionsQuery } from "@/lib/print/options";
 import { clockAt, parseClock, printableTime, socialTime } from "@/lib/print/time-words";
@@ -112,9 +112,12 @@ describe("opciones (llegan del navegador)", () => {
   });
 });
 
-describe("complemento «Archivo listo para imprimir» (compra APAGADA)", () => {
-  it("cuesta $199 MXN, solo para Esencial y Premium, y todavía no se puede comprar", () => {
-    expect(ADDONS.PRINT_FILE).toMatchObject({ displayPrice: 199, currency: "MXN", purchasable: false });
+describe("complemento «Archivo listo para imprimir» (venta APAGADA por defecto)", () => {
+  it("cuesta $199 MXN, solo para Esencial y Premium, y la venta solo se enciende con PRINT_ADDON_ENABLED=1", () => {
+    expect(ADDONS.PRINT_FILE).toMatchObject({ displayPrice: 199, currency: "MXN", stripePriceEnvKey: "STRIPE_PRICE_ADDON_PRINT_FILE", enableEnvKey: "PRINT_ADDON_ENABLED" });
+    expect(isAddonSaleEnabled("PRINT_FILE", {})).toBe(false);
+    expect(isAddonSaleEnabled("PRINT_FILE", { PRINT_ADDON_ENABLED: "0" })).toBe(false);
+    expect(isAddonSaleEnabled("PRINT_FILE", { PRINT_ADDON_ENABLED: "1" })).toBe(true);
     expect(formatAddonPrice("PRINT_FILE")).toBe("$199 MXN");
     expect(isAddonEligiblePlan("PRINT_FILE", "FREE")).toBe(false);
     expect(isAddonEligiblePlan("PRINT_FILE", "ESSENTIAL")).toBe(true);

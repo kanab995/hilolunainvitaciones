@@ -6,6 +6,7 @@ import { DEFAULT_PRINT_OPTIONS, parsePrintOptions } from "@/lib/print/options";
 import { PRINT_COLORS } from "@/lib/print/scene";
 import { loadPrintFonts, type PrintFontSet } from "@/server/print/fonts";
 import type { OwnedPublication } from "@/server/repositories/publishing";
+import type { PrintAddonState } from "@/server/services/addon-service";
 import { getPrintFile, getPrintPreview, type PrintDeps } from "@/server/services/print-service";
 import { demo } from "./fixtures";
 
@@ -31,7 +32,8 @@ function deps(overrides: Partial<PrintDeps> = {}): PrintDeps {
   return {
     loadPublication: ownedBy(owner.id),
     loadFonts: async () => fonts,
-    getPlan: async () => "PREMIUM",
+    getAddonState: async (): Promise<PrintAddonState> => ({ plan: "PREMIUM", eligible: true, saleOpen: false, purchased: false, paidAt: null, pendingPayment: false, qrValidUntil: null }),
+    hasPaidAddon: async () => false,
     isAdmin: async () => false,
     publicUrl: (slug) => `https://hiloluna.com/i/${slug}`,
     rasterize: vi.fn(async () => new Uint8Array([0x89, 0x50, 0x4e, 0x47])),
@@ -90,20 +92,27 @@ describe("la vista previa gratuita nunca entrega el PDF limpio", () => {
   });
 });
 
-describe("descarga de administración: solo prueba interna y con propiedad", () => {
+describe("descarga: con compra o como prueba interna de administración, siempre con propiedad", () => {
+  it("la compra pagada se busca con el usuario que pide (un comprador no descarga eventos ajenos)", async () => {
+    const paidBy = (owner: string) => vi.fn(async (userId: string) => userId === owner);
+    const d = deps({ hasPaidAddon: paidBy(owner.id) });
+    expect((await getPrintFile(owner, "evt", DEFAULT_PRINT_OPTIONS, d)).ok).toBe(true);
+    expect(await getPrintFile(intruder, "evt", DEFAULT_PRINT_OPTIONS, deps({ hasPaidAddon: paidBy(owner.id) }))).toEqual({ ok: false });
+  });
+
   it("un ADMIN no descarga el PDF de un evento AJENO (la consulta lleva su propio id)", async () => {
     const d = deps({ isAdmin: async () => true });
     expect(await getPrintFile(intruder, "evt", DEFAULT_PRINT_OPTIONS, d)).toEqual({ ok: false });
     expect(d.loadPublication).toHaveBeenCalledWith("usr_other", "evt");
   });
 
-  it("un dueño sin rol ADMIN no descarga nada mientras la compra está apagada", async () => {
+  it("un dueño sin rol ADMIN y sin compra no descarga nada", async () => {
     expect(await getPrintFile(owner, "evt", DEFAULT_PRINT_OPTIONS, deps())).toEqual({ ok: false });
   });
 
   it("un ADMIN dueño del evento sí, y la generación queda marcada como prueba interna en el registro", async () => {
     expect((await getPrintFile(owner, "evt", DEFAULT_PRINT_OPTIONS, deps({ isAdmin: async () => true }))).ok).toBe(true);
-    expect(code(join(ROOT, "server/services/print-service.ts"))).toMatch(/print\.file\.generated[\s\S]{0,200}internal: true/);
+    expect(code(join(ROOT, "server/services/print-service.ts"))).toMatch(/print\.file\.generated[\s\S]{0,200}internal: !purchased/);
   });
 
   it("el rol sale de la base de datos (isCurrentUserAdmin), nunca de la petición", () => {

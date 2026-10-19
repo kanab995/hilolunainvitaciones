@@ -1,3 +1,4 @@
+import { ADDON_PRICE_ENV_KEYS } from "@/lib/billing/addons";
 import { PRICE_ENV_KEYS } from "@/lib/billing/plans";
 
 /**
@@ -35,7 +36,10 @@ const modeOf = (key: string, prefixes: readonly string[]): StripeMode | undefine
   return undefined;
 };
 
-const NAMES = ["STRIPE_SECRET_KEY", "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", "STRIPE_WEBHOOK_SECRET", ...PRICE_ENV_KEYS] as const;
+/** Precios que el servidor sabe cobrar: los de los planes (`lib/billing/plans.ts`) y los de los complementos (`lib/billing/addons.ts`, D-48). */
+export const ALL_PRICE_ENV_KEYS: readonly string[] = [...PRICE_ENV_KEYS, ...ADDON_PRICE_ENV_KEYS];
+
+const NAMES = ["STRIPE_SECRET_KEY", "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", "STRIPE_WEBHOOK_SECRET", ...ALL_PRICE_ENV_KEYS] as const;
 
 /** Lee solo las variables de Stripe del entorno del proceso. */
 export function readStripeEnv(env: NodeJS.ProcessEnv = process.env): StripeEnv {
@@ -62,7 +66,7 @@ export function resolveStripeConfig(env: StripeEnv = readStripeEnv()): StripeCon
   else if (!webhookSecret.startsWith("whsec_")) problems.push("STRIPE_WEBHOOK_SECRET no tiene el formato de un secreto de webhook (whsec_…).");
 
   const prices = new Map<string, string>();
-  for (const variable of PRICE_ENV_KEYS) {
+  for (const variable of ALL_PRICE_ENV_KEYS) {
     const value = clean(env[variable]);
     if (!value) continue;
     if (!value.startsWith("price_")) {

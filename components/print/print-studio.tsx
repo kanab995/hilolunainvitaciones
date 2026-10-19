@@ -45,7 +45,22 @@ function Preview({ eventId, side, options, label, envelope = false }: { eventId:
  * el complemento.
  * Cada cambio pide imágenes nuevas al servidor (la composición vive allí: misma que el PDF). Pantalla aprobada sin mockup.
  */
-export function PrintStudio({ eventId, qrAvailable, defaultInitials, defaultPlace, canDownload, product }: { eventId: string; qrAvailable: boolean; defaultInitials: string; defaultPlace: string; canDownload: boolean; product: ReactNode }) {
+export function PrintStudio({
+  eventId,
+  qrAvailable,
+  defaultInitials,
+  defaultPlace,
+  download,
+  product,
+}: {
+  eventId: string;
+  qrAvailable: boolean;
+  defaultInitials: string;
+  defaultPlace: string;
+  /** `purchase` = complemento pagado (descargas ilimitadas); `internal` = prueba de ADMIN sin compra; `none` = sin descarga. */
+  download: "purchase" | "internal" | "none";
+  product: ReactNode;
+}) {
   const [options, setOptions] = useState<PrintOptions>({ ...DEFAULT_PRINT_OPTIONS, includeQr: qrAvailable });
   const [initialsText, setInitialsText] = useState(defaultInitials);
   const initialsInvalid = initialsText.trim() !== "" && !parseInitials(initialsText);
@@ -116,12 +131,13 @@ export function PrintStudio({ eventId, qrAvailable, defaultInitials, defaultPlac
           </Field>
         </Card>
 
-        {canDownload ? (
-          <Card variant="tint" className="flex flex-col gap-4">
-            <ToggleRow id="print-marks" label={printCopy.page.product.cropMarks} hint={copy.product.adminNote} checked={options.cropMarks} onChange={(cropMarks) => update({ cropMarks })} />
-            <Button asChild variant="secondary" fullWidth>
+        {download !== "none" ? (
+          <Card variant="tint" className="flex flex-col gap-4" data-print-download={download}>
+            <ToggleRow id="print-marks" label={copy.product.cropMarks} hint={download === "purchase" ? copy.product.downloadNote : copy.product.adminNote} checked={options.cropMarks} onChange={(cropMarks) => update({ cropMarks })} />
+            {/* El PDF lleva EXACTAMENTE las opciones de la vista previa (formato, reverso, QR, iniciales y ciudad). */}
+            <Button asChild variant={download === "purchase" ? "primary" : "secondary"} fullWidth>
               <a href={routes.eventPrintFile(eventId, printOptionsQuery(options))} download>
-                {copy.product.adminDownload}
+                {download === "purchase" ? copy.product.download : copy.product.adminDownload}
               </a>
             </Button>
           </Card>

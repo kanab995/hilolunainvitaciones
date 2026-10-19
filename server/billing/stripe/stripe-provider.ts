@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import type { AddonId } from "@/lib/billing/addons";
 import type { PaidPlanId } from "@/lib/billing/plans";
 import type { BillingProvider, NormalizedWebhookEvent, ProviderPayment } from "@/server/billing/provider";
 import { WebhookSignatureError } from "@/server/billing/provider";
@@ -32,6 +33,7 @@ export function normalizeStripeSession(session: Stripe.Checkout.Session): Provid
       ...(metadata.hiloLunaUserId ? { userId: metadata.hiloLunaUserId } : {}),
       ...(metadata.eventId ? { eventId: metadata.eventId } : {}),
       ...(metadata.targetPlan ? { targetPlan: metadata.targetPlan } : {}),
+      ...(metadata.addon ? { addon: metadata.addon } : {}),
     },
   };
 }
@@ -64,7 +66,7 @@ export function normalizeStripeEvent(event: Stripe.Event): NormalizedWebhookEven
         action: "close_payment",
         outcome: "FAILED",
         paymentIntentId: intent.id,
-        metadata: { ...(metadata.eventId ? { eventId: metadata.eventId } : {}), ...(metadata.targetPlan ? { targetPlan: metadata.targetPlan } : {}) },
+        metadata: { ...(metadata.eventId ? { eventId: metadata.eventId } : {}), ...(metadata.targetPlan ? { targetPlan: metadata.targetPlan } : {}), ...(metadata.addon ? { addon: metadata.addon } : {}) },
       };
     }
     case "charge.refunded": {
@@ -147,6 +149,30 @@ export class StripeBillingProvider implements BillingProvider {
         expires_at: Math.floor(input.expiresAt.getTime() / 1000),
       },
       // Misma clave = misma sesión: protege contra doble clic y peticiones simultáneas (ver `startEventCheckout`).
+      { idempotencyKey: input.idempotencyKey },
+    );
+    if (!session.url) throw new Error("Stripe no devolvió la URL de pago.");
+    return { url: session.url, checkoutSessionId: session.id };
+  }
+
+  async createAddonCheckout(input: { providerCustomerId: string; priceKey: string; addon: AddonId; eventId: string; userId: string; successUrl: string; cancelUrl: string; idempotencyKey: string; expiresAt: Date }) {
+    const price = this.priceRefFor(input.priceKey);
+    if (!price) throw new Error("Precio no configurado.");
+    // Sin `targetPlan`: esta sesión jamás puede leerse como la compra de un plan.
+    const metadata = { hiloLunaUserId: input.userId, eventId: input.eventId, addon: input.addon };
+    const session = await this.stripe.checkout.sessions.create(
+      {
+        mode: "payment",
+        customer: input.providerCustomerId,
+        line_items: [{ price, quantity: 1 }],
+        success_url: input.successUrl,
+        cancel_url: input.cancelUrl,
+        client_reference_id: input.eventId,
+        metadata,
+        payment_intent_data: { metadata },
+        locale: "es-419",
+        expires_at: Math.floor(input.expiresAt.getTime() / 1000),
+      },
       { idempotencyKey: input.idempotencyKey },
     );
     if (!session.url) throw new Error("Stripe no devolvió la URL de pago.");
