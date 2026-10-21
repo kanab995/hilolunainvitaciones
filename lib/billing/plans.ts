@@ -18,8 +18,12 @@ export type PlanId = (typeof PLAN_IDS)[number];
 export const PAID_PLAN_IDS = ["ESSENTIAL", "PREMIUM"] as const;
 export type PaidPlanId = (typeof PAID_PLAN_IDS)[number];
 
-/** Capacidades de sí/no. Cada una debe estar respaldada por una función real del producto. */
-export const FEATURE_IDS = ["publish", "personalizedGuestLinks", "qr", "calendar", "customMedia"] as const;
+/**
+ * Capacidades de sí/no. Cada una debe estar respaldada por una función real del producto. `musicLibrary` (D-46): elegir música de la
+ * biblioteca licenciada de Hilo Luna — exclusiva de Esencial y Premium por decisión del propietario. El enlace externo a una canción
+ * NO depende de ella (sigue disponible en los tres planes, para no romper invitaciones existentes).
+ */
+export const FEATURE_IDS = ["publish", "personalizedGuestLinks", "qr", "calendar", "customMedia", "musicLibrary"] as const;
 export type FeatureId = (typeof FEATURE_IDS)[number];
 
 /**
@@ -59,7 +63,7 @@ export interface PlanConfig {
   pricing: PlanPricing;
 }
 
-const ALL_ON: Readonly<Record<FeatureId, boolean>> = { publish: true, personalizedGuestLinks: true, qr: true, calendar: true, customMedia: true };
+const ALL_ON: Readonly<Record<FeatureId, boolean>> = { publish: true, personalizedGuestLinks: true, qr: true, calendar: true, customMedia: true, musicLibrary: true };
 
 export const planConfigs: Readonly<Record<PlanId, PlanConfig>> = {
   FREE: {
@@ -67,7 +71,7 @@ export const planConfigs: Readonly<Record<PlanId, PlanConfig>> = {
     name: "Gratis",
     description: "Para conocer Hilo Luna y crear una invitación sencilla.",
     rank: 0,
-    features: ALL_ON,
+    features: { ...ALL_ON, musicLibrary: false },
     limits: { maxGuestsPerEvent: 30, maxGalleryImages: 5, maxPublicRsvpResponses: 50 },
     pricing: { displayPrice: 0, currency: "MXN", stripePriceEnvKey: null, upgradeFrom: {} },
   },

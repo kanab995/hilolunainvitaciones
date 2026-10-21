@@ -3,8 +3,10 @@ import { requireOwnedEvent } from "@/server/auth/ownership";
 import { getOwnedInvitation } from "@/server/repositories/invitations";
 import { getOwnedDraftMeta } from "@/server/repositories/publishing";
 import { getMediaCapability } from "@/server/services/media-capability";
+import { getEditorMusicLibrary, withPreviewTrackUrl } from "@/server/services/music-library";
 import type { Invitation } from "@/types/invitation";
 import type { MediaCapability } from "@/types/media";
+import type { EditorMusicLibrary } from "@/types/music";
 import type { PublicationInfo } from "@/types/published";
 
 /**
@@ -25,6 +27,8 @@ export interface EditorEvent {
   publication: PublicationInfo;
   /** Slug público de la invitación (URL estable: publicar no lo cambia). */
   slug: string;
+  /** Biblioteca musical para ESTE evento (D-46): pistas reproducibles y si su plan la incluye. */
+  musicLibrary: EditorMusicLibrary;
 }
 
 /** Sesión + propiedad + invitación; `notFound()` si el evento no es del usuario o no existe. */
@@ -32,7 +36,10 @@ async function loadOwnedEditorEvent(ref: string): Promise<EditorEvent> {
   const { user, event } = await requireOwnedEvent(ref);
   const [invitation, meta] = await Promise.all([getOwnedInvitation(user.id, event.id), getOwnedDraftMeta(user.id, event.id)]);
   if (!invitation || !meta) notFound();
-  return { id: event.id, title: event.type === "wedding" ? `Boda de ${event.title}` : event.title, invitation, media: getMediaCapability(), revision: meta.revision, publishedRevision: meta.publishedRevision, publication: meta.publication, slug: meta.slug };
+  const musicLibrary = await getEditorMusicLibrary(event.id, invitation.music);
+  // La URL del audio solo viaja en memoria para la vista previa: el payload de guardado no la incluye y nunca se persiste.
+  const music = withPreviewTrackUrl(invitation.music, musicLibrary);
+  return { id: event.id, title: event.type === "wedding" ? `Boda de ${event.title}` : event.title, invitation: music ? { ...invitation, music } : invitation, media: getMediaCapability(), revision: meta.revision, publishedRevision: meta.publishedRevision, publication: meta.publication, slug: meta.slug, musicLibrary };
 }
 
 /** Para las páginas: redirige a la URL canónica si `ref` no es el id (id, slug o alias `demo`). */

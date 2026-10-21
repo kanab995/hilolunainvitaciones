@@ -33,6 +33,7 @@ function draftWorld(session: "usr_A" | "usr_B" | null = "usr_A", outcome?: (buil
     release,
     canSelectTemplate: (slug) => slug === "magnolia",
     templatePlanAllowed: async () => true,
+    checkLibraryTrack: async () => ({ ok: false, code: "unavailable" }),
   };
   return { deps, calls, release };
 }

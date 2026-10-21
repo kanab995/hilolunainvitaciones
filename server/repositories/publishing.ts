@@ -96,6 +96,45 @@ export async function loadPublishedInvitation(slug: string): Promise<PublishedRe
   return row ? { invitation: dbInvitationToDomain(row, publicMediaOptions), eventId: head.eventId } : undefined;
 }
 
+/**
+ * Publicación vigente de un evento DEL usuario (versión para imprimir, D-47). Igual que la lectura pública —snapshot, nunca el
+ * borrador— pero con la propiedad en la propia consulta, y sin ocultar el contenido cuando el acceso venció: el anfitrión sigue
+ * pudiendo ver e imprimir lo que publicó (solo el QR deja de tener sentido: `expired`).
+ */
+export type OwnedPublication =
+  | { state: "published"; invitation: Invitation; slug: string; title: string; publication?: { version: number; publishedAt: string }; expired: boolean }
+  | { state: "draft" };
+
+export async function loadOwnedPublication(userId: string, eventId: string): Promise<OwnedPublication | undefined> {
+  if (getDataSource() === "demo") {
+    const { invitation, invitationStatus, ownerId, event } = getDemoRows(new Date(getServerNow()));
+    if (ownerId !== userId || event.id !== eventId) return undefined;
+    return invitationStatus === "PUBLISHED" ? { state: "published", invitation: dbInvitationToDomain(invitation, publicMediaOptions), slug: invitation.slug, title: event.title, expired: false } : { state: "draft" };
+  }
+
+  const head = await prisma.invitation.findFirst({
+    where: { eventId, event: { ownerId: userId } },
+    select: {
+      id: true,
+      slug: true,
+      status: true,
+      publications: { where: { isCurrent: true }, take: 1, select: { snapshot: true } },
+      event: { select: { title: true, paidAccessEndsAt: true, purchases: { where: { status: "PAID" }, select: { plan: true, status: true } } } },
+    },
+  });
+  if (!head) return undefined;
+  if (head.status !== "PUBLISHED") return { state: "draft" };
+  const expired = !isEventAccessActive({ plan: getEffectiveEventPlan(head.event.purchases), paidAccessEndsAt: head.event.paidAccessEndsAt, now: new Date(getServerNow()) });
+
+  const snapshot = head.publications[0]?.snapshot;
+  if (isPublishedInvitation(snapshot)) {
+    return { state: "published", invitation: snapshotToInvitation(snapshot, getMediaUrl), slug: head.slug, title: head.event.title, publication: { version: snapshot.version, publishedAt: snapshot.publishedAt }, expired };
+  }
+  // Publicada antes de D-29 (sin snapshot): se lee del borrador, igual que la página pública.
+  const row = await prisma.invitation.findFirst({ where: { id: head.id }, include: invitationInclude });
+  return row ? { state: "published", invitation: dbInvitationToDomain(row, publicMediaOptions), slug: head.slug, title: head.event.title, expired } : undefined;
+}
+
 /* ───────── publicar ───────── */
 
 export interface PublishContext {

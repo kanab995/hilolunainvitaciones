@@ -101,6 +101,7 @@ function editorHtml(node: (invitation: Invitation) => React.ReactElement, invita
     images: { create: () => "blob:x", revoke: noop, revokeAll: noop, has: () => false, size: 0 },
     media: { cover: { status: idle, enabled: false, disabledReason: "x", onFile: noop, onRemove: noop }, location: () => undefined, gallery: { status: idle, enabled: false, add: noop, remove: noop, removeStatus: () => idle } },
     selectRow: noop,
+    musicLibrary: { allowed: false, categories: [], tracks: [] },
   } as unknown as EditorContextValue;
   return renderToStaticMarkup(<EditorProvider value={context}>{node(invitation)}</EditorProvider>);
 }
@@ -205,7 +206,7 @@ describe("Asistente de creación (pantalla 1)", () => {
 describe("Navegación del panel sin eventos", () => {
   it("un usuario sin eventos no ve enlaces de secciones de evento (ningún enlace muerto)", () => {
     expect(getDashboardNav(null).map((item) => item.id)).toEqual(["events", "templates"]);
-    expect(getDashboardNav("evt_new").map((item) => item.id)).toEqual(["events", "templates", "guests", "rsvp", "messages", "settings"]);
+    expect(getDashboardNav("evt_new").map((item) => item.id)).toEqual(["events", "templates", "guests", "rsvp", "messages", "print", "settings"]);
     expect(getDashboardNav("evt_new").find((item) => item.id === "guests")?.href).toBe("/dashboard/events/evt_new/guests");
   });
 

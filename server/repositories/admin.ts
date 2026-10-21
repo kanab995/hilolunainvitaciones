@@ -1,5 +1,6 @@
 import type { EventType, Prisma } from "@prisma/client";
 import type { UserRoleId } from "@/lib/admin/roles";
+import type { AddonId } from "@/lib/billing/addons";
 import { FREE_PLAN, PLAN_IDS, planConfigs, type PlanId } from "@/lib/billing/plans";
 import type { BillingProviderId, PurchaseKindId, PurchaseStatusId } from "@/lib/billing/purchase";
 import type { PublicationColumns } from "@/lib/publishing/state";
@@ -8,6 +9,7 @@ import { getDataSource } from "@/server/data-source";
 import { prisma } from "@/server/db/client";
 import { StoreUnavailableError } from "@/server/db/errors";
 import { summarizeOrphanCandidates } from "@/server/repositories/media-orphans";
+import { findMusicEntityNames } from "@/server/repositories/music";
 
 /**
  * LECTURAS DE LA CONSOLA INTERNA (D-33). Único módulo que toca Prisma para `/admin/**`. Reglas:
@@ -548,6 +550,106 @@ export async function findPurchase(id: string): Promise<AdminPurchaseDetailRow |
   return { ...row, providerCustomerId: customer?.providerCustomerId ?? null };
 }
 
+// ───────── Complementos (D-48) ─────────
+
+/** Filtro de señales de soporte: `duplicate` = cobro PAGADO que no desbloquea nada (segundo pago del mismo complemento, por reembolsar). */
+export type AddonPurchaseFlag = "duplicate";
+
+export interface AddonPurchasesQuery {
+  q?: string | undefined;
+  status?: PurchaseStatusId | undefined;
+  flag?: AddonPurchaseFlag | undefined;
+  eventId?: string | undefined;
+  sort: ListSort;
+  skip: number;
+  take: number;
+}
+
+export interface AdminAddonPurchaseLine {
+  id: string;
+  addon: AddonId;
+  status: PurchaseStatusId;
+  amount: number;
+  currency: string;
+  provider: BillingProviderId;
+  createdAt: Date;
+  paidAt: Date | null;
+  refundedAt: Date | null;
+  /** ¿Es la compra que desbloquea el complemento? (`unlockKey` no nula; la clave en sí no sale de aquí.) */
+  unlocks: boolean;
+}
+
+export interface AdminAddonPurchaseRow extends AdminAddonPurchaseLine {
+  event: { id: string; title: string };
+  user: { id: string; name: string | null; email: string };
+}
+
+const addonLineSelect = { id: true, addon: true, status: true, amount: true, currency: true, provider: true, createdAt: true, paidAt: true, refundedAt: true, unlockKey: true } as const;
+const toAddonLine = <T extends { unlockKey: string | null }>({ unlockKey, ...rest }: T): Omit<T, "unlockKey"> & { unlocks: boolean } => ({ ...rest, unlocks: unlockKey !== null });
+
+/** Cobro duplicado de un complemento: pagado y sin desbloqueo. */
+const duplicateAddonWhere: Prisma.EventAddonPurchaseWhereInput = { status: "PAID", unlockKey: null };
+
+function addonPurchasesWhere(query: Pick<AddonPurchasesQuery, "q" | "status" | "flag" | "eventId">): Prisma.EventAddonPurchaseWhereInput {
+  const and: Prisma.EventAddonPurchaseWhereInput[] = [];
+  if (query.q) and.push({ OR: [{ event: { is: { title: contains(query.q) } } }, { user: { is: { email: contains(query.q) } } }, { user: { is: { name: contains(query.q) } } }] });
+  if (query.status) and.push({ status: query.status });
+  if (query.flag === "duplicate") and.push(duplicateAddonWhere);
+  if (query.eventId) and.push({ eventId: query.eventId });
+  return and.length > 0 ? { AND: and } : {};
+}
+
+export async function countAddonPurchases(query: Pick<AddonPurchasesQuery, "q" | "status" | "flag" | "eventId">): Promise<number> {
+  requireDatabase();
+  return prisma.eventAddonPurchase.count({ where: addonPurchasesWhere(query) });
+}
+
+/** Cobros duplicados de complementos pendientes de reembolso (para el aviso de la consola). */
+export async function countDuplicateAddonCharges(): Promise<number> {
+  requireDatabase();
+  return prisma.eventAddonPurchase.count({ where: duplicateAddonWhere });
+}
+
+export async function listAddonPurchases(query: AddonPurchasesQuery): Promise<AdminAddonPurchaseRow[]> {
+  requireDatabase();
+  const rows = await prisma.eventAddonPurchase.findMany({
+    where: addonPurchasesWhere(query),
+    orderBy: byCreated(query.sort),
+    skip: query.skip,
+    take: query.take,
+    select: { ...addonLineSelect, event: { select: { id: true, title: true } }, user: { select: { id: true, name: true, email: true } } },
+  });
+  return rows.map(toAddonLine);
+}
+
+export interface AdminAddonPurchaseDetailRow extends AdminAddonPurchaseRow {
+  updatedAt: Date;
+  /** Ids del proveedor SIN enmascarar: la capa `server/admin` los enmascara antes de que salgan de ella. */
+  providerCheckoutSessionId: string;
+  providerPaymentIntentId: string | null;
+  event: { id: string; title: string; startsAt: Date };
+  /** TODAS las compras del mismo complemento en el mismo evento (incluida esta), de la más antigua a la más reciente. */
+  siblings: AdminAddonPurchaseLine[];
+}
+
+export async function findAddonPurchase(id: string): Promise<AdminAddonPurchaseDetailRow | null> {
+  requireDatabase();
+  const row = await prisma.eventAddonPurchase.findUnique({
+    where: { id },
+    select: {
+      ...addonLineSelect,
+      updatedAt: true,
+      providerCheckoutSessionId: true,
+      providerPaymentIntentId: true,
+      event: { select: { id: true, title: true, startsAt: true } },
+      user: { select: { id: true, name: true, email: true } },
+    },
+  });
+  if (!row) return null;
+  const siblings = await prisma.eventAddonPurchase.findMany({ where: { eventId: row.event.id, addon: row.addon }, orderBy: [{ createdAt: "asc" }, { id: "asc" }], select: addonLineSelect });
+  return { ...toAddonLine(row), siblings: siblings.map(toAddonLine) };
+}
+
 // ───────── Plantillas ─────────
 
 export interface AdminTemplateRow {
@@ -639,10 +741,14 @@ export async function listAuditLog(take: number): Promise<AdminAuditRow[]> {
     take,
     select: { id: true, action: true, entityType: true, entityId: true, before: true, after: true, createdAt: true, admin: { select: { id: true, name: true, email: true } } },
   });
-  const templateIds = [...new Set(rows.filter((row) => row.entityType === "Template").map((row) => row.entityId))];
-  const templates = templateIds.length === 0 ? [] : await prisma.template.findMany({ where: { id: { in: templateIds } }, select: { id: true, name: true } });
-  const names = new Map(templates.map((template) => [template.id, template.name]));
-  return rows.map((row) => ({ ...row, entityName: row.entityType === "Template" ? (names.get(row.entityId) ?? null) : null }));
+  const idsOf = (type: string) => [...new Set(rows.filter((row) => row.entityType === type).map((row) => row.entityId))];
+  const templateIds = idsOf("Template");
+  const [templates, music] = await Promise.all([
+    templateIds.length === 0 ? [] : prisma.template.findMany({ where: { id: { in: templateIds } }, select: { id: true, name: true } }),
+    findMusicEntityNames(idsOf("MusicTrack"), idsOf("MusicCategory")),
+  ]);
+  const names = new Map([...templates.map((template) => [template.id, template.name] as const), ...music]);
+  return rows.map((row) => ({ ...row, entityName: names.get(row.entityId) ?? null }));
 }
 
 export async function listRecentAuditLog(take: number): Promise<AdminAuditRow[]> {

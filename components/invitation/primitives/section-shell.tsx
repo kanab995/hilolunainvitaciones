@@ -17,6 +17,8 @@ type SectionShellProps = Pick<SectionProps, "section" | "template" | "index"> & 
   width?: "column" | "wide" | "bleed";
   className?: string;
   contentClassName?: string;
+  /** Ancla pública ESTABLE (`lib/invitation/anchors.ts`) además del `id` de la sección: destino de enlaces y QR impresos. */
+  anchorId?: string;
 };
 
 /**
@@ -34,6 +36,7 @@ export function SectionShell({
   width = "column",
   className,
   contentClassName,
+  anchorId,
 }: SectionShellProps) {
   const style = resolveTemplateStyle(template);
   return (
@@ -49,6 +52,8 @@ export function SectionShell({
         className,
       )}
     >
+      {/* Marcador invisible en el borde superior: `/i/<slug>#<ancla>` desplaza hasta aquí sin otro `id` en la sección. */}
+      {anchorId ? <span id={anchorId} aria-hidden="true" className="absolute inset-x-0 top-0 h-0" /> : null}
       {decor.map((slot) => (
         <Decor key={slot} slot={slot} template={template} size={decorSize} />
       ))}

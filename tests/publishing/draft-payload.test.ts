@@ -147,13 +147,16 @@ describe("applyDraftPayload: DTO + borrador actual → nuevo borrador", () => {
     expect(next.gallery[1]).toMatchObject({ caption: "Pie", src: andreaFernandoInvitation.gallery[0]?.src });
   });
 
-  it("19/20. RSVP y música: se guarda la configuración; una música de biblioteca existente no se pisa", () => {
+  it("19/20. RSVP y música: se guarda la configuración; la música de biblioteca viaja por id y se conserva al guardar otros cambios (D-46)", () => {
     const dto = parse({ ...invitationToDraftPayload(andreaFernandoInvitation, 1), rsvp: { enabled: false, message: "Cerrado", maxCompanions: 1, allowMaybe: false, askDietaryNotes: true }, music: null });
     const next = applyDraftPayload(andreaFernandoInvitation, dto);
     expect(next.rsvp).toMatchObject({ enabled: false, message: "Cerrado", maxCompanions: 1, askDietaryNotes: true });
     expect(next.music).toBeUndefined();
-    const library = { ...andreaFernandoInvitation, music: { sourceType: "library" as const, title: "Pista", autoplayAfterInteraction: true, volume: 0.5, loop: true, libraryTrackId: "trk" } };
-    expect(applyDraftPayload(library, parse({ ...invitationToDraftPayload(library, 1), music: null })).music).toEqual(library.music);
+    const library = { ...andreaFernandoInvitation, music: { sourceType: "library" as const, title: "Pista", artist: "Autora", autoplayAfterInteraction: true, volume: 0.5, loop: true, libraryTrackId: "trk" } };
+    // Guardar sin tocar la música conserva la pista (sin volver a comprobarla).
+    expect(applyDraftPayload(library, parse(invitationToDraftPayload(library, 1))).music).toEqual(library.music);
+    // «Sin música» ahora SÍ quita la biblioteca (antes no era elegible desde el editor).
+    expect(applyDraftPayload(library, parse({ ...invitationToDraftPayload(library, 1), music: null })).music).toBeUndefined();
   });
 
   it("el resultado se valida con las MISMAS reglas del editor (una sola fuente de validación)", () => {

@@ -36,7 +36,8 @@ No se copia aquí el esquema (evita duplicarlo): léase `prisma/schema.prisma`. 
 | `Invitation` | 1:1 con `Event` (`eventId` único), `templateId`, `slug` público único, `status`, `names`, `styleOverrides` | Cascada desde `Event` |
 | `InvitationSection` | `type` (`BlockType`), `position`, `isVisible`, `settings` (encabezados/ajustes), `content` (contenido de un solo elemento) | Cascada desde `Invitation` |
 | `Location`, `TimelineItem`, `GalleryImage`, `GiftRegistry` | Contenido con identidad y orden (`position`), colgado de `Event` | Cascada desde `Event` |
-| `MusicSettings` | Configuración de música (1:1 con `Event`); sin reproducción real | Cascada desde `Event` |
+| `MusicSettings` | Configuración de música (1:1 con `Event`); `isEnabled` (D-46) y `libraryTrackId → MusicTrack` (`Restrict`) | Cascada desde `Event` |
+| `MusicCategory` / `MusicTrack` | Biblioteca musical de Hilo Luna con documentación de derechos (D-46, §21) | Nunca se borran (se ocultan / desactivan) |
 | `GuestGroup`, `Guest` | Invitados; `Guest.status` (`RsvpStatus`) es la respuesta vigente y base de las métricas; `Guest.inviteToken` (único, no nulo) es el identificador público opaco de su enlace personalizado; `Guest.source` (`GuestSource`, D-40) distingue `HOST` (el anfitrión) de `PUBLIC_RSVP` (autorregistrado por el enlace general) | `Guest.groupId` → `SetNull`; cascada desde `Event` |
 | `Rsvp`, `RsvpQuestion`, `RsvpAnswer` | Respuesta de un invitado (una vigente por `guestId`), preguntas del evento y respuestas | Cascada. Las escribe el RSVP público (§13) y el general (§13bis, D-40) |
 
@@ -369,8 +370,42 @@ Migración aditiva `20260926160000_preproduction_hardening`. No borra, renombra 
 
 Migración aditiva `20260928000000_transactional_email`. No borra, renombra ni actualiza datos. Sin `migrate reset`. Ver `docs/EMAIL.md` para la arquitectura completa (proveedor, plantillas, staging).
 
-- **`EmailDelivery`** — registro MÍNIMO de cada intento de envío: `id`, `kind` (`EmailDeliveryKind`: `RSVP_NOTIFICATION` | `PURCHASE_CONFIRMATION` | `UPGRADE_CONFIRMATION`), `recipientUserId` (FK `Restrict` a `User`: el destinatario nunca se duplica en esta tabla, se lee de `User.email` al mostrarlo), `eventId` / `purchaseId` / `rsvpId` (referencias SUELTAS, sin FK — apuntan a filas que esta fase nunca borra; así el evento de demostración puede recrearse en cada `prisma/seed.ts` sin que un correo antiguo bloquee `deleteEvent`), `status` (`EmailDeliveryStatus`: `PENDING` | `SENT` | `FAILED` | `SKIPPED`), `providerMessageId`, `errorCode` (saneado, nunca el mensaje completo del proveedor), `attemptedAt`, `sentAt`, `createdAt`, `updatedAt`.
+- **`EmailDelivery`** — registro MÍNIMO de cada intento de envío: `id`, `kind` (`EmailDeliveryKind`: `RSVP_NOTIFICATION` | `PURCHASE_CONFIRMATION` | `UPGRADE_CONFIRMATION` | `ADDON_PURCHASE_CONFIRMATION` — este último, D-48 etapa 4, con `purchaseId` = `EventAddonPurchase.id`), `recipientUserId` (FK `Restrict` a `User`: el destinatario nunca se duplica en esta tabla, se lee de `User.email` al mostrarlo), `eventId` / `purchaseId` / `rsvpId` (referencias SUELTAS, sin FK — apuntan a filas que esta fase nunca borra; así el evento de demostración puede recrearse en cada `prisma/seed.ts` sin que un correo antiguo bloquee `deleteEvent`), `status` (`EmailDeliveryStatus`: `PENDING` | `SENT` | `FAILED` | `SKIPPED`), `providerMessageId`, `errorCode` (saneado, nunca el mensaje completo del proveedor), `attemptedAt`, `sentAt`, `createdAt`, `updatedAt`.
 - **Nunca guarda** el asunto ni el cuerpo del correo (se reconstruyen desde código si hace falta reenviar) ni la clave del proveedor. El destinatario se enmascara SIEMPRE al salir hacia la consola (`ma••••@ejemplo.com`, `lib/admin/mask.ts`).
 - **Idempotencia** — `@@unique([kind, purchaseId])`: en Postgres, `purchaseId` NULL (el caso de `RSVP_NOTIFICATION`) nunca colisiona consigo mismo, así que la restricción solo actúa sobre `PURCHASE_CONFIRMATION`/`UPGRADE_CONFIRMATION`: como máximo UN correo por compra confirmada, aunque el webhook que la confirmó llegue varias veces (verificado contra PostgreSQL real: una segunda inserción con el mismo `(kind, purchaseId)` falla con `P2002`; distinto `kind` con el mismo `purchaseId`, o `RSVP_NOTIFICATION` repetido con `purchaseId` nulo, se insertan sin problema). El RSVP se controla aparte, en el servicio (`server/services/public-rsvp.ts`): solo se avisa si la respuesta CAMBIÓ.
 - **Índices**: `(recipientUserId, createdAt)` (historial de una cuenta), `status` (cola de fallidos), `eventId` (correos de un evento).
 - **Relación con `User`**: `Restrict` — igual que `AdminAuditLog.adminUserId` — impide borrar una cuenta con envíos registrados sin resolver antes esa relación (política de borrado: `docs/OPERATIONS.md` §7).
+
+## 21. Biblioteca musical: `MusicCategory`, `MusicTrack` (D-46)
+
+- **`MusicCategory`** — `slug` único (no cambia), `name`, `sortOrder`, `isActive`. Las seis iniciales (Romántica, Instrumental, Elegante, Alegre, Infantil, Ambiental) las siembra la migración `20261016120000_add_music_library` (idempotente). Nunca se borra si tiene pistas (`Restrict`).
+- **`MusicTrack`** — `title`, `author`, `categoryId`, `status` (`DRAFT` | `ACTIVE` | `DISABLED`), audio (`audioKey` único con prefijo `library/music/`, `audioMimeType`, `audioSizeBytes`, `durationSec`) y documentación de derechos: `licenseSource`, `licenseName`, `licenseUrl` (opcional, https), `licenseTerms`, `licenseEvidenceRef` (DÓNDE está el comprobante firmado; el documento nunca se sube al bucket público), `rightsHosting`, `rightsPublicPerformance`, `rightsCommercialUse`, `attributionRequired`, `attributionText`, `licenseExpiresAt`, `licenseVerifiedAt`, `licenseVerifiedById` (FK `User`, `Restrict`). Índice `(status, categoryId)`.
+- **Restricción CHECK `MusicTrack_active_requires_rights`**: una fila `ACTIVE` exige audio, duración, fuente, licencia, condiciones, comprobante, los tres derechos, verificación (fecha + autor) y el texto del crédito si la atribución es obligatoria. El vencimiento (`licenseExpiresAt`) lo aplica el código al leer (`isTrackPlayable`), porque la base de datos no conoce la hora.
+- **`MusicSettings`** gana `isEnabled` (`DEFAULT true`: las filas anteriores no cambian) y una FK `libraryTrackId → MusicTrack` (`Restrict`: una pista elegida no se puede borrar; se desactiva). `trackUrl` NUNCA se escribe para la biblioteca: la URL del audio se deriva de `audioKey` al mostrar.
+- **Snapshot publicado**: guarda `libraryTrackId`, nunca la URL; `/i/[slug]` resuelve la pista con su estado actual y el plan del evento (`musicLibrary`).
+
+## 23. Versión impresa: `PrintSettings` (D-49)
+
+- **`PrintSettings`** — preferencias de la versión impresa de un evento: `eventId` (`@unique`, FK `Cascade`), `qrTarget` (`PrintQrTarget`: `INVITATION` | `GIFT_REGISTRY` | `GIFT_REGISTRY_LINK` | `NONE`, por defecto `INVITATION`), `createdAt`, `updatedAt`.
+- Sin fila = `INVITATION` (comportamiento anterior): la migración aditiva `20261021120000_add_print_settings` no crea filas ni toca otras tablas.
+- No guarda URLs: el destino se resuelve al generar desde la invitación PUBLICADA del evento (`lib/print/qr-target.ts`). Lectura y escritura con el dueño en la consulta (`server/repositories/print-settings.ts`).
+
+## 22. Complementos: `EventAddonPurchase` (D-48)
+
+- **`EventAddonPurchase`** — compra de un complemento de un evento (hoy `AddonProduct.PRINT_FILE`, «Archivo listo para imprimir»), en una tabla
+  PROPIA: `getEffectiveEventPlan` solo lee `EventPurchase`, así que un complemento no puede conceder, quitar ni alterar un plan. Campos:
+  `eventId`, `userId` (FK `Restrict`), `addon`, `provider`, `providerCheckoutSessionId` (único con `provider`: una fila por sesión de cobro),
+  `providerPaymentIntentId` (único con `provider`), `status` (`PurchaseStatus`), `amount` (centavos), `currency`, `paidAt`, `refundedAt`.
+- **`unlockKey`** (`<eventId>:<addon>`, `@unique`): solo la compra que DESBLOQUEA la lleva; NULL en el resto (los NULL no chocan). La base de datos
+  impide un segundo desbloqueo pagado; un reembolso lo vuelve a NULL (se puede recomprar).
+- **CHECK** `EventAddonPurchase_unlock_requires_paid` (`unlockKey` solo con `status = PAID`) y `EventAddonPurchase_amount_non_negative`.
+- Índices: `(eventId, addon, status)`, `userId`, `createdAt`. Migración ADITIVA `20261019120000_add_event_addon_purchases` (no toca `EventPurchase`).
+- Escriben solo el checkout (`PENDING`) y el webhook verificado (`server/services/addon-sync.ts`); las lecturas de la interfaz llevan el
+  propietario en la consulta (`server/repositories/addon-purchases.ts`).
+- **Índice único parcial** `EventAddonPurchase_one_pending_per_event_addon` (`(eventId, addon) WHERE status = 'PENDING'`, etapa 4): a lo sumo UNA
+  compra pendiente por evento y complemento. Si dos pestañas abren sesiones distintas a la vez, la segunda no se registra y el servicio la
+  caduca en Stripe. Prisma no modela índices parciales: no aparece en `schema.prisma` (mismo patrón que
+  `InvitationPublication_one_current_per_invitation`). Migración ADITIVA `20261020120000_addon_single_pending_and_confirmation_email`, que
+  además añade `EmailDeliveryKind.ADDON_PURCHASE_CONFIRMATION` (§20; `EmailDelivery.purchaseId` = `EventAddonPurchase.id`).
+- **Cobro duplicado** = fila `PAID` con `unlockKey` NULL (un segundo pago del mismo complemento). Al reembolsar la que desbloquea, el desbloqueo
+  pasa a otra fila `PAID` del mismo complemento si existe (`refundAddonPayment`).

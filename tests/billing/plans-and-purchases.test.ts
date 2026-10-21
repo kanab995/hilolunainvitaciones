@@ -47,10 +47,10 @@ describe("Modelo comercial: un pago único por evento (D-32)", () => {
     expect(planConfigs.PREMIUM.limits.maxPublicRsvpResponses).toBe(250);
   });
 
-  it("las features actuales (publicar, enlaces personalizados, QR, calendario, fotos propias) siguen activas en todos los planes por configuración", () => {
+  it("las features de D-32 siguen activas en todos los planes; la biblioteca musical (D-46) es solo de Esencial y Premium", () => {
     for (const id of PLAN_IDS) {
       expect(Object.keys(planConfigs[id].features).sort()).toEqual([...FEATURE_IDS].sort());
-      for (const value of Object.values(planConfigs[id].features)) expect(value).toBe(true);
+      for (const [feature, value] of Object.entries(planConfigs[id].features)) expect(value, `${id}.${feature}`).toBe(!(id === "FREE" && feature === "musicLibrary"));
     }
   });
 

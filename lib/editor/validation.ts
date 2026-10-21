@@ -114,6 +114,8 @@ export function validateInvitation(invitation: Invitation): ValidationErrors {
     set("music.title", first(required(invitation.music.title, "El título"), maxLength(invitation.music.title, LIMITS.musicTitle, "El título")));
     set("music.artist", maxLength(invitation.music.artist ?? "", LIMITS.musicArtist, "El artista"));
   }
+  // Biblioteca (D-46): basta con la pista; título y autor los pone el servidor.
+  if (invitation.music?.sourceType === "library" && !invitation.music.libraryTrackId) set("music.track", "Elige una canción de la biblioteca.");
 
   set("closing.message", maxLength(invitation.closing.message, LIMITS.closing, "El mensaje"));
   if (invitation.dressCode) {

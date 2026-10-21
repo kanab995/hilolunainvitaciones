@@ -169,3 +169,42 @@ export function upgradeConfirmationEmail(input: UpgradeConfirmationEmailInput): 
     .join("\n");
   return { subject: "Tu evento ahora es Premium", html, text };
 }
+
+// ───────── 4. Confirmación del complemento «Archivo listo para imprimir» (D-48, etapa 4) ─────────
+
+export interface PrintAddonConfirmationEmailInput {
+  eventTitle: string;
+  productName: string;
+  /** Unidades enteras (pesos), de la compra REAL (`EventAddonPurchase.amount`). */
+  amount: number;
+  currency: string;
+  paidAt: Date;
+  /** Sección «Versión para imprimir» del PANEL (pide sesión). Nunca un enlace público de descarga ni el PDF adjunto. */
+  panelUrl: string;
+}
+
+export function printAddonConfirmationEmail(input: PrintAddonConfirmationEmailInput): EmailContent {
+  const event = escapeHtml(input.eventTitle);
+  const product = escapeHtml(input.productName);
+  const amountText = formatEmailAmount(input.amount, input.currency);
+  const subject = `Tu invitación lista para imprimir | ${siteConfig.name}`;
+  const html = shell({
+    preheader: `Ya puedes descargar el PDF para imprimir de ${input.eventTitle} desde tu panel.`,
+    heading: "Tu invitación está lista para imprimir",
+    bodyHtml: `<p style="margin:0 0 12px;">Confirmamos tu compra de <strong>${product}</strong> para tu evento <strong>${event}</strong>.</p><p style="margin:0 0 12px;">Pago: <strong>${escapeHtml(amountText)}</strong> · ${escapeHtml(formatEmailDate(input.paidAt))}.</p><p style="margin:0 0 12px;">Descarga el PDF desde la sección «Versión para imprimir» de tu panel, todas las veces que lo necesites. Por seguridad, este correo no lleva el archivo adjunto: el enlace te pide iniciar sesión.</p><p style="margin:0 0 12px;">Incluye el archivo digital en PDF; la impresión y la entrega de las tarjetas no están incluidas.</p><p style="margin:0;font-size:13px;color:${COLORS.muted};">Este correo no es una factura ni un recibo fiscal.</p>`,
+    ctaLabel: "Ir a la descarga",
+    ctaUrl: input.panelUrl,
+  });
+  const text = [
+    "Tu invitación está lista para imprimir",
+    "",
+    `Confirmamos tu compra de «${input.productName}» para tu evento «${input.eventTitle}».`,
+    `Pago: ${amountText} · ${formatEmailDate(input.paidAt)}.`,
+    "Descarga el PDF desde la sección «Versión para imprimir» de tu panel, todas las veces que lo necesites. Por seguridad, este correo no lleva el archivo adjunto: el enlace te pide iniciar sesión.",
+    "Incluye el archivo digital en PDF; la impresión y la entrega de las tarjetas no están incluidas.",
+    "Este correo no es una factura ni un recibo fiscal.",
+    "",
+    `Ir a la descarga: ${input.panelUrl}`,
+  ].join("\n");
+  return { subject, html, text };
+}

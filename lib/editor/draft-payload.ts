@@ -75,13 +75,21 @@ export interface DraftGiftDto {
   entries: { id: string; name: string; url: string }[];
 }
 
-export interface DraftMusicDto {
-  externalUrl?: string;
+/**
+ * Música (D-46). Dos variantes explícitas:
+ *  - `external`: un ENLACE (nunca suena dentro de la invitación). Un payload sin `source` es esta variante (clientes anteriores).
+ *  - `library`: SOLO el id de la pista y los ajustes del anfitrión. Título, autor y audio los pone el SERVIDOR desde la pista: el cliente
+ *    nunca aporta una URL ni un nombre de canción de la biblioteca.
+ */
+export type DraftMusicDto =
+  | { source: "external"; externalUrl?: string; title: string; artist?: string; autoplayAfterInteraction: false; volume: number; loop: boolean }
+  | { source: "library"; libraryTrackId: string; isEnabled: boolean; autoplayAfterInteraction: boolean; volume: number; loop: boolean };
+
+/** Datos de la pista elegida que el SERVIDOR ya comprobó (existe, es reproducible y el plan del evento la permite). */
+export interface ResolvedLibraryTrack {
+  id: string;
   title: string;
-  artist?: string;
-  autoplayAfterInteraction: boolean;
-  volume: number;
-  loop: boolean;
+  author: string;
 }
 
 export interface DraftPayload {
@@ -120,13 +128,19 @@ export function invitationToDraftPayload(invitation: Invitation, baseRevision: n
     rsvp: compact({ ...invitation.rsvp }),
     dressCode: invitation.dressCode ? { style: invitation.dressCode.style, description: invitation.dressCode.description, palette: invitation.dressCode.palette.map((swatch) => compact({ name: swatch.name, hex: swatch.hex })) } : null,
     giftRegistry: invitation.giftRegistry ? compact({ message: invitation.giftRegistry.message, moreUrl: invitation.giftRegistry.moreUrl, entries: invitation.giftRegistry.entries.map((entry) => ({ id: entry.id, name: entry.name, url: entry.url })) }) : null,
-    music: invitation.music && invitation.music.sourceType === "external" ? compact({ externalUrl: invitation.music.externalUrl, title: invitation.music.title, artist: invitation.music.artist, autoplayAfterInteraction: false, volume: invitation.music.volume, loop: invitation.music.loop }) : null,
+    music: musicToDto(invitation.music),
     styleOverrides: { ...(invitation.styleOverrides ?? {}) },
     sections: invitation.sections.map((section) => compact({ id: section.id, isVisible: section.isVisible, eyebrow: section.eyebrow, title: section.title, subtitle: section.subtitle, align: section.align, overlay: section.overlay })),
     locations: invitation.locations.map((location) => compact({ id: location.id, kind: location.kind, name: location.name, addressLines: [...location.addressLines], time: location.time, mapUrl: location.mapUrl, photoAlt: location.photo?.mediaAssetId ? location.photo.alt : undefined })),
     timeline: invitation.timeline.map((item) => compact({ id: item.id, time: item.time, label: item.label, icon: item.icon, description: item.description })),
     gallery: invitation.gallery.map((image) => compact({ id: image.id, alt: image.alt, caption: image.caption })),
   };
+}
+
+function musicToDto(music: MusicSettings | undefined): DraftMusicDto | null {
+  if (music?.sourceType === "external") return compact({ source: "external" as const, externalUrl: music.externalUrl, title: music.title, artist: music.artist, autoplayAfterInteraction: false as const, volume: music.volume, loop: music.loop });
+  if (music?.sourceType === "library" && music.libraryTrackId) return { source: "library", libraryTrackId: music.libraryTrackId, isEnabled: music.isEnabled !== false, autoplayAfterInteraction: music.autoplayAfterInteraction, volume: music.volume, loop: music.loop };
+  return null;
 }
 
 /* ───────── unknown → DTO (servidor) ───────── */
@@ -207,17 +221,24 @@ export function parseDraftPayload(raw: unknown): ParseResult {
     : null;
 
   const musicRaw = isRecord(raw.music) ? raw.music : undefined;
-  const music: DraftMusicDto | null = musicRaw
-    ? compact({
-        externalUrl: optStr(musicRaw.externalUrl, 500),
-        title: str(musicRaw.title, 200) ?? "",
-        artist: optStr(musicRaw.artist, 200),
-        // Un enlace externo nunca se reproduce solo (docs/ARCHITECTURE.md §10.1).
-        autoplayAfterInteraction: false,
-        volume: Math.max(0, Math.min(1, num(musicRaw.volume) ?? 0.6)),
-        loop: bool(musicRaw.loop, true),
-      })
-    : null;
+  let music: DraftMusicDto | null = null;
+  if (musicRaw && musicRaw.source === "library") {
+    // Biblioteca: solo un id con forma válida; sin él, la música se trata como inválida (no se inventa una pista).
+    const libraryTrackId = id(musicRaw.libraryTrackId);
+    if (!libraryTrackId) return { ok: false, message: "Elige una canción de la biblioteca." };
+    music = { source: "library", libraryTrackId, isEnabled: bool(musicRaw.isEnabled, true), autoplayAfterInteraction: bool(musicRaw.autoplayAfterInteraction, true), volume: Math.max(0, Math.min(1, num(musicRaw.volume) ?? 0.6)), loop: bool(musicRaw.loop, true) };
+  } else if (musicRaw) {
+    music = compact({
+      source: "external" as const,
+      externalUrl: optStr(musicRaw.externalUrl, 500),
+      title: str(musicRaw.title, 200) ?? "",
+      artist: optStr(musicRaw.artist, 200),
+      // Un enlace externo nunca se reproduce solo (docs/ARCHITECTURE.md §10.1).
+      autoplayAfterInteraction: false as const,
+      volume: Math.max(0, Math.min(1, num(musicRaw.volume) ?? 0.6)),
+      loop: bool(musicRaw.loop, true),
+    });
+  }
 
   const styleOverrides: Record<string, StyleOverrides> = {};
   if (isRecord(raw.styleOverrides)) {
@@ -298,6 +319,27 @@ export function parseDraftPayload(raw: unknown): ParseResult {
 
 /* ───────── DTO + borrador actual → nuevo borrador ───────── */
 
+/** `null` = «Sin música» (se quita). Una pista nueva sin comprobar no se aplica: se conserva la música actual (el servicio ya rechazó el guardado). */
+function applyMusic(current: MusicSettings | undefined, dto: DraftMusicDto | null, libraryTrack: ResolvedLibraryTrack | undefined): MusicSettings | undefined {
+  if (dto === null) return undefined;
+  if (dto.source === "external") {
+    return compact({ ...(current?.sourceType === "external" ? current : {}), sourceType: "external" as const, externalUrl: dto.externalUrl, title: dto.title, artist: dto.artist, autoplayAfterInteraction: false, volume: dto.volume, loop: dto.loop });
+  }
+  const sameTrack = current?.sourceType === "library" && current.libraryTrackId === dto.libraryTrackId;
+  const track = sameTrack ? { title: current.title, author: current.artist ?? "" } : libraryTrack?.id === dto.libraryTrackId ? { title: libraryTrack.title, author: libraryTrack.author } : undefined;
+  if (!track) return current;
+  return compact({
+    sourceType: "library" as const,
+    libraryTrackId: dto.libraryTrackId,
+    title: track.title,
+    artist: track.author || undefined,
+    isEnabled: dto.isEnabled ? undefined : false,
+    autoplayAfterInteraction: dto.autoplayAfterInteraction,
+    volume: dto.volume,
+    loop: dto.loop,
+  });
+}
+
 /** Orden del DTO para los elementos conocidos; los que el DTO no menciona se conservan al final (nunca se pierden por un payload incompleto). */
 function orderedByDto<T extends { id: string }>(current: readonly T[], dtoIds: readonly string[], build: (item: T, dtoId: string) => T): T[] {
   const byId = new Map(current.map((item) => [item.id, item]));
@@ -309,7 +351,11 @@ function orderedByDto<T extends { id: string }>(current: readonly T[], dtoIds: r
   return [...known, ...current.filter((item) => !mentioned.has(item.id))];
 }
 
-export function applyDraftPayload(current: Invitation, dto: DraftPayload): Invitation {
+/**
+ * `libraryTrack`: la pista de la biblioteca que el servicio ya comprobó para ESTE guardado. Solo hace falta si el anfitrión CAMBIÓ de
+ * canción: conservar la misma pista nunca exige comprobarla de nuevo (un evento que pierde su plan sigue pudiendo editar todo lo demás).
+ */
+export function applyDraftPayload(current: Invitation, dto: DraftPayload, libraryTrack?: ResolvedLibraryTrack): Invitation {
   const sectionDto = new Map(dto.sections.map((section) => [section.id, section]));
 
   const sections = orderedByDto<InvitationSection>(current.sections, dto.sections.map((section) => section.id), (section) => {
@@ -339,13 +385,7 @@ export function applyDraftPayload(current: Invitation, dto: DraftPayload): Invit
 
   const giftRegistry: GiftRegistry | undefined = dto.giftRegistry ? compact({ message: dto.giftRegistry.message, entries: dto.giftRegistry.entries, moreUrl: dto.giftRegistry.moreUrl, photo: current.giftRegistry?.photo }) : undefined;
 
-  // Solo la música con enlace externo se edita; una configuración de biblioteca/subida existente se conserva.
-  const music: MusicSettings | undefined =
-    dto.music === null
-      ? current.music && current.music.sourceType !== "external"
-        ? current.music
-        : undefined
-      : compact({ ...(current.music?.sourceType === "external" ? current.music : {}), sourceType: "external" as const, externalUrl: dto.music.externalUrl, title: dto.music.title, artist: dto.music.artist, autoplayAfterInteraction: false, volume: dto.music.volume, loop: dto.music.loop });
+  const music = applyMusic(current.music, dto.music, libraryTrack);
 
   const photo = current.cover.photo ? (dto.cover.photoAlt !== undefined && current.cover.photo.mediaAssetId ? { ...current.cover.photo, alt: dto.cover.photoAlt } : current.cover.photo) : undefined;
 

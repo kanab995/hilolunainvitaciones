@@ -4,12 +4,14 @@ import { InvImage, photoMaskClass } from "@/components/invitation/primitives/inv
 import { SectionHeading } from "@/components/invitation/primitives/section-heading";
 import { SectionShell } from "@/components/invitation/primitives/section-shell";
 import type { SectionProps } from "@/components/invitation/sections/types";
+import { GIFT_REGISTRY_ANCHOR } from "@/lib/invitation/anchors";
 import { invitationCopy } from "@/lib/invitation/copy";
 import { cn } from "@/lib/utils";
 
 /**
  * MESA DE REGALOS (`invitation.giftRegistry`). Las tiendas se muestran solo con su nombre (sin
- * logos de terceros, CLAUDE.md §7) y son enlaces externos neutrales.
+ * logos de terceros, CLAUDE.md §7) y son enlaces externos neutrales. Lleva el ancla pública estable `#regalos` (destino del QR
+ * «Mesa de regalos» de la versión impresa, D-49).
  */
 export function GiftRegistrySection({ invitation, template, section, index }: SectionProps) {
   const { giftRegistry } = invitation;
@@ -19,7 +21,7 @@ export function GiftRegistrySection({ invitation, template, section, index }: Se
   const fadeLeft = photoMaskClass(template.effects.photoMask ?? "none", "left");
 
   return (
-    <SectionShell section={section} template={template} index={index} width="bleed" contentClassName="py-12 md:py-20">
+    <SectionShell section={section} template={template} index={index} width="bleed" contentClassName="py-12 md:py-20" anchorId={GIFT_REGISTRY_ANCHOR}>
       <div className="inv-reveal mx-auto grid w-full max-w-(--inv-wide-max) grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] items-stretch gap-2 md:grid-cols-2 md:gap-10">
         <div className="flex flex-col gap-4 pl-5 md:justify-center md:gap-5 md:pl-14">
           <SectionHeading section={section} template={template} fallbackTitle={invitationCopy.sections.giftRegistry} align="left" />

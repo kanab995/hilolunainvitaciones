@@ -1,9 +1,11 @@
 import { getBillingProviderState } from "@/server/billing";
 import { WebhookSignatureError, type BillingProviderState, type NormalizedWebhookEvent, type ProviderPayment } from "@/server/billing/provider";
 import { isTransientDatabaseError, StoreUnavailableError } from "@/server/db/errors";
-import { sendPurchaseConfirmation, sendUpgradeConfirmation } from "@/server/email/service";
+import { sendPrintAddonConfirmation } from "@/server/email/service";
 import { runAfterResponse } from "@/server/email/run-after";
 import { prismaBillingStore, type BillingStore } from "@/server/repositories/billing";
+import { closeAddonPayment, confirmAddonPayment, isAddonPayment, refundAddonPayment } from "@/server/services/addon-sync";
+import { notifyGrantedPurchase } from "@/server/services/purchase-emails";
 import { closePayment, confirmPayment, refundPayment, type GrantedPurchase } from "@/server/services/purchase-sync";
 import { logger } from "@/server/observability/logger";
 
@@ -16,7 +18,8 @@ import { logger } from "@/server/observability/logger";
  *     y NO conceden nada
  *  4. para confirmar un pago se consulta el estado REAL del pago al proveedor ANTES de abrir la transacción (el evento es solo el
  *     aviso; la metadata nunca basta)
- *  5. UNA transacción: registrar el evento (idempotencia) + aplicar la compra tras verificarla (`purchase-sync`). Un evento repetido
+ *  5. UNA transacción: registrar el evento (idempotencia) + aplicar la compra tras verificarla (`purchase-sync` para planes, `addon-sync`
+ *     para complementos, D-48: la ruta la decide el PRECIO cobrado; un pago de complemento jamás pasa por la lógica de planes). Un evento repetido
  *     no se aplica dos veces; si aplicar falla, la transacción se revierte, el evento no queda registrado y el proveedor reintenta (500).
  * Nunca se registran cuerpos ni datos de pago: solo el tipo y el id del evento.
  */
@@ -59,32 +62,31 @@ export async function handleBillingWebhook(input: { rawBody: string; signature: 
     // correo de confirmación DESPUÉS de que la transacción de abajo haya confirmado (D-36). `provider.id` se captura aparte: `provider`
     // (con el SDK) no debe cruzar a `after()`.
     let granted: GrantedPurchase | undefined;
+    // Complemento confirmado (recién concedido, o ya pagado por la reconciliación del regreso del pago): su correo es idempotente por compra.
+    let addonConfirmed: { eventId: string; checkoutSessionId: string } | undefined;
     const providerId = provider.id;
 
     const result = await deps.store.recordEventAndApply({ provider: provider.id, externalEventId: event.id, type: event.type }, async (ops) => {
       if (event.action === "confirm_payment") {
-        if (payment) await confirmPayment(ops, provider, payment, event.createdAt, (info) => (granted = info));
+        if (payment && isAddonPayment(provider, payment)) {
+          const outcome = await confirmAddonPayment(ops, provider, payment, event.createdAt);
+          if ((outcome === "granted" || outcome === "already_paid") && payment.metadata.eventId) addonConfirmed = { eventId: payment.metadata.eventId, checkoutSessionId: payment.checkoutSessionId };
+        }
+        else if (payment) await confirmPayment(ops, provider, payment, event.createdAt, (info) => (granted = info));
       } else if (event.action === "close_payment") {
+        // La sesión es de un plan O de un complemento: cada cierre es «noop» si no es suyo.
         await closePayment(ops, provider.id, { outcome: event.outcome, checkoutSessionId: event.checkoutSessionId, paymentIntentId: event.paymentIntentId, metadata: event.metadata });
+        await closeAddonPayment(ops.addons, provider.id, { outcome: event.outcome, checkoutSessionId: event.checkoutSessionId, metadata: event.metadata });
       } else if (event.action === "refund_payment") {
         await refundPayment(ops, provider.id, event.paymentIntentId);
+        await refundAddonPayment(ops.addons, provider.id, event.paymentIntentId, event.createdAt);
       }
     });
 
-    if (granted) {
-      const purchase = granted;
-      runAfterResponse(() =>
-        (purchase.kind === "UPGRADE" ? sendUpgradeConfirmation : sendPurchaseConfirmation)({
-          eventId: purchase.eventId,
-          provider: providerId,
-          checkoutSessionId: purchase.checkoutSessionId,
-          plan: purchase.plan,
-          amountMinor: purchase.amountMinor,
-          currency: purchase.currency,
-          paidAt: purchase.paidAt,
-          accessEndsAt: purchase.accessEndsAt,
-        }),
-      );
+    if (granted) notifyGrantedPurchase(providerId, granted);
+    if (addonConfirmed && result !== "duplicate") {
+      const confirmed = addonConfirmed;
+      runAfterResponse(() => sendPrintAddonConfirmation({ eventId: confirmed.eventId, provider: providerId, checkoutSessionId: confirmed.checkoutSessionId }));
     }
     return { status: 200, body: { received: true, ...(result === "duplicate" ? { duplicate: true } : {}) } };
   } catch (error) {

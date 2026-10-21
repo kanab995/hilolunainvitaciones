@@ -21,6 +21,11 @@ export function getBillingProviderState(): BillingProviderState {
 
   let state: BillingProviderState;
   if (resolved.status === "ready") {
+    for (const problem of resolved.addonProblems)
+      if (!reported.has(problem)) {
+        reported.add(problem);
+        logger.warn("billing.addon_config_invalid", { problem });
+      }
     state = { status: "ready", provider: new StripeBillingProvider(new Stripe(resolved.config.secretKey, { maxNetworkRetries: 2, appInfo: { name: siteConfig.name } }), resolved.config) };
   } else if (resolved.status === "invalid") {
     const summary = resolved.problems.join(" | ");

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CalendarDays, ClipboardList, Gauge, LayoutGrid, Mail, Menu, Receipt, Users, Webhook, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, ClipboardList, Gauge, LayoutGrid, Mail, Menu, Music, Receipt, Users, Webhook, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Dialog as DialogPrimitive } from "radix-ui";
@@ -21,6 +21,7 @@ const icons: Record<AdminNavId, ComponentType<{ strokeWidth?: number }>> = {
   users: Users,
   events: CalendarDays,
   templates: LayoutGrid,
+  music: Music,
   purchases: Receipt,
   webhooks: Webhook,
   emails: Mail,

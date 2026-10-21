@@ -21,6 +21,34 @@
 
 ---
 
+### 0.1 Separar Preview (staging) de Production en Vercel — OBLIGATORIO antes del primer despliegue Preview
+
+Comprobado el 21-oct-2026 con `vercel env ls` (solo nombres; los valores son sensibles y la CLI no puede leerlos): estas variables son UNA sola
+entrada para «Production, Preview», es decir, **el mismo valor**: `DATABASE_URL`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, los tres
+`STRIPE_PRICE_*` de planes, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `S3_*`, `APP_ENV`, `CSP_REPORT_ONLY`; y
+`NEXT_PUBLIC_SITE_URL` vale `https://hiloluna.com` en Preview. Como el build de Vercel es `npm run build` (= `prisma migrate deploy && next build`),
+**un despliegue Preview hoy aplicaría las migraciones a la base de PRODUCCIÓN y usaría Stripe real.** No hay ningún despliegue Preview todavía.
+
+En Vercel → Settings → Environment Variables, para cada variable de la lista: editar → dejar marcada solo **Production** → guardar; y crear
+una entrada nueva solo para **Preview** con el valor de staging:
+
+| Variable (solo Preview) | Valor de staging |
+|---|---|
+| `APP_ENV` | `staging` |
+| `NEXT_PUBLIC_SITE_URL` | `https://staging.hiloluna.com` (o la URL fija de la rama) |
+| `DATABASE_URL` | una base **nueva** de staging (otra Prisma Postgres/Neon), nunca la de producción |
+| `STRIPE_SECRET_KEY` / `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | `sk_test_…` / `pk_test_…` (modo de prueba) |
+| `STRIPE_WEBHOOK_SECRET` | el `whsec_…` del endpoint de **prueba** que apunta a staging |
+| `STRIPE_PRICE_ESSENTIAL_ONE_TIME`, `…_PREMIUM_ONE_TIME`, `…_ESSENTIAL_TO_PREMIUM`, `STRIPE_PRICE_ADDON_PRINT_FILE` | los `price_…` de **prueba** (499 / 799 / 300 / 199 MXN, pago único) |
+| `PRINT_ADDON_ENABLED` | `1` (solo Preview) |
+| `CLERK_SECRET_KEY` / `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | las de una instancia de Clerk de **desarrollo** (`sk_test_`/`pk_test_`) |
+| `S3_*` | un bucket propio de staging (p. ej. `hiloluna-staging-media`) |
+| `EMAIL_STAGING_ALLOWLIST` | tu correo |
+
+El código lo vigila: con `APP_ENV=staging`, una clave `_live_` o el dominio `hiloluna.com` impiden arrancar (`server/config/env.ts`).
+Después: un dominio fijo para staging (Vercel → Domains → `staging.hiloluna.com` asignado a la rama) y la protección de despliegues: Stripe
+debe poder llegar al webhook (desactiva «Vercel Authentication» para ese dominio o usa «Protection Bypass for Automation»).
+
 ## 1. Variables de entorno
 
 1. Rellena la columna **staging** de la matriz de `docs/DEPLOYMENT.md` §3.1, respetando **build vs ejecución** (§3.2).
@@ -157,6 +185,101 @@ Esperado en staging: `X-Robots-Tag: noindex, nofollow` en **todas** las rutas; C
    - [ ] Dos pestañas pulsando «Pagar» a la vez
    - Esperado: se **reutiliza la misma sesión de Checkout** (o aparece «pago en proceso»); nunca dos cobros. Anota el resultado en §17.
 
+### 10.1 Complemento «Archivo listo para imprimir» (D-48) — compra completa en modo de prueba
+
+> **Solo staging, solo modo de prueba.** Claves `sk_test_`/`pk_test_`, la base de datos de STAGING y `APP_ENV=staging`. En producción
+> `PRINT_ADDON_ENABLED` sigue **apagado** hasta la autorización final del propietario. Antes de desplegar, rota el token de Upstash
+> (`docs/PRODUCTION_CHECKLIST.md` B11).
+
+**Preparación (una vez)**
+
+1. Stripe (modo de prueba) → Catálogo de productos → producto «Archivo listo para imprimir» → precio **único (no recurrente) de 199 MXN**.
+   Copia su `price_…`.
+2. Variables de **staging** (además de las de §10): `STRIPE_PRICE_ADDON_PRINT_FILE=price_…` y `PRINT_ADDON_ENABLED=1`. Para el correo:
+   `RESEND_API_KEY` de prueba y tu correo en `EMAIL_STAGING_ALLOWLIST` (sin él, el envío queda «Omitido», `docs/EMAIL.md`).
+3. El endpoint del webhook de §10 ya recibe los eventos necesarios (`checkout.session.completed`, `checkout.session.expired`,
+   `payment_intent.payment_failed`, `charge.refunded`…); no hace falta otro.
+4. Despliega staging. El build aplica `20261019120000_add_event_addon_purchases` y `20261020120000_addon_single_pending_and_confirmation_email`
+   a la base de STAGING; comprueba con `DATABASE_URL=<staging> npx prisma migrate status` que no queda ninguna pendiente.
+5. Ten a mano: un evento de **boda** con plan **Esencial** (compra de §10 paso 3) y la invitación **publicada**, otro evento **Gratis**, y la
+   Stripe CLI con sesión en la cuenta de prueba (`stripe login`), solo para el paso 7.
+
+**Recorrido** (tarjeta `4242 4242 4242 4242`, cualquier fecha futura y CVC)
+
+1. **`/pricing`**: aparece «También en papel, igual de especial», $199 MXN, «impuestos aplicables incluidos», «No incluye la impresión física
+   ni el envío de tarjetas», **sin botón de compra**. Con `PRINT_ADDON_ENABLED` vacío muestra «Muy pronto» (compruébalo antes de encenderlo).
+2. **Evento Gratis** → Versión para imprimir: vista previa con marca de agua y «Mejorar evento», nunca «Comprar».
+3. **Checkout** (evento Esencial) → Versión para imprimir → revisa la vista previa → «Comprar · $199 MXN» → Stripe muestra **199 MXN** →
+   paga.
+   - [ ] Vuelves con «Estamos confirmando tu pago…» o directamente «¡Listo!…».
+   - [ ] **Webhook**: Stripe → Webhooks → entrega `checkout.session.completed` con **200**; `/admin/webhooks` la lista como procesada.
+4. **Desbloqueo y descarga**
+   - [ ] La tarjeta dice «Comprado el …» y aparece «Descargar PDF para imprimir»; descarga 5×7 y A5, con y sin marcas de corte, varias veces.
+   - [ ] Con otra cuenta (no propietaria), `/dashboard/events/<id>/print/file` responde **404**.
+   - [ ] «Compras y planes»: dentro del evento, **Complementos** → «Archivo listo para imprimir · $199 MXN», «Pagado», la fecha e «Ir a la
+         descarga»; el «Historial de pagos» del plan **no cambió** (sigue la fila de 499).
+   - [ ] El plan del evento sigue siendo **Esencial** y «Disponible hasta…» no cambió.
+   - [ ] **Correo** «[STAGING] Tu invitación lista para imprimir | Hilo Luna»: nombre del evento, producto, «Ir a la descarga» lleva a
+         `/dashboard/events/<id>/print` (pide sesión si no la tienes) y **no** trae adjunto. En `/admin/emails`: «Confirmación de complemento»,
+         **Enviado**, una sola fila.
+   - [ ] Stripe → Webhooks → **Reenviar** el mismo evento: 200 `duplicate`, ningún correo ni fila nueva.
+5. **Dos pestañas y doble clic** (en un SEGUNDO evento Esencial de boda publicado, aún sin comprar)
+   - [ ] Abre la Versión para imprimir en dos pestañas y pulsa «Comprar» en las dos casi a la vez (y un doble clic rápido): ambas llegan a la
+         **misma** página de Stripe (mismo `cs_test_…` en la URL).
+   - [ ] Paga en una; en la otra, Stripe dice que ya está pagada (o, al recargar la nuestra, «Estamos confirmando tu pago…» / «Comprado»).
+   - [ ] `/admin/purchases/addons?q=<título>`: **una** compra Pagada (Desbloquea: Sí) y ningún «Cobro duplicado».
+6. **Pago cancelado y fallido**: «Comprar» → «← Atrás» en Stripe → vuelve con «Cancelaste el pago: no se hizo ningún cargo.»; con la tarjeta
+   `4000 0000 0000 0002` el pago se rechaza y no se desbloquea nada.
+7. **Cobro duplicado forzado** (simula lo que el flujo normal impide): sobre el evento del paso 3, ya comprado, crea a mano una sesión con los
+   ids de la consola (`/admin/events/<id>`: id del evento; `/admin/users/<id>`: id del usuario):
+
+   ```bash
+   stripe checkout sessions create --mode=payment --success-url="https://<staging>/dashboard" -d "line_items[0][price]=price_…" -d "line_items[0][quantity]=1" -d "metadata[hiloLunaUserId]=<id del usuario>" -d "metadata[eventId]=<id del evento>" -d "metadata[addon]=PRINT_FILE" -d "payment_intent_data[metadata][eventId]=<id del evento>"
+   ```
+
+   Abre la `url` que imprime y paga con `4242…`.
+   - [ ] `/admin/purchases` y `/admin/purchases/addons` muestran «Hay 1 cobro duplicado…»; la fila nueva está **Pagada · Cobro duplicado**
+         (Desbloquea: No). El registro/Sentry muestra `billing.addon_duplicate_payment`.
+   - [ ] «Compras y planes» muestra la segunda fila con «Cobro duplicado · lo revisaremos para reembolsarlo»; la descarga sigue igual.
+   - [ ] **No** llega un segundo correo de confirmación.
+   - [ ] Reembolsa **ese** cobro siguiendo `docs/BILLING.md` §13.6 (búsqueda `metadata["eventId"]:"<id>"`, importe completo): la fila pasa a
+         **Reembolsada**, el aviso desaparece y el cliente **conserva** la descarga.
+8. **Reembolso total del complemento**: Stripe → el cobro restante del paso 3 → Reembolsar importe completo.
+   - [ ] La compra pasa a **Reembolsada** (consola y «Compras y planes», con la fecha y «ya no da acceso a la descarga»).
+   - [ ] La Versión para imprimir vuelve a ofrecer «Comprar» y el PDF limpio responde **404**; la vista previa sigue libre.
+   - [ ] El plan del evento sigue siendo **Esencial**; ninguna fila de `EventPurchase` cambió.
+   - [ ] (Opcional) Un reembolso **parcial** de otro cobro no cambia nada.
+9. **Apagar**: `PRINT_ADDON_ENABLED=0` y redeploy → `/pricing` vuelve a «Muy pronto», el botón desaparece y las compras ya hechas siguen
+   descargándose.
+
+Anota cada resultado en §18. Si algo no coincide, **no** se enciende en producción.
+
+### 10.2 Compra completa de prueba antes del lanzamiento (boda + QR a la mesa de regalos)
+
+Requisitos: §0.1 hecho (staging con base, Stripe de **prueba**, Clerk de desarrollo y dominio propios) y §10.1 «Preparación» hecha. Tarjeta
+`4242 4242 4242 4242`. Anota cada resultado en §18.
+
+1. [ ] **Plantilla de boda**: `/templates` → una plantilla de boda (p. ej. Magnolia) → «Usar esta plantilla» (con cuenta de prueba).
+2. [ ] **Crear y publicar**: completa nombres, fecha, ceremonia y recepción; en «Mesa de regalos» agrega al menos una tienda (para probar
+   también el enlace directo, deja **una sola** con `https://`); **Publicar**. Abre `/i/<slug>` y confirma que se ve la mesa.
+3. [ ] **Plan**: mejora el evento a **Esencial** (499 de prueba) y confirma el webhook (§10 paso 3).
+4. [ ] **QR a la mesa de regalos**: Versión para imprimir → «Código QR del reverso» → **Mesa de regalos**. Debe decir «Elección guardada», la
+   vista previa del reverso debe mostrar «Mesa de regalos / Escanea para ver nuestra mesa de regalos» y «Abre: …/i/<slug>#regalos».
+5. [ ] **Comprar**: «Comprar · $199 MXN» → Stripe muestra 199 MXN → paga.
+6. [ ] **Webhook**: Stripe (modo de prueba) → Webhooks → el endpoint de staging muestra `checkout.session.completed` con **200**; en
+   `/admin/purchases/addons` aparece la compra **Pagada · Desbloquea: Sí**; llega el correo «[STAGING] Tu invitación lista para imprimir».
+7. [ ] **Descargar el PDF** (5×7 y A5). Ábrelo: el reverso trae el QR y el texto de la mesa de regalos.
+8. [ ] **Escanear el QR** impreso (o en pantalla) con la **cámara** de un iPhone y de un Android: debe abrir `staging…/i/<slug>#regalos` y
+   mostrar directamente «Mesa de regalos» (no la portada). Repite con datos móviles y con la página recién abierta (sin caché).
+9. [ ] **Volver a descargar**: recarga la página y descarga otra vez (también desde «Compras y planes» → «Ir a la descarga»): sin cobro nuevo.
+10. [ ] **Sin doble cobro**: la tarjeta dice «Comprado» y no hay botón de compra; en otra pestaña abierta antes del pago, «Comprar» lleva a la
+    misma sesión ya pagada o a «Estamos confirmando tu pago…»; en Stripe hay **un** solo pago de 199.
+11. [ ] **Destino que desaparece**: en el editor quita la mesa de regalos (u oculta la sección) y **publica**. En Versión para imprimir debe
+    aparecer «Elige de nuevo el destino del código QR», sin reverso ni botón de descarga (nunca un PDF con otro destino). Elige otro destino
+    y la descarga vuelve. Restaura la mesa.
+12. [ ] **Reembolso**: Stripe → el pago de 199 → Reembolsar el importe completo → la compra pasa a **Reembolsada** (consola y «Compras y
+    planes»), la descarga responde 404 y vuelve «Comprar»; el plan Esencial no cambia.
+
 ## 11. Límite de tasa real (Upstash)
 
 1. Crea la base Redis en Upstash, copia REST URL y REST Token a `RATE_LIMIT_REST_URL` / `RATE_LIMIT_REST_TOKEN`, `RATE_LIMIT_REQUIRED=true`. No se instala ningún SDK: la app usa la API REST. El arranque no debe avisar de «SIN LÍMITE DE TASA».
@@ -245,6 +368,12 @@ SMOKE_BASE_URL=https://<staging> SMOKE_INVITE_SLUG=<slug publicado> SMOKE_GUEST_
 | Stripe: Esencial → pago → webhook | | |
 | Stripe: mejora a Premium (300) | | |
 | Stripe: pago fallido | | |
+| Complemento: `/pricing` sin compra y «Muy pronto» apagado | | |
+| Complemento: checkout → webhook → desbloqueo → descarga | | |
+| Complemento: correo de confirmación (uno solo) | | |
+| Complemento: dos pestañas / doble clic → una sola sesión | | |
+| Complemento: cobro duplicado forzado → señalado → reembolsado | | |
+| Complemento: reembolso total → sin descarga; plan intacto | | |
 | Stripe: doble clic / dos pestañas | | |
 | Límite de tasa: bloqueo y recuperación | | |
 | Límite de tasa: proveedor caído (fail-open + aviso) | | |

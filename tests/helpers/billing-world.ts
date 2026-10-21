@@ -3,6 +3,7 @@ import type { PlanId } from "@/lib/billing/plans";
 import type { BillingProviderId, PurchaseKindId, PurchaseStatusId } from "@/lib/billing/purchase";
 import type { BillingProvider, BillingProviderState, NormalizedWebhookEvent, ProviderPayment } from "@/server/billing/provider";
 import { WebhookSignatureError } from "@/server/billing/provider";
+import type { AddonPurchaseRecord, AddonWriteOps } from "@/server/repositories/addon-purchases";
 import type { BillingStore, BillingWriteOps, EventBillingState, OwnedEventBillingRow, PurchaseRecord } from "@/server/repositories/billing";
 import type { BillingServiceDeps } from "@/server/services/billing-service";
 
@@ -11,6 +12,8 @@ export const PRICE_REFS = {
   STRIPE_PRICE_ESSENTIAL_ONE_TIME: "price_ess_once",
   STRIPE_PRICE_PREMIUM_ONE_TIME: "price_pre_once",
   STRIPE_PRICE_ESSENTIAL_TO_PREMIUM: "price_upgrade",
+  /** Complemento «Archivo listo para imprimir» (D-48). */
+  STRIPE_PRICE_ADDON_PRINT_FILE: "price_print_file",
 } as const;
 
 export interface FakeEvent {
@@ -25,10 +28,11 @@ export interface FakeEvent {
  * MUNDO DE PRUEBA de las compras por evento: la «base de datos» es un objeto en memoria con la misma semántica que la de Prisma
  * (eventos de webhook únicos, todo-o-nada al aplicar, propiedad en cada lectura del usuario). Ninguna prueba toca PostgreSQL ni Stripe.
  */
-export function purchaseWorld(seed: { events?: Record<string, FakeEvent>; customers?: Record<string, string>; purchases?: PurchaseRecord[] } = {}) {
+export function purchaseWorld(seed: { events?: Record<string, FakeEvent>; customers?: Record<string, string>; purchases?: PurchaseRecord[]; addonPurchases?: AddonPurchaseRecord[] } = {}) {
   const events = new Map<string, FakeEvent>(Object.entries(seed.events ?? {}).map(([id, event]) => [id, { paidAccessEndsAt: null, ...event }]));
   const customers = new Map<string, string>(Object.entries(seed.customers ?? {})); // userId → providerCustomerId
   const purchases: PurchaseRecord[] = [...(seed.purchases ?? [])];
+  const addonPurchases: AddonPurchaseRecord[] = [...(seed.addonPurchases ?? [])];
   const webhookEvents = new Set<string>();
   const writes: string[] = [];
   let seq = 0;
@@ -38,7 +42,43 @@ export function purchaseWorld(seed: { events?: Record<string, FakeEvent>; custom
     return event ? { eventId, ownerId: event.ownerId, title: event.title ?? eventId, startsAt: event.startsAt, paidAccessEndsAt: event.paidAccessEndsAt ?? null, purchases: purchases.filter((purchase) => purchase.eventId === eventId) } : null;
   };
 
-  const ops = (target: { purchases: PurchaseRecord[]; events: Map<string, FakeEvent> }): BillingWriteOps => ({
+  /** Compras de complementos con la semántica de la base de datos: `unlockKey` ÚNICA (un segundo desbloqueo falla como un P2002). */
+  const addonOps = (target: { addonPurchases: AddonPurchaseRecord[] }): AddonWriteOps => ({
+    async listAddonPurchases(eventId) {
+      return target.addonPurchases.filter((purchase) => purchase.eventId === eventId);
+    },
+    async findAddonBySession(_provider, sessionId) {
+      return target.addonPurchases.find((purchase) => purchase.checkoutSessionId === sessionId) ?? null;
+    },
+    async findAddonsByIntent(_provider, intentId) {
+      return target.addonPurchases.filter((purchase) => purchase.paymentIntentId === intentId);
+    },
+    async saveAddonPurchase(record) {
+      writes.push(`addon:${record.eventId}:${record.addon}:${record.status}:${record.unlockKey ?? "-"}`);
+      if (record.unlockKey && target.addonPurchases.some((purchase) => purchase.unlockKey === record.unlockKey && purchase.checkoutSessionId !== record.checkoutSessionId)) throw new Error("Unique constraint failed on unlockKey");
+      const index = target.addonPurchases.findIndex((purchase) => purchase.checkoutSessionId === record.checkoutSessionId);
+      if (index >= 0) target.addonPurchases[index] = { ...(target.addonPurchases[index] as AddonPurchaseRecord), ...record };
+      else target.addonPurchases.push({ ...record, id: `add_${++seq}`, createdAt: new Date("2027-01-01T00:00:00Z") });
+    },
+    async setAddonStatus(purchaseId, status, at) {
+      writes.push(`addon-status:${purchaseId}:${status}`);
+      const purchase = target.addonPurchases.find((candidate) => candidate.id === purchaseId);
+      if (!purchase) return;
+      purchase.status = status;
+      if (status !== "PAID") purchase.unlockKey = null;
+      if (status === "REFUNDED") purchase.refundedAt = at ?? new Date("2027-01-01T00:00:00Z");
+    },
+    async setAddonUnlock(purchaseId, unlockKey) {
+      writes.push(`addon-unlock:${purchaseId}`);
+      const purchase = target.addonPurchases.find((candidate) => candidate.id === purchaseId);
+      // Las dos restricciones de la base de datos: `unlockKey` única y solo en una compra PAGADA.
+      if (target.addonPurchases.some((candidate) => candidate.unlockKey === unlockKey && candidate.id !== purchaseId)) throw new Error("Unique constraint failed on unlockKey");
+      if (!purchase || purchase.status !== "PAID") throw new Error("CHECK EventAddonPurchase_unlock_requires_paid");
+      purchase.unlockKey = unlockKey;
+    },
+  });
+
+  const ops = (target: { purchases: PurchaseRecord[]; addonPurchases: AddonPurchaseRecord[]; events: Map<string, FakeEvent> }): BillingWriteOps => ({
     async findEvent(eventId) {
       const event = target.events.get(eventId);
       return event ? { ownerId: event.ownerId, startsAt: event.startsAt, paidAccessEndsAt: event.paidAccessEndsAt ?? null } : null;
@@ -71,6 +111,7 @@ export function purchaseWorld(seed: { events?: Record<string, FakeEvent>; custom
       const event = target.events.get(eventId);
       if (event) event.paidAccessEndsAt = end;
     },
+    addons: addonOps(target),
   });
 
   const store: BillingStore = {
@@ -78,19 +119,20 @@ export function purchaseWorld(seed: { events?: Record<string, FakeEvent>; custom
       const key = `${event.provider}:${event.externalEventId}`;
       if (webhookEvents.has(key)) return "duplicate";
       // Transacción: se trabaja sobre una copia y solo se confirma si `apply` no falla (el evento tampoco se registra).
-      const draft = { purchases: purchases.map((purchase) => ({ ...purchase })), events: new Map([...events].map(([id, value]) => [id, { ...value }])) };
+      const draft = { purchases: purchases.map((purchase) => ({ ...purchase })), addonPurchases: addonPurchases.map((purchase) => ({ ...purchase })), events: new Map([...events].map(([id, value]) => [id, { ...value }])) };
       await apply(ops(draft));
       purchases.splice(0, purchases.length, ...draft.purchases);
+      addonPurchases.splice(0, addonPurchases.length, ...draft.addonPurchases);
       for (const [id, value] of draft.events) events.set(id, value);
       webhookEvents.add(key);
       return "processed";
     },
     async apply(apply) {
-      await apply(ops({ purchases, events }));
+      await apply(ops({ purchases, addonPurchases, events }));
     },
   };
 
-  return { events, customers, purchases, webhookEvents, writes, store, state };
+  return { events, customers, purchases, addonPurchases, webhookEvents, writes, store, state };
 }
 
 export function paidPurchase(over: Partial<PurchaseRecord> = {}): PurchaseRecord {
@@ -135,7 +177,7 @@ export const upgradePayment = (over: Partial<ProviderPayment> = {}) => payment({
 /** Proveedor de pruebas: precios conocidos, sin red. `payments` es «Stripe ahora»; `webhook` decide qué evento «llega». */
 export function fakeProvider(over: Partial<BillingProvider> & { payments?: Record<string, ProviderPayment>; webhook?: (raw: string, signature: string | null) => NormalizedWebhookEvent } = {}) {
   const { webhook, payments = {}, ...rest } = over;
-  const calls = { createCustomer: vi.fn(), createEventCheckout: vi.fn(), createPortalSession: vi.fn(), getPayment: vi.fn(), findPaymentByIntent: vi.fn(), getCheckoutSession: vi.fn(), expireCheckoutSession: vi.fn() };
+  const calls = { createCustomer: vi.fn(), createEventCheckout: vi.fn(), createAddonCheckout: vi.fn(), createPortalSession: vi.fn(), getPayment: vi.fn(), findPaymentByIntent: vi.fn(), getCheckoutSession: vi.fn(), expireCheckoutSession: vi.fn() };
   /** Sesiones de cobro del «proveedor»: con la MISMA clave de idempotencia devuelve la MISMA sesión (como Stripe). */
   const sessionsByKey = new Map<string, string>();
   const sessionStatus = new Map<string, "open" | "complete" | "expired">();
@@ -157,6 +199,15 @@ export function fakeProvider(over: Partial<BillingProvider> & { payments?: Recor
       const known = sessionsByKey.get(input.idempotencyKey);
       if (known) return { url: urlFor(known), checkoutSessionId: known };
       const id = `cs_new_${++sessions}`;
+      sessionsByKey.set(input.idempotencyKey, id);
+      sessionStatus.set(id, "open");
+      return { url: urlFor(id), checkoutSessionId: id };
+    },
+    createAddonCheckout: async (input) => {
+      calls.createAddonCheckout(input);
+      const known = sessionsByKey.get(input.idempotencyKey);
+      if (known) return { url: urlFor(known), checkoutSessionId: known };
+      const id = `cs_addon_${++sessions}`;
       sessionsByKey.set(input.idempotencyKey, id);
       sessionStatus.set(id, "open");
       return { url: urlFor(id), checkoutSessionId: id };
@@ -224,6 +275,8 @@ export function billingDeps(over: Partial<BillingServiceDeps> & { provider?: Bil
     store: world.store,
     siteUrl: () => "https://hiloluna.example",
     now: () => new Date("2027-01-15T00:00:00Z"),
+    // Sin correo real en las pruebas: las del correo de confirmación lo sustituyen a propósito.
+    notifyGranted: () => undefined,
     ...rest,
   };
   return { deps, world, pending };

@@ -3,11 +3,13 @@ import { PricingComparison } from "@/components/billing/pricing-comparison";
 import { PricingFaq } from "@/components/billing/pricing-faq";
 import { PricingFinalCta } from "@/components/billing/pricing-final-cta";
 import { PricingPlans } from "@/components/billing/pricing-plans";
+import { PricingPrintAddon } from "@/components/billing/pricing-print-addon";
 import { PricingSummaryStrip } from "@/components/billing/pricing-summary-strip";
 import { PageHero } from "@/components/marketing/page-hero";
 import { Text } from "@/components/ui/typography";
 import { billingCopy } from "@/lib/billing/copy";
 import { getOrCreateCurrentUser } from "@/server/auth/current-user";
+import { isPrintAddonSaleOpen } from "@/server/services/addon-service";
 
 const copy = billingCopy.pricing;
 
@@ -22,7 +24,8 @@ export const dynamic = "force-dynamic";
  * salen de la configuración de planes (una sola fuente).
  *
  * Orden deliberado (D-46): primero vende (hero → tarjetas), después compara (franja resumen → tabla
- * detallada de apoyo), después resuelve dudas (FAQ) y cierra con un último CTA. La tabla ya no es el
+ * detallada de apoyo), presenta el complemento opcional para imprimir (D-48: sin compra aquí; «Muy pronto»
+ * mientras la venta esté apagada), resuelve dudas (FAQ) y cierra con un último CTA. La tabla ya no es el
  * protagonista de la página.
  */
 export default async function PricingPage() {
@@ -39,6 +42,7 @@ export default async function PricingPage() {
         <PricingPlans signedIn={signedIn} />
         <PricingSummaryStrip />
         <PricingComparison />
+        <PricingPrintAddon saleOpen={isPrintAddonSaleOpen()} />
         <PricingFaq />
         <PricingFinalCta signedIn={signedIn} />
       </section>

@@ -117,6 +117,14 @@ enum MusicSourceType {
   EXTERNAL
 }
 
+/// Estado de una pista de la biblioteca musical (D-46). Solo `ACTIVE` se ofrece en el editor y suena en una invitación; pasar a `ACTIVE`
+/// exige la documentación de derechos completa (`lib/music/license.ts`). `DISABLED` la retira de TODAS las invitaciones sin borrar nada.
+enum MusicTrackStatus {
+  DRAFT
+  ACTIVE
+  DISABLED
+}
+
 /// "Tal vez" (MAYBE) cuenta como pendiente en las métricas (CLAUDE.md, decisión 8).
 enum RsvpStatus {
   PENDING
@@ -190,11 +198,27 @@ enum PurchaseKind {
   UPGRADE
 }
 
+/// Destino del QR impreso (D-49): la invitación (por defecto, el comportamiento anterior), la sección de regalos de la invitación, el enlace
+/// directo a la única tienda o ninguno.
+enum PrintQrTarget {
+  INVITATION
+  GIFT_REGISTRY
+  GIFT_REGISTRY_LINK
+  NONE
+}
+
+/// Complemento que se compra APARTE del plan de un evento (D-48). Hoy solo «Archivo listo para imprimir».
+enum AddonProduct {
+  PRINT_FILE
+}
+
 /// Tipo de correo transaccional (D-36). Uno por caso de uso implementado; nada de marketing ni recordatorios todavía.
 enum EmailDeliveryKind {
   RSVP_NOTIFICATION
   PURCHASE_CONFIRMATION
   UPGRADE_CONFIRMATION
+  /// Compra del complemento «Archivo listo para imprimir» (D-48); `EmailDelivery.purchaseId` = `EventAddonPurchase.id`.
+  ADDON_PURCHASE_CONFIRMATION
 }
 
 /// `SKIPPED` = no se intentó enviar a propósito (proveedor sin configurar, o destinatario fuera de la lista de staging):
@@ -236,16 +260,19 @@ model User {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  events           Event[]
-  mediaAssets      MediaAsset[]
-  billingCustomers BillingCustomer[]
+  events              Event[]
+  mediaAssets         MediaAsset[]
+  billingCustomers    BillingCustomer[]
   /// LEGACY (D-31): no se usa. Ver `Subscription`.
-  subscription     Subscription?
-  purchases        EventPurchase[]
+  subscription        Subscription?
+  purchases           EventPurchase[]
+  addonPurchases      EventAddonPurchase[]
   /// Acciones de administración hechas por esta cuenta (D-34). `Restrict`: el registro de auditoría no se borra en cascada.
-  adminAuditLogs   AdminAuditLog[]
+  adminAuditLogs      AdminAuditLog[]
   /// Correos transaccionales enviados a esta cuenta como propietaria de un evento (D-36). `Restrict`: el historial de envíos no se borra en cascada.
-  emailDeliveries  EmailDelivery[]
+  emailDeliveries     EmailDelivery[]
+  /// Pistas cuya licencia verificó esta cuenta de administración (D-46).
+  verifiedMusicTracks MusicTrack[]         @relation("MusicTrackVerifiedBy")
 
   @@index([createdAt])
 }
@@ -380,6 +407,41 @@ model EventPurchase {
   @@index([createdAt])
 }
 
+/// COMPRA DE UN COMPLEMENTO de un evento (D-48), en una tabla PROPIA: nunca participa en el cálculo del plan del evento (que solo lee
+/// `EventPurchase`), así que un complemento no puede conceder, quitar ni alterar un plan ni la mejora Esencial → Premium. Una fila por
+/// sesión de cobro (el historial no se sobrescribe); la escribe el checkout (`PENDING`) y el webhook verificado (`PAID`, `FAILED`,
+/// `CANCELED`, `REFUNDED`). Fuera del esquema (Prisma no modela índices parciales ni CHECK), en las migraciones: a lo sumo UNA compra
+/// `PENDING` por evento y complemento (`EventAddonPurchase_one_pending_per_event_addon`), `unlockKey` solo en una compra PAGADA e importe ≥ 0.
+model EventAddonPurchase {
+  id                        String          @id @default(cuid())
+  eventId                   String
+  userId                    String
+  addon                     AddonProduct
+  provider                  BillingProvider
+  providerCheckoutSessionId String
+  providerPaymentIntentId   String?
+  status                    PurchaseStatus  @default(PENDING)
+  /// Unidades menores (centavos), lo que se cobró de verdad.
+  amount                    Int
+  currency                  String
+  paidAt                    DateTime?       @db.Timestamptz
+  refundedAt                DateTime?       @db.Timestamptz
+  /// `<eventId>:<addon>` SOLO en la compra que desbloquea el complemento; NULL en el resto (los NULL no chocan). La base de datos impide
+  /// así un segundo desbloqueo pagado del mismo complemento para el mismo evento; un reembolso lo vuelve a NULL.
+  unlockKey                 String?         @unique
+  createdAt                 DateTime        @default(now())
+  updatedAt                 DateTime        @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([provider, providerCheckoutSessionId])
+  @@unique([provider, providerPaymentIntentId])
+  @@index([eventId, addon, status])
+  @@index([userId])
+  @@index([createdAt])
+}
+
 /// Eventos de webhook ya procesados (idempotencia): el mismo evento nunca se aplica dos veces. Solo guarda el id y
 /// el tipo del evento, jamás el cuerpo (puede traer datos personales).
 model WebhookEvent {
@@ -415,19 +477,21 @@ model Event {
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
-  owner         User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  invitation    Invitation?
-  locations     Location[]
-  timelineItems TimelineItem[]
-  galleryImages GalleryImage[]
-  giftRegistry  GiftRegistry[]
-  music         MusicSettings?
-  guestGroups   GuestGroup[]
-  guests        Guest[]
-  rsvps         Rsvp[]
-  rsvpQuestions RsvpQuestion[]
-  mediaAssets   MediaAsset[]
-  purchases     EventPurchase[]
+  owner          User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  invitation     Invitation?
+  locations      Location[]
+  timelineItems  TimelineItem[]
+  galleryImages  GalleryImage[]
+  giftRegistry   GiftRegistry[]
+  music          MusicSettings?
+  guestGroups    GuestGroup[]
+  guests         Guest[]
+  rsvps          Rsvp[]
+  rsvpQuestions  RsvpQuestion[]
+  mediaAssets    MediaAsset[]
+  purchases      EventPurchase[]
+  addonPurchases EventAddonPurchase[]
+  printSettings  PrintSettings?
 
   @@index([ownerId])
   /// Resumen de la consola: eventos de pago por vencer / vencidos.
@@ -640,11 +704,73 @@ model MusicSettings {
   autoplayAfterInteraction Boolean         @default(false)
   volume                   Float           @default(0.6)
   loop                     Boolean         @default(true)
+  /// Interruptor del anfitrión (D-46): apagar la música CONSERVA la canción elegida (encender la recupera). Las filas anteriores nacen `true`.
+  isEnabled                Boolean         @default(true)
   libraryTrackId           String?
   uploadAssetId            String?
   updatedAt                DateTime        @updatedAt
 
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event        Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  /// `Restrict`: una pista elegida por algún evento no se puede borrar (se desactiva con `DISABLED`).
+  libraryTrack MusicTrack? @relation(fields: [libraryTrackId], references: [id], onDelete: Restrict)
+
+  @@index([libraryTrackId])
+}
+
+// ───────── Biblioteca musical (D-46) ─────────
+
+/// Categoría de la biblioteca (Romántica, Instrumental…). Se administra desde la consola; nunca se borra si tiene pistas.
+model MusicCategory {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tracks MusicTrack[]
+
+  @@index([sortOrder])
+}
+
+/// Pista de la biblioteca de Hilo Luna con su DOCUMENTACIÓN DE DERECHOS. El audio vive en el almacenamiento (`audioKey`, prefijo
+/// `library/music/`), nunca en PostgreSQL. Los documentos firmados NO se suben al bucket (es público): `licenseEvidenceRef` dice dónde se guardan.
+model MusicTrack {
+  id                      String           @id @default(cuid())
+  title                   String
+  /// Autor o compositor (persona o estudio).
+  author                  String
+  categoryId              String
+  status                  MusicTrackStatus @default(DRAFT)
+  /// Clave del MP3 en el almacenamiento (`library/music/<id>-<aleatorio>.mp3`). Reemplazar el audio crea una clave nueva.
+  audioKey                String?          @unique
+  audioMimeType           String?
+  audioSizeBytes          Int?
+  durationSec             Int?
+  /// Licencia o autorización escrita.
+  licenseSource           String?
+  licenseName             String?
+  licenseUrl              String?
+  licenseTerms            String?
+  licenseEvidenceRef      String?
+  rightsHosting           Boolean          @default(false)
+  rightsPublicPerformance Boolean          @default(false)
+  rightsCommercialUse     Boolean          @default(false)
+  attributionRequired     Boolean          @default(false)
+  attributionText         String?
+  licenseVerifiedAt       DateTime?        @db.Timestamptz
+  licenseVerifiedById     String?
+  /// Fin de la licencia (nulo = sin vencimiento). Vencida, la pista deja de sonar aunque siga `ACTIVE`.
+  licenseExpiresAt        DateTime?        @db.Timestamptz
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+
+  category   MusicCategory   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  verifiedBy User?           @relation("MusicTrackVerifiedBy", fields: [licenseVerifiedById], references: [id], onDelete: Restrict)
+  selections MusicSettings[]
+
+  @@index([status, categoryId])
 }
 
 // ───────── Archivos gestionados ─────────
@@ -696,7 +822,7 @@ model GuestGroup {
 }
 
 model Guest {
-  id            String     @id @default(cuid())
+  id            String      @id @default(cuid())
   eventId       String
   groupId       String?
   name          String
@@ -704,17 +830,17 @@ model Guest {
   phone         String?
   /// Identificador PÚBLICO y opaco del enlace personalizado (`/i/<slug>?guest=<token>`): aleatorio
   /// (192 bits), único y sin relación con `id`. Se genera en el servidor y no se regenera.
-  inviteToken   String     @unique
+  inviteToken   String      @unique
   /// Acompañantes permitidos además del invitado (0 = solo el invitado).
-  maxCompanions Int        @default(0)
+  maxCompanions Int         @default(0)
   /// Respuesta vigente (copia de `Rsvp.status`); base de las métricas del dashboard.
-  status        RsvpStatus @default(PENDING)
+  status        RsvpStatus  @default(PENDING)
   /// Primera vez que abrió su invitación (actividad "está revisando su invitación").
-  firstViewedAt DateTime?  @db.Timestamptz
+  firstViewedAt DateTime?   @db.Timestamptz
   /// D-40: quién lo dio de alta. Nunca cambia después de creado.
   source        GuestSource @default(HOST)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
   event Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
   group GuestGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
@@ -772,4 +898,17 @@ model RsvpAnswer {
   question RsvpQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@unique([rsvpId, questionId])
+}
+
+/// PREFERENCIAS DE LA VERSIÓN IMPRESA de un evento (D-49). Una fila por evento, creada la primera vez que el anfitrión elige algo; sin fila =
+/// valores por defecto (QR hacia la invitación, como antes de D-49). Solo la escribe el dueño del evento (propiedad en la consulta). No guarda
+/// URLs: el destino se resuelve al generar, siempre desde la invitación PUBLICADA de ESE evento.
+model PrintSettings {
+  id        String        @id @default(cuid())
+  eventId   String        @unique
+  qrTarget  PrintQrTarget @default(INVITATION)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 }

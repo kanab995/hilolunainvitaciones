@@ -1,3 +1,4 @@
+import type { AddonId } from "@/lib/billing/addons";
 import type { PaidPlanId } from "@/lib/billing/plans";
 import type { BillingProviderId } from "@/lib/billing/purchase";
 
@@ -23,8 +24,8 @@ export interface ProviderPayment {
   currency: string;
   /** Referencias de precio del proveedor de las líneas cobradas (p. ej. `price_…`). */
   priceRefs: string[];
-  /** Metadata que Hilo Luna adjuntó al crear la sesión (solo orientativa; se verifica). */
-  metadata: { userId?: string; eventId?: string; targetPlan?: string };
+  /** Metadata que Hilo Luna adjuntó al crear la sesión (solo orientativa; se verifica). `addon` solo en las compras de complementos (D-48). */
+  metadata: { userId?: string; eventId?: string; targetPlan?: string; addon?: string };
 }
 
 /**
@@ -33,7 +34,7 @@ export interface ProviderPayment {
  */
 export type NormalizedWebhookEvent = { id: string; type: string; createdAt: Date } & (
   | { action: "confirm_payment"; checkoutSessionId?: string; paymentIntentId?: string }
-  | { action: "close_payment"; outcome: "FAILED" | "CANCELED"; checkoutSessionId?: string; paymentIntentId?: string; metadata?: { eventId?: string; targetPlan?: string } }
+  | { action: "close_payment"; outcome: "FAILED" | "CANCELED"; checkoutSessionId?: string; paymentIntentId?: string; metadata?: { eventId?: string; targetPlan?: string; addon?: string } }
   | { action: "refund_payment"; paymentIntentId: string }
   | { action: "ignore" }
 );
@@ -70,6 +71,11 @@ export interface BillingProvider {
    * pronto y ya no puede cobrarse por error).
    */
   createEventCheckout(input: { providerCustomerId: string; priceKey: string; plan: PaidPlanId; eventId: string; userId: string; successUrl: string; cancelUrl: string; idempotencyKey: string; expiresAt: Date }): Promise<{ url: string; checkoutSessionId: string }>;
+  /**
+   * Sesión de pago ÚNICO de un COMPLEMENTO de UN evento (D-48). Igual que la de un plan, pero su metadata lleva `addon` y NUNCA `targetPlan`:
+   * un complemento no puede confundirse con un plan (el webhook lo distingue por el PRECIO cobrado, no por la metadata).
+   */
+  createAddonCheckout(input: { providerCustomerId: string; priceKey: string; addon: AddonId; eventId: string; userId: string; successUrl: string; cancelUrl: string; idempotencyKey: string; expiresAt: Date }): Promise<{ url: string; checkoutSessionId: string }>;
   /** Estado de una sesión de cobro ya creada (para reutilizar una abierta en vez de abrir otra). `undefined` si no existe. */
   getCheckoutSession(checkoutSessionId: string): Promise<{ status: "open" | "complete" | "expired"; url: string | null } | undefined>;
   /** Caduca una sesión abierta (best-effort: si ya se completó, el proveedor la rechaza y el llamador lo ignora). */

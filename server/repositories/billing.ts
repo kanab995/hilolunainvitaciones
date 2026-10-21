@@ -3,6 +3,7 @@ import type { BillingProviderId, PurchaseKindId, PurchaseStatusId } from "@/lib/
 import { getDataSource } from "@/server/data-source";
 import { prisma } from "@/server/db/client";
 import { StoreUnavailableError } from "@/server/db/errors";
+import { addonOpsFor, type AddonWriteOps } from "@/server/repositories/addon-purchases";
 
 /**
  * FACTURACIÓN (D-32: pago único por evento): persistencia de clientes, compras por evento y eventos de webhook. Solo este módulo
@@ -175,6 +176,8 @@ export interface BillingWriteOps {
   setPurchaseStatus(purchaseId: string, status: PurchaseStatusId): Promise<void>;
   /** Fija el fin del acceso de pago del evento (el llamador ya calculó `max(...)`: solo crece). */
   setPaidAccessEnd(eventId: string, end: Date): Promise<void>;
+  /** Compras de COMPLEMENTOS (D-48), en su propia tabla y en la MISMA transacción (mismo registro de idempotencia del webhook). */
+  addons: AddonWriteOps;
 }
 
 /** Almacén del webhook: registra el evento y aplica su efecto de forma ATÓMICA e idempotente. */
@@ -223,6 +226,7 @@ function opsFor(tx: Tx): BillingWriteOps {
     async setPaidAccessEnd(eventId, end) {
       await tx.event.update({ where: { id: eventId }, data: { paidAccessEndsAt: end } });
     },
+    addons: addonOpsFor(tx),
   };
 }
 

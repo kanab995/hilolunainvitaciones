@@ -1,3 +1,4 @@
+import { ADDON_PRICE_ENV_KEYS } from "@/lib/billing/addons";
 import { PRICE_ENV_KEYS } from "@/lib/billing/plans";
 
 /**
@@ -22,7 +23,11 @@ export interface StripeConfig {
   prices: ReadonlyMap<string, string>;
 }
 
-export type StripeConfigResult = { status: "ready"; config: StripeConfig } | { status: "not_configured" } | { status: "invalid"; problems: string[] };
+/**
+ * `addonProblems`: precios de COMPLEMENTOS mal configurados que se dejaron fuera (D-48). Un complemento mal configurado solo apaga ESE
+ * complemento: nunca invalida los pagos de los planes, el webhook ni el arranque del sitio.
+ */
+export type StripeConfigResult = { status: "ready"; config: StripeConfig; addonProblems: string[] } | { status: "not_configured" } | { status: "invalid"; problems: string[] };
 
 const clean = (value: string | undefined): string | undefined => {
   const trimmed = value?.trim();
@@ -35,7 +40,10 @@ const modeOf = (key: string, prefixes: readonly string[]): StripeMode | undefine
   return undefined;
 };
 
-const NAMES = ["STRIPE_SECRET_KEY", "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", "STRIPE_WEBHOOK_SECRET", ...PRICE_ENV_KEYS] as const;
+/** Precios que el servidor sabe cobrar: los de los planes (`lib/billing/plans.ts`) y los de los complementos (`lib/billing/addons.ts`, D-48). */
+export const ALL_PRICE_ENV_KEYS: readonly string[] = [...PRICE_ENV_KEYS, ...ADDON_PRICE_ENV_KEYS];
+
+const NAMES = ["STRIPE_SECRET_KEY", "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", "STRIPE_WEBHOOK_SECRET", ...ALL_PRICE_ENV_KEYS] as const;
 
 /** Lee solo las variables de Stripe del entorno del proceso. */
 export function readStripeEnv(env: NodeJS.ProcessEnv = process.env): StripeEnv {
@@ -75,6 +83,16 @@ export function resolveStripeConfig(env: StripeEnv = readStripeEnv()): StripeCon
   // Un mismo precio para dos conceptos haría que el webhook no pudiera distinguirlos.
   if (new Set(prices.values()).size !== prices.size) problems.push("Dos conceptos comparten el mismo precio de Stripe.");
 
+  // Complementos: un precio mal formado o repetido se DESCARTA (el complemento queda apagado) sin tocar los planes.
+  const addonProblems: string[] = [];
+  for (const variable of ADDON_PRICE_ENV_KEYS) {
+    const value = clean(env[variable]);
+    if (!value) continue;
+    if (!value.startsWith("price_")) addonProblems.push(`${variable} no tiene el formato de un precio de Stripe (price_…): el complemento queda apagado.`);
+    else if ([...prices.values()].includes(value)) addonProblems.push(`${variable} repite el precio de otro concepto: el complemento queda apagado.`);
+    else prices.set(variable, value);
+  }
+
   if (problems.length > 0 || !secretMode || !webhookSecret) return { status: "invalid", problems };
-  return { status: "ready", config: { secretKey, webhookSecret, mode: secretMode, prices } };
+  return { status: "ready", config: { secretKey, webhookSecret, mode: secretMode, prices }, addonProblems };
 }

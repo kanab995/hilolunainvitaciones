@@ -20,7 +20,9 @@ import { paidPurchase, purchaseWorld } from "../helpers/billing-world";
 import { makeWorld, pngBytes } from "../helpers/media-world";
 
 const ROOT = process.cwd();
-const code = (file: string) => readFileSync(join(ROOT, file), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+// Saltos de línea normalizados: en un checkout de Windows (`core.autocrlf=true`) los fuentes llegan con CRLF y las expresiones que buscan
+// "\n" fallarían aunque el código sea correcto (en Linux/Vercel llegan con LF).
+const code = (file: string) => readFileSync(join(ROOT, file), "utf8").replace(/\r\n/g, "\n").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
 /** Cada evento tiene SU plan (el de sus compras pagadas). `counts` = uso actual por evento. */
 function eventLimits(plans: Record<string, PlanId>, counts: { guests?: Record<string, number>; gallery?: Record<string, number> } = {}) {
@@ -232,6 +234,7 @@ describe("Publicar y cambiar de plantilla son por EVENTO (34, 35)", () => {
         asked.push(`${eventId}:${minimum}`);
         return (await checkTemplatePlanForEvent(eventId, minimum, eventLimits({}).deps)).ok;
       },
+      checkLibraryTrack: async () => ({ ok: false, code: "unavailable" }),
     };
     const payload = invitationToDraftPayload(fresh(), 5);
     expect(await saveInvitationDraft("evt_A", payload, deps)).toEqual({ ok: false, code: "plan_required", message: "Esta plantilla requiere un plan superior para este evento. Mejora tu evento para usarla." });

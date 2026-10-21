@@ -1,3 +1,4 @@
+import type { AddonId } from "@/lib/billing/addons";
 import type { PlanId } from "@/lib/billing/plans";
 import type { BillingProviderId, PurchaseKindId, PurchaseStatusId } from "@/lib/billing/purchase";
 import type { EmailDeliveryKindId, EmailDeliveryStatusId } from "@/lib/email/delivery";
@@ -10,7 +11,7 @@ import { StoreUnavailableError, uniqueViolationFields } from "@/server/db/errors
  *  - El destinatario se resuelve SIEMPRE aquí, del lado del servidor (`User.email`), nunca del payload del invitado o del
  *    navegador (encargo punto 35/8).
  *  - `createEmailDeliveryAttempt` es la única forma de abrir un envío: inserta una fila `PENDING`. Para
- *    `PURCHASE_CONFIRMATION`/`UPGRADE_CONFIRMATION` la restricción única `(kind, purchaseId)` hace que una segunda llamada para
+ *    `PURCHASE_CONFIRMATION`/`UPGRADE_CONFIRMATION`/`ADDON_PURCHASE_CONFIRMATION` la restricción única `(kind, purchaseId)` hace que una segunda llamada para
  *    la MISMA compra devuelva `"duplicate"` sin crear nada (idempotencia ante webhooks repetidos).
  *  - Nunca se guarda el asunto ni el cuerpo del correo, ni la clave del proveedor.
  */
@@ -53,6 +54,29 @@ export async function findPurchaseIdBySession(provider: BillingProviderId, check
   if (getDataSource() === "demo") return null;
   const row = await prisma.eventPurchase.findUnique({ where: { provider_providerCheckoutSessionId: { provider, providerCheckoutSessionId: checkoutSessionId } }, select: { id: true } });
   return row?.id ?? null;
+}
+
+export interface UnlockingAddonPurchase {
+  id: string;
+  eventId: string;
+  addon: AddonId;
+  amount: number;
+  currency: string;
+  paidAt: Date;
+}
+
+/**
+ * La compra de complemento de esa sesión de cobro, SOLO si es la que desbloquea (`PAID` con `unlockKey`): un cobro duplicado o reembolsado
+ * no recibe confirmación. `EventAddonPurchase.id` se usa como `purchaseId` del envío (idempotencia por `(kind, purchaseId)`).
+ */
+export async function findUnlockingAddonPurchase(provider: BillingProviderId, checkoutSessionId: string): Promise<UnlockingAddonPurchase | null> {
+  if (getDataSource() === "demo") return null;
+  const row = await prisma.eventAddonPurchase.findUnique({
+    where: { provider_providerCheckoutSessionId: { provider, providerCheckoutSessionId: checkoutSessionId } },
+    select: { id: true, eventId: true, addon: true, amount: true, currency: true, paidAt: true, status: true, unlockKey: true },
+  });
+  if (!row || row.status !== "PAID" || !row.unlockKey || !row.paidAt) return null;
+  return { id: row.id, eventId: row.eventId, addon: row.addon, amount: row.amount, currency: row.currency, paidAt: row.paidAt };
 }
 
 // ───────── Envíos ─────────

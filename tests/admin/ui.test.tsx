@@ -25,6 +25,12 @@ vi.mock("@/server/admin/events", () => ({ listAdminEvents: services.listAdminEve
 vi.mock("@/server/admin/purchases", () => ({ listAdminPurchases: services.listAdminPurchases, getAdminPurchase: services.getAdminPurchase }));
 vi.mock("@/server/admin/templates", () => ({ listAdminTemplates: services.listAdminTemplates }));
 vi.mock("@/server/admin/webhooks", () => ({ listAdminWebhookEvents: services.listAdminWebhookEvents }));
+/** Complementos (D-48): sin compras de complementos en estas pruebas (tienen las suyas en tests/billing/addon-ui.test.tsx). */
+vi.mock("@/server/admin/addons", () => ({
+  listAdminAddonPurchases: vi.fn(async () => ({ rows: [], window: { page: 1, pageSize: 25, pageCount: 1, skip: 0, take: 25, total: 0 }, duplicates: 0 })),
+  countAdminDuplicateAddonCharges: vi.fn(async () => 0),
+  getAdminAddonPurchase: vi.fn(async () => null),
+}));
 vi.mock("@/app/(site)/admin/templates/actions", () => ({ updateTemplateAction: vi.fn() }));
 vi.mock("@/app/(site)/admin/actions", () => ({ analyzeOrphansAction: vi.fn() }));
 /** Radix pinta el diálogo en un portal (no existe al renderizar en servidor): contenedores planos. */

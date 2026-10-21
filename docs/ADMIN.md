@@ -49,7 +49,9 @@ datos correcta (la de producción no es la de desarrollo). Aplica antes las migr
 | Usuarios | `/admin/users`, `/admin/users/[id]` | Lista con búsqueda (nombre/correo) y paginación de servidor (25); detalle con sus eventos, plan efectivo de cada uno y compras |
 | Eventos | `/admin/events`, `/admin/events/[id]` | Lista con filtros (publicación, tipo, plan efectivo); detalle con propietario, plantilla, publicación, plan, acceso, conteos y **historial de compras** |
 | Plantillas | `/admin/templates` | Lista de todo el catálogo; **edita solo** visibilidad (`publicationStatus`) y plan mínimo del evento (`minimumPlan`) |
+| Música (D-46) | `/admin/music`, `/admin/music/[id]` | Biblioteca musical: categorías, pistas, subida del MP3, documentación de derechos, verificación y activación/desactivación (ver §4bis) |
 | Compras | `/admin/purchases`, `/admin/purchases/[id]` | Lista con filtros (estado, tipo, plan); detalle con ids del proveedor **enmascarados** |
+| Complementos (D-48) | `/admin/purchases/addons`, `/admin/purchases/addons/[id]` | Compras de complementos, aparte de los planes: filtro por estado y «Solo cobros duplicados», aviso de duplicados pendientes, detalle con «Desbloquea la descarga», reembolso y todas las compras del complemento en el evento. Reembolsar: en Stripe (`docs/BILLING.md` §13.6) |
 | Webhooks | `/admin/webhooks` | Eventos del proveedor de pagos ya procesados (proveedor, id parcial, tipo, fecha) |
 | Auditoría | `/admin/audit` | Cambios de administración (quién, qué, antes → después). Solo lectura |
 
@@ -69,6 +71,14 @@ analítica externa. **La consola nunca modifica el contenido de los clientes.** 
   funcionando.», «Este cambio solo afectará nuevas selecciones.»). Sin `window.confirm`.
 - El catálogo público (`/templates`, `/pricing`) se genera de forma estática: la acción revalida esas rutas para que el cambio surta efecto de inmediato.
 - `npm run db:seed` fija `publicationStatus` y `minimumPlan` **solo al crear** una plantilla; al repetir el seed no pisa lo que decidió el administrador.
+
+## 4bis. Biblioteca musical (D-46, ampliación de D-33 aprobada por el propietario)
+
+- **Solo ADMIN** (`requireAdmin()` en cada página y en las 9 Server Actions de `app/(site)/admin/music/actions.ts`); cada cambio deja su fila en `AdminAuditLog` (entidades `MusicTrack` / `MusicCategory`, solo los campos que cambian; nunca la clave del archivo).
+- **Categorías**: nombre, orden y visible. El identificador (`slug`) no cambia. Ocultar una categoría la quita del editor; sus pistas ya elegidas siguen sonando. No se borran.
+- **Pistas**: nacen en **Borrador**. El MP3 se sube directo a R2 (URL firmada) y el servidor lo comprueba (tamaño, firma MP3). Con la pista **activa** no se puede cambiar su audio ni su documentación: primero se desactiva. Editar la documentación anula la verificación.
+- **Activar** exige la lista completa de requisitos (la misma regla que aplica la base de datos). **Desactivar** silencia la pista en todas las invitaciones que la eligieron, sin borrar nada ni volver a publicar.
+- La consola **no** sube contratos (el bucket es público): solo guarda dónde está el documento firmado.
 
 ## 5. Privacidad: mínimo necesario (frontera de datos)
 

@@ -41,8 +41,13 @@ export const routes = {
   adminEvents: "/admin/events",
   adminEvent: (id: string) => `/admin/events/${id}`,
   adminTemplates: "/admin/templates",
+  adminMusic: "/admin/music",
+  adminMusicTrack: (id: string) => `/admin/music/${id}`,
   adminPurchases: "/admin/purchases",
   adminPurchase: (id: string) => `/admin/purchases/${id}`,
+  /** Compras de complementos (D-48): lista propia, nunca mezclada con las compras de planes. */
+  adminAddonPurchases: "/admin/purchases/addons",
+  adminAddonPurchase: (id: string) => `/admin/purchases/addons/${id}`,
   adminWebhooks: "/admin/webhooks",
   adminAudit: "/admin/audit",
   /** Envíos de correo transaccional (D-36): solo lectura, destinatario enmascarado. */
@@ -56,6 +61,12 @@ export const routes = {
   eventRsvp: (id: string) => `/dashboard/events/${id}/rsvp`,
   eventSettings: (id: string) => `/dashboard/events/${id}/settings`,
   eventMessages: (id: string) => `/dashboard/events/${id}/messages`,
+  /** Versión para imprimir (D-47): vista previa con marca de agua y, cuando proceda, el PDF de imprenta. */
+  eventPrint: (id: string) => `/dashboard/events/${id}/print`,
+  /** Imagen de vista previa (`side` = front|back|envelope y las opciones en la query). Privada: sesión + propiedad. */
+  eventPrintPreview: (id: string, query: string) => `/dashboard/events/${id}/print/preview?${query}`,
+  /** PDF de imprenta. Privado y protegido (D-47: con la compra apagada, solo prueba interna de administración). */
+  eventPrintFile: (id: string, query: string) => `/dashboard/events/${id}/print/file?${query}`,
 
   /** Invitación pública (decisión del propietario: prefijo /i/). */
   invitation: (slug: string) => `/i/${slug}`,

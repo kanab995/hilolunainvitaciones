@@ -11,7 +11,9 @@ import { getPublicInvitationRecord } from "@/server/repositories/public-invitati
 import { isExpiredRecord } from "@/server/repositories/publishing";
 import { getClientAddress } from "@/server/security/client-identity";
 import { isRateLimited, RATE_LIMIT_RULES } from "@/server/security/rate-limit";
+import { resolvePublicMusic } from "@/server/services/music-library";
 import { toPersonalization } from "@/server/services/public-context";
+import type { ResolvedMusic } from "@/lib/music/resolve";
 import type { Invitation } from "@/types/invitation";
 import type { InvitationTemplate } from "@/types/invitation-template";
 import type { Personalization } from "@/types/public-rsvp";
@@ -40,6 +42,8 @@ interface Loaded {
   /** Tema publicado (snapshot); sin él, el del registro de plantillas. */
   publishedTemplate?: InvitationTemplate;
   personalization: Personalization | undefined;
+  /** Música de la biblioteca resuelta con el estado ACTUAL de la pista y del plan (D-46). Las demostraciones no llevan música. */
+  music?: ResolvedMusic;
 }
 
 /** Token que nunca coincide con nadie (no pasa el formato): se usa cuando el cliente excedió el límite de consultas de `?guest=`. */
@@ -51,7 +55,10 @@ async function load(slug: string, guestParam: string | undefined): Promise<Loade
   const record = await getPublicInvitationRecord(slug, limited ? BLOCKED_TOKEN : guestParam);
   // Acceso vencido (D-34): sin contenido, sin invitado, sin demostración. El tipo obliga a comprobarlo antes de leer la invitación.
   if (isExpiredRecord(record)) return "expired";
-  if (record) return { invitation: record.invitation, publishedTemplate: record.template, personalization: toPersonalization(record, slug, guestParam ?? "") };
+  if (record) {
+    const music = await resolvePublicMusic(record.eventId, record.invitation.music);
+    return { invitation: record.invitation, publishedTemplate: record.template, personalization: toPersonalization(record, slug, guestParam ?? ""), ...(music ? { music } : {}) };
+  }
   const demo = await getDemoInvitation(slug);
   return demo ? { invitation: demo, personalization: undefined } : undefined;
 }
@@ -72,11 +79,11 @@ export default async function InvitationPage(props: PageProps<"/i/[slug]">) {
   const loaded = await load(slug, one(searchParams.guest));
   if (!loaded) notFound();
   if (loaded === "expired") return <ExpiredInvitation />;
-  const { invitation, personalization, publishedTemplate } = loaded;
+  const { invitation, personalization, publishedTemplate, music } = loaded;
 
   const requested = slug.startsWith("demo-") && typeof searchParams.template === "string" ? searchParams.template : invitation.templateSlug;
   // Una invitación publicada se dibuja con el tema con el que se publicó; las demos, con el del registro.
   const template = publishedTemplate ?? getInvitationTemplate(requested) ?? defaultInvitationTemplate;
 
-  return <InvitationRenderer invitation={invitation} template={template} now={getServerNow()} personalization={personalization} />;
+  return <InvitationRenderer invitation={invitation} template={template} now={getServerNow()} personalization={personalization} music={music} />;
 }

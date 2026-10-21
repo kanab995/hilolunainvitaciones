@@ -70,7 +70,9 @@ export function buildCsp(env: SecurityEnv): string {
     ["connect-src", unique(["'self'", clerk, "https://clerk-telemetry.com", storageEndpoint, production ? undefined : "ws:", production ? undefined : "wss:"])],
     ["frame-src", unique(["'self'", clerk, turnstile])],
     ["worker-src", ["'self'", "blob:"]],
-    ["media-src", unique(["'self'", mediaOrigin])],
+    // `blob:` (D-46): la consola mide la duración del MP3 ANTES de subirlo con una URL local del propio archivo (igual que `img-src`
+    // con las imágenes). Una URL `blob:` solo puede crearla la propia página; no abre ningún origen externo.
+    ["media-src", unique(["'self'", "blob:", mediaOrigin])],
     ["manifest-src", ["'self'"]],
     ["object-src", ["'none'"]],
     ["base-uri", ["'self'"]],

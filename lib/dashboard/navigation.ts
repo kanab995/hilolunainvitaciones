@@ -6,7 +6,7 @@ import { routes } from "@/lib/routes";
  * reales o marcadores coherentes): la navegación visible nunca lleva a un 404. Las secciones del
  * evento usan el evento de la ruta actual y, fuera de un evento, el alias `demo` (que redirige).
  */
-export type DashboardNavIcon = "events" | "templates" | "guests" | "rsvp" | "messages" | "settings";
+export type DashboardNavIcon = "events" | "templates" | "guests" | "rsvp" | "messages" | "print" | "settings";
 
 export interface DashboardNavItem {
   id: DashboardNavIcon;
@@ -32,6 +32,8 @@ export function getDashboardNav(eventId: string | null = DEMO_EVENT_ALIAS): read
     { id: "guests", label: "Lista de invitados", href: routes.eventGuests(eventId), match: [routes.eventGuests(eventId)] },
     { id: "rsvp", label: "Confirmaciones", href: routes.eventRsvp(eventId), match: [routes.eventRsvp(eventId)] },
     { id: "messages", label: "Mensajes", href: routes.eventMessages(eventId), match: [routes.eventMessages(eventId)] },
+    // D-47 (pantalla aprobada por el propietario, sin mockup): la versión para imprimir del evento.
+    { id: "print", label: "Versión para imprimir", href: routes.eventPrint(eventId), match: [routes.eventPrint(eventId)] },
     { id: "settings", label: "Configuración", href: routes.eventSettings(eventId), match: [routes.eventSettings(eventId)] },
   ];
 }

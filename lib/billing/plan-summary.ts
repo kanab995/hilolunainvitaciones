@@ -18,6 +18,7 @@ const featureLabels: Record<FeatureId, string> = {
   qr: "Código QR de tu invitación",
   calendar: "Agregar al calendario",
   customMedia: "Tus propias fotos y portada",
+  musicLibrary: "Biblioteca musical con licencia",
 };
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
@@ -53,8 +54,9 @@ export interface PlanHighlight {
  * invitaciones disponibles siempre, en los tres planes (no hay `FeatureId` que las condicione):
  * se muestran también en Gratis porque ahí también son ciertas.
  *
- * Mesa de regalos, música, código QR, agregar al calendario y enlace personalizado SÍ existen hoy
- * para los TRES planes (`ALL_ON` en `plans.ts`) — pero el plan Gratis simplemente NO las menciona
+ * Mesa de regalos, código QR, agregar al calendario y enlace personalizado SÍ existen hoy para los
+ * TRES planes (`ALL_ON` en `plans.ts`). La biblioteca musical (D-46) es la excepción REAL: `musicLibrary`
+ * es `false` en Gratis (el enlace externo a una canción sigue en los tres). El plan Gratis NO las menciona
  * (ni las afirma ni las niega: omisión, no una `✗` falsa) para sentirse más ligero frente a los
  * planes de pago, que sí las destacan. Si algún día se gatean de verdad por plan, esta curaduría
  * deja de ser aspiracional y puede derivarse de `features`/`limits` directamente.

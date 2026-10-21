@@ -1,5 +1,6 @@
 import type { UserRoleId } from "@/lib/admin/roles";
 import type { PageWindow } from "@/lib/admin/query";
+import type { AddonId } from "@/lib/billing/addons";
 import type { PlanId } from "@/lib/billing/plans";
 import type { BillingProviderId, EventAccessState, PurchaseKindId, PurchaseStatusId } from "@/lib/billing/purchase";
 import type { EmailDeliveryKindId, EmailDeliveryStatusId } from "@/lib/email/delivery";
@@ -117,6 +118,40 @@ export interface AdminPurchaseDetailDto extends AdminPurchaseListItemDto {
   hasProviderCustomer: boolean;
   maskedProviderCustomerId: string;
   eventStartsAt: Date;
+}
+
+// ───────── Complementos (D-48) ─────────
+
+/** Una compra de complemento. Importes en unidades menores (centavos). Nunca la `unlockKey` ni ids del proveedor sin enmascarar. */
+export interface AdminAddonPurchaseLineDto {
+  id: string;
+  addon: AddonId;
+  status: PurchaseStatusId;
+  amountMinor: number;
+  currency: string;
+  provider: BillingProviderId;
+  createdAt: Date;
+  paidAt: Date | null;
+  refundedAt: Date | null;
+  /** Es la compra que desbloquea la descarga. */
+  unlocks: boolean;
+  /** Cobro PAGADO que no desbloquea nada: un segundo pago del mismo complemento para el mismo evento, por reembolsar. */
+  duplicate: boolean;
+}
+
+export interface AdminAddonPurchaseListItemDto extends AdminAddonPurchaseLineDto {
+  event: { id: string; title: string };
+  user: AdminPersonDto;
+}
+
+export interface AdminAddonPurchaseDetailDto extends AdminAddonPurchaseListItemDto {
+  updatedAt: Date;
+  /** Identificadores del proveedor ya ENMASCARADOS (`cs_••••••wxyz`). */
+  maskedCheckoutSessionId: string;
+  maskedPaymentIntentId: string;
+  eventStartsAt: Date;
+  /** Todas las compras de este complemento en el mismo evento (incluida esta), de la más antigua a la más reciente. */
+  siblings: AdminAddonPurchaseLineDto[];
 }
 
 // ───────── Plantillas ─────────

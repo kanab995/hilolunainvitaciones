@@ -3,49 +3,39 @@
 import { useState } from "react";
 import { useEditor } from "@/components/editor/editor-context";
 import { TextField } from "@/components/editor/fields/text-field";
+import { MusicLibraryPicker } from "@/components/editor/section-editors/music-library-picker";
 import { Badge } from "@/components/ui/badge";
+import { musicEditorCopy as copy } from "@/lib/editor/music-copy";
 import { LIMITS } from "@/lib/editor/validation";
-import { siteConfig } from "@/lib/site-config";
 import { cn } from "@/lib/utils";
 import type { MusicSettings } from "@/types/invitation";
 
 type Choice = "none" | "library" | "upload" | "external";
 
-const choices: readonly { value: Choice; label: string; description: string; soon?: boolean }[] = [
-  { value: "none", label: "Sin música", description: "La invitación no tendrá canción." },
-  { value: "library", label: `Biblioteca ${siteConfig.name}`, description: `Canciones con licencia incluidas en ${siteConfig.name}.`, soon: true },
-  { value: "upload", label: "Subir archivo", description: "Tu propio audio, confirmando que tienes los derechos.", soon: true },
-  { value: "external", label: "Enlace externo", description: "Un enlace a la canción en Spotify, YouTube u otro sitio." },
-];
-
-const emptyExternal: MusicSettings = {
-  sourceType: "external",
-  externalUrl: "",
-  title: "",
-  autoplayAfterInteraction: false,
-  volume: 0.6,
-  loop: true,
-};
+const emptyExternal: MusicSettings = { sourceType: "external", externalUrl: "", title: "", autoplayAfterInteraction: false, volume: 0.6, loop: true };
 
 /**
- * Música: solo configuración (política aprobada, docs/ARCHITECTURE.md §10.1). No hay reproductor, ni
- * SDK de Spotify, ni YouTube embebido, ni subida de audio real. El enlace externo es SOLO un enlace:
- * no suena como música de fondo. Biblioteca y subida aparecen como «Próximamente» y no se pueden elegir.
+ * Música (D-46). Tres orígenes: «Sin música», la BIBLIOTECA de Hilo Luna (Esencial y Premium; solo pistas con derechos verificados,
+ * `MusicLibraryPicker`) y el ENLACE externo (solo un enlace, en todos los planes, como antes). La subida de audio propio sigue como
+ * «Próximamente». La vista previa del editor nunca reproduce sola.
  */
 export function MusicEditor() {
-  const { draft, api, errors } = useEditor();
+  const { draft, api, errors, musicLibrary } = useEditor();
   const music = draft.music;
-  const choice: Choice = music?.sourceType === "external" ? "external" : "none";
-  // Recuerda la configuración externa al pasar por «Sin música» (no se pierde al cambiar de opinión).
-  const [remembered, setRemembered] = useState<MusicSettings>();
+  const current: Choice = music?.sourceType === "external" ? "external" : music?.sourceType === "library" ? "library" : "none";
+  const [choice, setChoice] = useState<Choice>(current);
+  // Recuerda la configuración anterior al cambiar de opción (no se pierde al cambiar de opinión dentro de la sesión).
+  const [remembered, setRemembered] = useState<{ external?: MusicSettings; library?: MusicSettings }>({});
+  const libraryLocked = !musicLibrary.allowed && current !== "library";
 
   const select = (value: Choice) => {
-    if (value === "none") {
-      if (music?.sourceType === "external") setRemembered(music);
-      api.updateInvitation({ music: undefined });
-    } else if (value === "external") {
-      api.updateInvitation({ music: remembered ?? emptyExternal });
-    }
+    if (value === "upload" || (value === "library" && libraryLocked)) return;
+    const next = { ...remembered, ...(music?.sourceType === "external" ? { external: music } : {}), ...(music?.sourceType === "library" ? { library: music } : {}) };
+    setRemembered(next);
+    setChoice(value);
+    if (value === "none") api.updateInvitation({ music: undefined });
+    else if (value === "external") api.updateInvitation({ music: next.external ?? emptyExternal });
+    else api.updateInvitation({ music: next.library });
   };
 
   const patch = (change: Partial<MusicSettings>) => api.updateInvitation((d) => (d.music ? { music: { ...d.music, ...change } } : {}));
@@ -53,62 +43,47 @@ export function MusicEditor() {
   return (
     <div className="flex flex-col gap-6">
       <fieldset className="flex flex-col gap-3">
-        <legend className="mb-2 text-lu-sm font-medium text-lu-text">Origen de la música</legend>
-        {choices.map((option) => (
-          <label
-            key={option.value}
-            className={cn(
-              "flex items-start gap-3 rounded-lu-card border bg-lu-surface p-4 transition-colors duration-150 ease-lu-standard has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-lu-brown-600",
-              choice === option.value ? "border-lu-brown-600 bg-lu-nav-active" : "border-lu-border-subtle",
-              option.soon ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-lu-border-outline",
-            )}
-          >
-            <input
-              type="radio"
-              name="music-source"
-              value={option.value}
-              checked={choice === option.value}
-              disabled={option.soon}
-              onChange={() => select(option.value)}
-              className="mt-1 size-4 accent-[var(--lu-brown-600)]"
-            />
-            <span className="flex flex-col gap-0.5">
-              <span className="flex items-center gap-2 text-lu-base font-medium text-lu-text">
-                {option.label}
-                {option.soon ? <Badge tone="outline">Próximamente</Badge> : null}
+        <legend className="mb-2 text-lu-sm font-medium text-lu-text">{copy.legend}</legend>
+        {(["none", "library", "upload", "external"] as const).map((value) => {
+          const disabled = value === "upload" || (value === "library" && libraryLocked);
+          return (
+            <label
+              key={value}
+              className={cn(
+                "flex items-start gap-3 rounded-lu-card border bg-lu-surface p-4 transition-colors duration-150 ease-lu-standard has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-lu-brown-600",
+                choice === value ? "border-lu-brown-600 bg-lu-nav-active" : "border-lu-border-subtle",
+                disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-lu-border-outline",
+              )}
+            >
+              <input type="radio" name="music-source" value={value} checked={choice === value} disabled={disabled} onChange={() => select(value)} className="mt-1 size-4 accent-[var(--lu-brown-600)]" />
+              <span className="flex flex-col gap-0.5">
+                <span className="flex flex-wrap items-center gap-2 text-lu-base font-medium text-lu-text">
+                  {copy.choices[value].label}
+                  {value === "upload" ? <Badge tone="outline">{copy.soon}</Badge> : null}
+                  {value === "library" && !musicLibrary.allowed ? <Badge tone="outline">{copy.plan}</Badge> : null}
+                </span>
+                <span className="text-lu-sm text-lu-text-muted">{copy.choices[value].description}</span>
               </span>
-              <span className="text-lu-sm text-lu-text-muted">{option.description}</span>
-            </span>
-          </label>
-        ))}
+            </label>
+          );
+        })}
+        {libraryLocked ? <p className="text-lu-sm text-lu-text-muted">{copy.planNotice}</p> : null}
       </fieldset>
 
-      {music?.sourceType === "external" ? (
+      {choice === "library" ? <MusicLibraryPicker onPatch={patch} /> : null}
+
+      {music?.sourceType === "external" && choice === "external" ? (
         <div className="flex flex-col gap-4">
-          <TextField
-            id="music-url"
-            label="Enlace"
-            type="url"
-            inputMode="url"
-            placeholder="https://"
-            hint="Debe empezar con https://."
-            value={music.externalUrl ?? ""}
-            error={errors["music.externalUrl"]}
-            onChange={(externalUrl) => patch({ externalUrl })}
-          />
+          <TextField id="music-url" label="Enlace" type="url" inputMode="url" placeholder="https://" hint="Debe empezar con https://." value={music.externalUrl ?? ""} error={errors["music.externalUrl"]} onChange={(externalUrl) => patch({ externalUrl })} />
           <div className="grid gap-4 @md:grid-cols-2">
             <TextField id="music-title" label="Título de la canción" max={LIMITS.musicTitle} value={music.title} error={errors["music.title"]} onChange={(title) => patch({ title })} />
             <TextField id="music-artist" label="Artista" max={LIMITS.musicArtist} optional value={music.artist ?? ""} error={errors["music.artist"]} onChange={(artist) => patch({ artist })} />
           </div>
-          <p className="rounded-lu-card bg-lu-surface-tint/60 p-4 text-lu-sm text-lu-text-secondary">
-            Un enlace externo es solo un enlace: no se reproduce como música de fondo dentro de la invitación.
-          </p>
+          <p className="rounded-lu-card bg-lu-surface-tint/60 p-4 text-lu-sm text-lu-text-secondary">{copy.externalNote}</p>
         </div>
       ) : null}
 
-      <p className="text-lu-sm text-lu-text-muted">
-        Todavía no hay reproductor. Cuando exista, la música solo empezará después de que tus invitados pulsen «Abrir invitación».
-      </p>
+      <p className="text-lu-sm text-lu-text-muted">{copy.rules}</p>
     </div>
   );
 }

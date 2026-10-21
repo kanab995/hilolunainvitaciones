@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { InvitationRenderer } from "@/components/invitation/invitation-renderer";
 import { draftFromMessage, PREVIEW_READY_MESSAGE } from "@/lib/editor/preview-channel";
 import { defaultInvitationTemplate, getInvitationTemplate } from "@/lib/invitation/templates";
+import { resolvePreviewMusic } from "@/lib/music/resolve";
 import type { Invitation } from "@/types/invitation";
 
 /**
@@ -27,5 +28,6 @@ export function PreviewSurface({ initial, now }: { initial: Invitation; now: num
   }, []);
 
   const template = getInvitationTemplate(invitation.templateSlug) ?? defaultInvitationTemplate;
-  return <InvitationRenderer invitation={invitation} template={template} now={now} mode="editor" />;
+  // Música de la biblioteca: el editor pone la URL del audio en el borrador; aquí nunca empieza sola (D-46).
+  return <InvitationRenderer invitation={invitation} template={template} now={now} mode="editor" music={resolvePreviewMusic(invitation.music)} />;
 }

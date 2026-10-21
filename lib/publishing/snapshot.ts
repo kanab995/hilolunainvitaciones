@@ -80,8 +80,9 @@ export function buildPublishedInvitationSnapshot(input: BuildSnapshotInput): { s
     }),
     ...(invitation.dressCode ? { dressCode: optional({ style: invitation.dressCode.style, description: invitation.dressCode.description, palette: invitation.dressCode.palette.map((swatch) => ({ ...swatch })), illustration: image(invitation.dressCode.illustration) }) } : {}),
     ...(invitation.giftRegistry ? { giftRegistry: optional({ message: invitation.giftRegistry.message, entries: invitation.giftRegistry.entries.map((entry) => ({ ...entry })), moreUrl: invitation.giftRegistry.moreUrl, photo: image(invitation.giftRegistry.photo) }) } : {}),
-    // `uploadAssetId` es un id interno: no viaja al snapshot (la música por archivo aún no existe).
-    ...(invitation.music ? { music: optional({ ...invitation.music, uploadAssetId: undefined }) } : {}),
+    // `uploadAssetId` es un id interno: no viaja al snapshot (la música por archivo aún no existe). La pista de la biblioteca se guarda
+    // por id, NUNCA por URL (`trackUrl` fuera): la invitación pública la resuelve con el estado actual de la pista y del plan (D-46).
+    ...(invitation.music ? { music: optional({ ...invitation.music, uploadAssetId: undefined, trackUrl: invitation.music.sourceType === "library" ? undefined : invitation.music.trackUrl }) } : {}),
     rsvp: { ...invitation.rsvp },
     closing: { message: invitation.closing.message },
     sections: invitation.sections.map((section) => ({ ...section })),

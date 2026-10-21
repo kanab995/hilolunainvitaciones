@@ -1,6 +1,7 @@
 import { InvitationShell } from "@/components/invitation/invitation-shell";
 import { sectionRegistry } from "@/components/invitation/sections/registry";
 import { resolveTemplateStyle, templateToCssVars } from "@/lib/invitation/styles";
+import type { ResolvedMusic } from "@/lib/music/resolve";
 import type { Invitation } from "@/types/invitation";
 import type { InvitationTemplate } from "@/types/invitation-template";
 import type { Personalization } from "@/types/public-rsvp";
@@ -16,6 +17,8 @@ type InvitationRendererProps = {
   personalization?: Personalization;
   /** `editor`: vista previa del editor (avisos en secciones vacías). Por defecto, la invitación pública. */
   mode?: "public" | "editor";
+  /** Música YA resuelta por el servidor (D-46). Sin ella no hay reproductor (ni descarga de audio). */
+  music?: ResolvedMusic;
 };
 
 /**
@@ -29,7 +32,7 @@ type InvitationRendererProps = {
  * Nunca lee ni escribe estado de plantilla en la invitación, y no conoce ninguna plantilla por nombre.
  * Server Component: las islas cliente son `InvitationShell` (estado de apertura), la cuenta regresiva y el RSVP.
  */
-export function InvitationRenderer({ invitation, template, now, personalization, mode = "public" }: InvitationRendererProps) {
+export function InvitationRenderer({ invitation, template, now, personalization, mode = "public", music }: InvitationRendererProps) {
   const style = resolveTemplateStyle(template);
   const cssVars = templateToCssVars(template, invitation.styleOverrides?.[template.slug]);
   const visible = invitation.sections.filter((section) => section.isVisible);
@@ -40,6 +43,7 @@ export function InvitationRenderer({ invitation, template, now, personalization,
       data-reveal={style.reveal}
       style={cssVars}
       className="min-h-svh bg-inv-bg font-inv-body text-inv-ink-muted"
+      music={music}
     >
       {visible.map((section, index) => {
         const Section = sectionRegistry[section.type];

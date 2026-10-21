@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AddonDuplicatesAlert } from "@/components/admin/addon-purchases";
 import { PlanBadge, PurchaseKindBadge, PurchaseStatusBadge } from "@/components/admin/badges";
 import { AdminTable, type AdminColumn } from "@/components/admin/data-table";
 import { AdminFilters } from "@/components/admin/filters";
 import { AdminPagination } from "@/components/admin/pagination";
 import { AdminPageHeader, PersonCell } from "@/components/admin/parts";
+import { Button } from "@/components/ui/button";
 import { adminCopy } from "@/lib/admin/copy";
 import { formatAdminDate, formatMinorNumber } from "@/lib/admin/format";
 import { SORT_VALUES } from "@/lib/admin/options";
@@ -12,6 +14,7 @@ import { parseChoice, parsePage, parseSearch, type RawSearchParams } from "@/lib
 import { PAID_PLAN_IDS, planLabel } from "@/lib/billing/plans";
 import { PURCHASE_KINDS, PURCHASE_STATUSES } from "@/lib/billing/purchase";
 import { routes } from "@/lib/routes";
+import { countAdminDuplicateAddonCharges } from "@/server/admin/addons";
 import type { AdminPurchaseListItemDto } from "@/server/admin/dto";
 import { listAdminPurchases } from "@/server/admin/purchases";
 import { requireAdmin } from "@/server/auth/admin";
@@ -58,11 +61,20 @@ export default async function AdminPurchasesPage({ searchParams }: { searchParam
   const kind = parseChoice(params.kind, PURCHASE_KINDS);
   const plan = parseChoice(params.plan, PAID_PLAN_IDS);
   const sort = parseChoice(params.sort, SORT_VALUES) ?? "newest";
-  const result = await listAdminPurchases(admin, { page: parsePage(params.page), q, status, kind, plan, sort });
+  const [result, addonDuplicates] = await Promise.all([listAdminPurchases(admin, { page: parsePage(params.page), q, status, kind, plan, sort }), countAdminDuplicateAddonCharges(admin)]);
 
   return (
     <div className="flex flex-col gap-5">
-      <AdminPageHeader title={copy.title} description={copy.description} />
+      <AdminPageHeader
+        title={copy.title}
+        description={copy.description}
+        actions={
+          <Button asChild variant="secondary" size="md">
+            <Link href={routes.adminAddonPurchases}>{adminCopy.addons.toAddons}</Link>
+          </Button>
+        }
+      />
+      <AddonDuplicatesAlert count={addonDuplicates} />
       <AdminFilters
         path={routes.adminPurchases}
         label={adminCopy.common.filters}
