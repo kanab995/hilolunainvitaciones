@@ -68,6 +68,14 @@ export function purchaseWorld(seed: { events?: Record<string, FakeEvent>; custom
       if (status !== "PAID") purchase.unlockKey = null;
       if (status === "REFUNDED") purchase.refundedAt = at ?? new Date("2027-01-01T00:00:00Z");
     },
+    async setAddonUnlock(purchaseId, unlockKey) {
+      writes.push(`addon-unlock:${purchaseId}`);
+      const purchase = target.addonPurchases.find((candidate) => candidate.id === purchaseId);
+      // Las dos restricciones de la base de datos: `unlockKey` única y solo en una compra PAGADA.
+      if (target.addonPurchases.some((candidate) => candidate.unlockKey === unlockKey && candidate.id !== purchaseId)) throw new Error("Unique constraint failed on unlockKey");
+      if (!purchase || purchase.status !== "PAID") throw new Error("CHECK EventAddonPurchase_unlock_requires_paid");
+      purchase.unlockKey = unlockKey;
+    },
   });
 
   const ops = (target: { purchases: PurchaseRecord[]; addonPurchases: AddonPurchaseRecord[]; events: Map<string, FakeEvent> }): BillingWriteOps => ({

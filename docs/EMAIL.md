@@ -1,6 +1,7 @@
 # Correo transaccional (D-36)
 
-> Alcance de esta fase: avisar al ANFITRIÓN de un RSVP nuevo y de una compra confirmada (inicial o mejora). **Nada de correo a
+> Alcance de esta fase: avisar al ANFITRIÓN de un RSVP nuevo, de una compra confirmada (inicial o mejora) y de la compra del complemento
+> «Archivo listo para imprimir» (D-48, etapa 4). **Nada de correo a
 > invitados, recordatorios, campañas, boletines ni seguimiento de apertura/clic.** Clerk sigue mandando los suyos (registro,
 > verificación, recuperación de acceso) y Stripe el recibo de pago si lo activas en su panel; esto no los duplica.
 
@@ -17,7 +18,7 @@ un proveedor concreto.
 | `server/email/dev-provider.ts` | Desarrollo sin `RESEND_API_KEY`: no manda nada, registra un aviso mínimo (destinatario enmascarado) |
 | `server/email/config.ts` | Lee y valida `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_REPLY_TO` (lógica pura) |
 | `server/email/index.ts` | Elige el proveedor activo (mismo patrón que `server/billing/index.ts`) |
-| `server/email/templates.ts` | Plantillas puras (HTML + texto) de los tres correos |
+| `server/email/templates.ts` | Plantillas puras (HTML + texto) de los cuatro correos |
 | `server/email/sanitize.ts` | Escapado de HTML e inyección de cabeceras |
 | `server/email/staging-safety.ts` | Lista blanca de staging y prefijo `[STAGING]` |
 | `server/email/run-after.ts` | `after()` de Next: el correo nunca bloquea la respuesta |
@@ -34,8 +35,9 @@ no se toca `service.ts` ni los llamadores.
 | Nuevo RSVP | `server/services/public-rsvp-runtime.ts` (`onSaved`), tras `submitPublicRsvpFor` | El invitado respondió y **cambió** el estado o el número de asistentes respecto a lo que había (comparado en la MISMA transacción de guardado, `server/repositories/public-invitations.ts`). Reenviar exactamente la misma respuesta NO manda un correo nuevo. |
 | Confirmación de compra | `server/services/billing-webhook.ts`, tras `confirmPayment` → `"granted"` | Solo cuando el webhook CONCEDIÓ el plan de verdad (nunca desde `?payment=success`, nunca en `already_paid` ni en un evento de webhook repetido). `kind = INITIAL`. |
 | Confirmación de mejora | Igual que arriba | `kind = UPGRADE` (Esencial → Premium, la diferencia real pagada). |
+| Confirmación del complemento «Tu invitación lista para imprimir \| Hilo Luna» (`ADDON_PURCHASE_CONFIRMATION`) | `server/services/billing-webhook.ts`, tras `confirmAddonPayment` → `"granted"` o `"already_paid"`; y la reconciliación del regreso del pago (`reconcilePrintAddon` → `granted`) | Solo la compra que DESBLOQUEA (`PAID` con `unlockKey`): un cobro duplicado o reembolsado no recibe correo. Lleva el nombre del evento, el producto, el importe y un enlace a `/dashboard/events/<id>/print` (pide sesión). **Nunca** el PDF adjunto ni un enlace público de descarga. Si la reconciliación concede primero, el webhook posterior (`already_paid`) vuelve a pedirlo y la restricción única lo descarta: uno por compra. |
 
-Ninguno de los tres lee `to`/`subject`/`from` del navegador: el servidor resuelve siempre el destinatario (`User.email` del
+Ninguno de los cuatro lee `to`/`subject`/`from` del navegador: el servidor resuelve siempre el destinatario (`User.email` del
 propietario del evento, nunca el correo de un invitado ni el del payload del RSVP) y construye el asunto y el cuerpo.
 
 ## 3. Sin bloquear la respuesta: `after()`
@@ -52,7 +54,7 @@ quedó guardado y la compra ya quedó confirmada antes de intentar el correo.
 
 `docs/DATABASE_SCHEMA.md` §20 tiene el detalle de columnas. Resumen práctico:
 
-- **Compra / mejora**: `@@unique([kind, purchaseId])`. Verificado contra PostgreSQL real: una segunda fila con el mismo
+- **Compra / mejora / complemento**: `@@unique([kind, purchaseId])` (en el complemento, `purchaseId` = `EventAddonPurchase.id`; sin clave foránea, igual que en los planes). Verificado contra PostgreSQL real: una segunda fila con el mismo
   `(kind, purchaseId)` falla con `P2002`; el servicio lo interpreta como «ya se intentó» y no reenvía. Cubre el caso normal
   (Stripe reintenta el webhook) sin depender de que `WebhookEvent` haga todo el trabajo.
 - **RSVP**: `purchaseId` es `NULL`, así que la restricción no aplica entre dos notificaciones de RSVP (Postgres no trata dos
@@ -142,12 +144,14 @@ es una línea de servidor (`requireAdmin()` + esta función) y una decisión con
 5. Mejorar a Premium → «Tu evento ahora es Premium», con la diferencia real (300 MXN), no 799.
 6. Revisar los registros del host durante los tres envíos: sin correos completos, sin `RESEND_API_KEY`, sin asunto ni cuerpo.
 7. Revisar `/admin/emails`: tres filas `SENT`, destinatario enmascarado, sin datos de más.
+8. Complemento: comprar «Archivo listo para imprimir» → «[STAGING] Tu invitación lista para imprimir | Hilo Luna», sin adjunto, con
+   «Ir a la descarga» hacia el panel. Reenviar el webhook desde Stripe → ningún correo más (pasos completos en `docs/STAGING.md` §10.1).
 
 ## 10. Deuda / fuera de alcance (a propósito)
 
 - Correo a invitados (confirmaciones, recordatorios de RSVP, recordatorio del evento).
 - Campañas, boletines, cualquier cosa de marketing; sin enlace de baja porque no aplica (correo estrictamente transaccional).
 - Webhook de Resend (`delivered`/`bounced`/`opened`/`clicked`): `SENT` hoy solo significa «el proveedor lo aceptó».
-- Reintento desde la consola (§7): la función existe, la interfaz no.
+- Reintento desde la consola (§7): la función existe, la interfaz no. `retryFailedEmailDelivery` no cubre todavía `ADDON_PURCHASE_CONFIRMATION` (responde `"unsupported"`).
 - Preferencias de notificación por anfitrión (hoy: siempre activadas para RSVP).
 - Reembolsos: no generan correo (Stripe puede mandar el suyo si se configura en su panel).

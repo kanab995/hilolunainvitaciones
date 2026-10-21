@@ -1,3 +1,4 @@
+import { ADDONS } from "@/lib/billing/addons";
 import { planLabel, type PaidPlanId } from "@/lib/billing/plans";
 import type { BillingProviderId } from "@/lib/billing/purchase";
 import type { EmailDeliveryKindId } from "@/lib/email/delivery";
@@ -8,6 +9,7 @@ import { logger } from "@/server/observability/logger";
 import { isRecipientAllowedInStaging, withStagingSubjectPrefix } from "@/server/email/staging-safety";
 import type { EmailProviderState } from "@/server/email/provider";
 import {
+  printAddonConfirmationEmail,
   purchaseConfirmationEmail,
   rsvpNotificationEmail,
   upgradeConfirmationEmail,
@@ -19,6 +21,7 @@ import {
   findFailedEmailDelivery,
   findPurchaseForRetry,
   findPurchaseIdBySession,
+  findUnlockingAddonPurchase,
   markEmailDeliveryFailed,
   markEmailDeliverySent,
   markEmailDeliverySkipped,
@@ -29,6 +32,7 @@ import {
   type EventOwnerContext,
   type GuestRsvpContext,
   type PurchaseForRetry,
+  type UnlockingAddonPurchase,
 } from "@/server/repositories/email-delivery";
 
 /**
@@ -47,6 +51,7 @@ export interface EmailServiceDeps {
   resolveGuestRsvpContext: (eventId: string, guestId: string) => Promise<GuestRsvpContext | null>;
   resolveEventOwnerContext: (eventId: string) => Promise<EventOwnerContext | null>;
   findPurchaseIdBySession: (provider: BillingProviderId, checkoutSessionId: string) => Promise<string | null>;
+  findUnlockingAddonPurchase: (provider: BillingProviderId, checkoutSessionId: string) => Promise<UnlockingAddonPurchase | null>;
   createEmailDeliveryAttempt: typeof createEmailDeliveryAttempt;
   markEmailDeliverySent: (id: string, providerMessageId: string) => Promise<void>;
   markEmailDeliveryFailed: (id: string, errorCode: string) => Promise<void>;
@@ -64,6 +69,7 @@ const defaultDeps: EmailServiceDeps = {
   resolveGuestRsvpContext,
   resolveEventOwnerContext,
   findPurchaseIdBySession,
+  findUnlockingAddonPurchase,
   createEmailDeliveryAttempt,
   markEmailDeliverySent,
   markEmailDeliveryFailed,
@@ -203,6 +209,40 @@ async function sendPurchaseEmail(kind: Extract<EmailDeliveryKindId, "PURCHASE_CO
 
 export const sendPurchaseConfirmation = (input: PurchaseEmailTrigger, deps: EmailServiceDeps = defaultDeps): Promise<void> => sendPurchaseEmail("PURCHASE_CONFIRMATION", input, deps);
 export const sendUpgradeConfirmation = (input: PurchaseEmailTrigger, deps: EmailServiceDeps = defaultDeps): Promise<void> => sendPurchaseEmail("UPGRADE_CONFIRMATION", input, deps);
+
+// ───────── 4. Confirmación del complemento «Archivo listo para imprimir» (D-48) ─────────
+
+export interface AddonPurchaseEmailTrigger {
+  eventId: string;
+  provider: BillingProviderId;
+  checkoutSessionId: string;
+}
+
+/**
+ * Se llama cuando el webhook (o la reconciliación del regreso del pago) confirma una compra del complemento. Solo la compra que DESBLOQUEA
+ * recibe correo (un cobro duplicado o reembolsado, no), y uno solo: `(ADDON_PURCHASE_CONFIRMATION, EventAddonPurchase.id)` es único, así que
+ * un webhook reintentado, la reconciliación y el webhook juntos o un `already_paid` nunca envían dos. Lleva el nombre del evento, el producto y
+ * un enlace a la sección del PANEL (con sesión): nunca el PDF adjunto ni un enlace público de descarga.
+ */
+export async function sendPrintAddonConfirmation(input: AddonPurchaseEmailTrigger, deps: EmailServiceDeps = defaultDeps): Promise<void> {
+  try {
+    const purchase = await deps.findUnlockingAddonPurchase(input.provider, input.checkoutSessionId);
+    if (!purchase || purchase.eventId !== input.eventId) return;
+    const context = await deps.resolveEventOwnerContext(purchase.eventId);
+    if (!context) return;
+    const content = printAddonConfirmationEmail({
+      eventTitle: context.eventTitle,
+      productName: ADDONS[purchase.addon].name,
+      amount: purchase.amount / 100,
+      currency: purchase.currency,
+      paidAt: purchase.paidAt,
+      panelUrl: `${deps.siteUrl()}${routes.eventPrint(context.eventId)}`,
+    });
+    await deliver(deps, { kind: "ADDON_PURCHASE_CONFIRMATION", recipientUserId: context.ownerId, recipientEmail: context.ownerEmail, eventId: context.eventId, purchaseId: purchase.id, content });
+  } catch (error) {
+    logger.error("email.addon_confirmation_failed", error, { eventId: input.eventId });
+  }
+}
 
 // ───────── Reintento manual (preparado, SIN interfaz — docs/EMAIL.md) ─────────
 

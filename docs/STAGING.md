@@ -157,6 +157,75 @@ Esperado en staging: `X-Robots-Tag: noindex, nofollow` en **todas** las rutas; C
    - [ ] Dos pestañas pulsando «Pagar» a la vez
    - Esperado: se **reutiliza la misma sesión de Checkout** (o aparece «pago en proceso»); nunca dos cobros. Anota el resultado en §17.
 
+### 10.1 Complemento «Archivo listo para imprimir» (D-48) — compra completa en modo de prueba
+
+> **Solo staging, solo modo de prueba.** Claves `sk_test_`/`pk_test_`, la base de datos de STAGING y `APP_ENV=staging`. En producción
+> `PRINT_ADDON_ENABLED` sigue **apagado** hasta la autorización final del propietario. Antes de desplegar, rota el token de Upstash
+> (`docs/PRODUCTION_CHECKLIST.md` B11).
+
+**Preparación (una vez)**
+
+1. Stripe (modo de prueba) → Catálogo de productos → producto «Archivo listo para imprimir» → precio **único (no recurrente) de 199 MXN**.
+   Copia su `price_…`.
+2. Variables de **staging** (además de las de §10): `STRIPE_PRICE_ADDON_PRINT_FILE=price_…` y `PRINT_ADDON_ENABLED=1`. Para el correo:
+   `RESEND_API_KEY` de prueba y tu correo en `EMAIL_STAGING_ALLOWLIST` (sin él, el envío queda «Omitido», `docs/EMAIL.md`).
+3. El endpoint del webhook de §10 ya recibe los eventos necesarios (`checkout.session.completed`, `checkout.session.expired`,
+   `payment_intent.payment_failed`, `charge.refunded`…); no hace falta otro.
+4. Despliega staging. El build aplica `20261019120000_add_event_addon_purchases` y `20261020120000_addon_single_pending_and_confirmation_email`
+   a la base de STAGING; comprueba con `DATABASE_URL=<staging> npx prisma migrate status` que no queda ninguna pendiente.
+5. Ten a mano: un evento de **boda** con plan **Esencial** (compra de §10 paso 3) y la invitación **publicada**, otro evento **Gratis**, y la
+   Stripe CLI con sesión en la cuenta de prueba (`stripe login`), solo para el paso 7.
+
+**Recorrido** (tarjeta `4242 4242 4242 4242`, cualquier fecha futura y CVC)
+
+1. **`/pricing`**: aparece «También en papel, igual de especial», $199 MXN, «impuestos aplicables incluidos», «No incluye la impresión física
+   ni el envío de tarjetas», **sin botón de compra**. Con `PRINT_ADDON_ENABLED` vacío muestra «Muy pronto» (compruébalo antes de encenderlo).
+2. **Evento Gratis** → Versión para imprimir: vista previa con marca de agua y «Mejorar evento», nunca «Comprar».
+3. **Checkout** (evento Esencial) → Versión para imprimir → revisa la vista previa → «Comprar · $199 MXN» → Stripe muestra **199 MXN** →
+   paga.
+   - [ ] Vuelves con «Estamos confirmando tu pago…» o directamente «¡Listo!…».
+   - [ ] **Webhook**: Stripe → Webhooks → entrega `checkout.session.completed` con **200**; `/admin/webhooks` la lista como procesada.
+4. **Desbloqueo y descarga**
+   - [ ] La tarjeta dice «Comprado el …» y aparece «Descargar PDF para imprimir»; descarga 5×7 y A5, con y sin marcas de corte, varias veces.
+   - [ ] Con otra cuenta (no propietaria), `/dashboard/events/<id>/print/file` responde **404**.
+   - [ ] «Compras y planes»: dentro del evento, **Complementos** → «Archivo listo para imprimir · $199 MXN», «Pagado», la fecha e «Ir a la
+         descarga»; el «Historial de pagos» del plan **no cambió** (sigue la fila de 499).
+   - [ ] El plan del evento sigue siendo **Esencial** y «Disponible hasta…» no cambió.
+   - [ ] **Correo** «[STAGING] Tu invitación lista para imprimir | Hilo Luna»: nombre del evento, producto, «Ir a la descarga» lleva a
+         `/dashboard/events/<id>/print` (pide sesión si no la tienes) y **no** trae adjunto. En `/admin/emails`: «Confirmación de complemento»,
+         **Enviado**, una sola fila.
+   - [ ] Stripe → Webhooks → **Reenviar** el mismo evento: 200 `duplicate`, ningún correo ni fila nueva.
+5. **Dos pestañas y doble clic** (en un SEGUNDO evento Esencial de boda publicado, aún sin comprar)
+   - [ ] Abre la Versión para imprimir en dos pestañas y pulsa «Comprar» en las dos casi a la vez (y un doble clic rápido): ambas llegan a la
+         **misma** página de Stripe (mismo `cs_test_…` en la URL).
+   - [ ] Paga en una; en la otra, Stripe dice que ya está pagada (o, al recargar la nuestra, «Estamos confirmando tu pago…» / «Comprado»).
+   - [ ] `/admin/purchases/addons?q=<título>`: **una** compra Pagada (Desbloquea: Sí) y ningún «Cobro duplicado».
+6. **Pago cancelado y fallido**: «Comprar» → «← Atrás» en Stripe → vuelve con «Cancelaste el pago: no se hizo ningún cargo.»; con la tarjeta
+   `4000 0000 0000 0002` el pago se rechaza y no se desbloquea nada.
+7. **Cobro duplicado forzado** (simula lo que el flujo normal impide): sobre el evento del paso 3, ya comprado, crea a mano una sesión con los
+   ids de la consola (`/admin/events/<id>`: id del evento; `/admin/users/<id>`: id del usuario):
+
+   ```bash
+   stripe checkout sessions create --mode=payment --success-url="https://<staging>/dashboard" -d "line_items[0][price]=price_…" -d "line_items[0][quantity]=1" -d "metadata[hiloLunaUserId]=<id del usuario>" -d "metadata[eventId]=<id del evento>" -d "metadata[addon]=PRINT_FILE" -d "payment_intent_data[metadata][eventId]=<id del evento>"
+   ```
+
+   Abre la `url` que imprime y paga con `4242…`.
+   - [ ] `/admin/purchases` y `/admin/purchases/addons` muestran «Hay 1 cobro duplicado…»; la fila nueva está **Pagada · Cobro duplicado**
+         (Desbloquea: No). El registro/Sentry muestra `billing.addon_duplicate_payment`.
+   - [ ] «Compras y planes» muestra la segunda fila con «Cobro duplicado · lo revisaremos para reembolsarlo»; la descarga sigue igual.
+   - [ ] **No** llega un segundo correo de confirmación.
+   - [ ] Reembolsa **ese** cobro siguiendo `docs/BILLING.md` §13.6 (búsqueda `metadata["eventId"]:"<id>"`, importe completo): la fila pasa a
+         **Reembolsada**, el aviso desaparece y el cliente **conserva** la descarga.
+8. **Reembolso total del complemento**: Stripe → el cobro restante del paso 3 → Reembolsar importe completo.
+   - [ ] La compra pasa a **Reembolsada** (consola y «Compras y planes», con la fecha y «ya no da acceso a la descarga»).
+   - [ ] La Versión para imprimir vuelve a ofrecer «Comprar» y el PDF limpio responde **404**; la vista previa sigue libre.
+   - [ ] El plan del evento sigue siendo **Esencial**; ninguna fila de `EventPurchase` cambió.
+   - [ ] (Opcional) Un reembolso **parcial** de otro cobro no cambia nada.
+9. **Apagar**: `PRINT_ADDON_ENABLED=0` y redeploy → `/pricing` vuelve a «Muy pronto», el botón desaparece y las compras ya hechas siguen
+   descargándose.
+
+Anota cada resultado en §18. Si algo no coincide, **no** se enciende en producción.
+
 ## 11. Límite de tasa real (Upstash)
 
 1. Crea la base Redis en Upstash, copia REST URL y REST Token a `RATE_LIMIT_REST_URL` / `RATE_LIMIT_REST_TOKEN`, `RATE_LIMIT_REQUIRED=true`. No se instala ningún SDK: la app usa la API REST. El arranque no debe avisar de «SIN LÍMITE DE TASA».
@@ -245,6 +314,12 @@ SMOKE_BASE_URL=https://<staging> SMOKE_INVITE_SLUG=<slug publicado> SMOKE_GUEST_
 | Stripe: Esencial → pago → webhook | | |
 | Stripe: mejora a Premium (300) | | |
 | Stripe: pago fallido | | |
+| Complemento: `/pricing` sin compra y «Muy pronto» apagado | | |
+| Complemento: checkout → webhook → desbloqueo → descarga | | |
+| Complemento: correo de confirmación (uno solo) | | |
+| Complemento: dos pestañas / doble clic → una sola sesión | | |
+| Complemento: cobro duplicado forzado → señalado → reembolsado | | |
+| Complemento: reembolso total → sin descarga; plan intacto | | |
 | Stripe: doble clic / dos pestañas | | |
 | Límite de tasa: bloqueo y recuperación | | |
 | Límite de tasa: proveedor caído (fail-open + aviso) | | |

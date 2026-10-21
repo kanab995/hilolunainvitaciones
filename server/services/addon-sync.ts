@@ -119,10 +119,24 @@ export async function closeAddonPayment(
   return "closed";
 }
 
-/** Un reembolso TOTAL retira el complemento: la compra pasa a `REFUNDED` y libera el desbloqueo (la descarga deja de estar disponible). */
+/**
+ * Un reembolso TOTAL retira ESE cobro: la compra pasa a `REFUNDED` y libera su desbloqueo. Si el evento tenía además OTRO cobro pagado del
+ * mismo complemento (un duplicado), el desbloqueo pasa a ese cobro: así, reembolsar el cobro «equivocado» de un duplicado nunca deja sin
+ * descarga a quien sigue habiendo pagado una vez. Sin ningún otro cobro pagado, la descarga deja de estar disponible.
+ */
 export async function refundAddonPayment(ops: AddonWriteOps, providerId: BillingProvider["id"], paymentIntentId: string, at: Date): Promise<"refunded" | "noop"> {
   const paid = (await ops.findAddonsByIntent(providerId, paymentIntentId)).filter((purchase) => purchase.status === "PAID");
   if (paid.length === 0) return "noop";
+  // Se anota ANTES de reembolsar qué cobros desbloqueaban (reembolsar vacía su `unlockKey`).
+  const unlocking = paid.filter((purchase) => purchase.unlockKey !== null).map((purchase) => ({ eventId: purchase.eventId, addon: purchase.addon }));
   for (const purchase of paid) await ops.setAddonStatus(purchase.id, "REFUNDED", at);
+  for (const purchase of unlocking) {
+    const remaining = (await ops.listAddonPurchases(purchase.eventId)).filter((candidate) => candidate.addon === purchase.addon && candidate.status === "PAID");
+    const heir = remaining.some((candidate) => candidate.unlockKey !== null) ? undefined : remaining[0];
+    if (heir) {
+      await ops.setAddonUnlock(heir.id, addonUnlockKey(purchase.eventId, purchase.addon));
+      logger.warn("billing.addon_unlock_transferred", { session: maskExternalId(heir.checkoutSessionId), addon: purchase.addon, reason: "se reembolsó el cobro que desbloqueaba; el otro cobro pagado conserva la descarga" });
+    }
+  }
   return "refunded";
 }

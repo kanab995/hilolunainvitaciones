@@ -138,10 +138,11 @@ Las compras se pueden consultar (solo lectura) en `/admin/purchases` y en el his
 
 ## 13. Complemento «Archivo listo para imprimir» (D-48)
 
-Compra **opcional e independiente del plan**, por evento: **$199 MXN, impuestos aplicables incluidos**, solo para eventos **Esencial y Premium**.
-Vive en su propia tabla (`EventAddonPurchase`): **nunca** cambia el plan del evento, ni su acceso de pago, ni la mejora Esencial → Premium.
+Compra **opcional e independiente del plan**, por evento: **$199 MXN, impuestos aplicables incluidos**, solo para eventos **Esencial y Premium**
+(por ahora, bodas). Incluye el **archivo digital en PDF**; no la impresión física ni el envío de tarjetas. Vive en su propia tabla
+(`EventAddonPurchase`): **nunca** cambia el plan del evento, ni su acceso de pago, ni la mejora Esencial → Premium, ni los precios de los planes.
 
-**Flujo completo**
+### 13.1 Flujo completo
 
 1. **Vista previa** (`/dashboard/events/[id]/print`): libre, PNG con marca de agua, con la invitación PUBLICADA. Muestra el precio, qué incluye y
    hasta qué fecha funcionará el QR impreso (fin del acceso del evento = 30 días después del evento).
@@ -150,28 +151,79 @@ Vive en su propia tabla (`EventAddonPurchase`): **nunca** cambia el plan del eve
 3. **Server Action** (`startPrintAddonCheckoutAction`): el navegador solo envía el id del evento. El servidor comprueba sesión y propiedad, que
    se pueda imprimir, el plan, que no esté comprado, reutiliza una sesión abierta (o avisa «confirmando» si ya se pagó), verifica el `price_…`
    real en Stripe (activo, pago único, 19 900 centavos MXN), crea o reutiliza el cliente y abre una sesión **`mode: payment`** con metadata
-   `{ hiloLunaUserId, eventId, addon: "PRINT_FILE" }` (sin `targetPlan`) y clave de idempotencia estable. Anota la compra `PENDING`.
+   `{ hiloLunaUserId, eventId, addon: "PRINT_FILE" }` (sin `targetPlan`, también copiada al PaymentIntent) y clave de idempotencia estable.
+   Anota la compra `PENDING` (a lo sumo una por evento y complemento, ver §13.2).
 4. **Pago en Stripe** → regreso a la versión para imprimir con `?payment=success` (o `canceled`, sin cargo). El regreso **no desbloquea nada**:
    reconcilia una vez con Stripe con las mismas verificaciones que el webhook y muestra «Estamos confirmando tu pago…».
 5. **Webhook** (el mismo endpoint firmado e idempotente): la ruta la decide el **precio cobrado**. Desbloquea solo si el precio es el del
    complemento, la metadata no lo contradice, MXN y 19 900 exactos, y el evento es del usuario. Guarda la compra `PAID` con su `unlockKey`.
-6. **Descarga**: «Descargar PDF para imprimir» (formato, reverso, QR, iniciales, ciudad, marcas de corte), **ilimitada**, generada en cada
+6. **Correo** «Tu invitación lista para imprimir | Hilo Luna» (Resend, `ADDON_PURCHASE_CONFIRMATION`, `docs/EMAIL.md`): nombre del evento,
+   producto y un enlace a la sección del PANEL (pide sesión). Sin PDF adjunto ni enlace público de descarga. Uno por compra que desbloquea.
+7. **Descarga**: «Descargar PDF para imprimir» (formato, reverso, QR, iniciales, ciudad, marcas de corte), **ilimitada**, generada en cada
    petición desde la versión publicada vigente y protegida por sesión + propiedad del evento + compra pagada. Nunca se guarda en el bucket.
-7. **Reembolso total** en Stripe → `charge.refunded` → la compra pasa a `REFUNDED`, se libera el desbloqueo y la descarga deja de estar
-   disponible (se puede volver a comprar). Un reembolso parcial no cambia nada. Reembolsar el PLAN no toca el complemento (se pagó aparte).
+8. **Historial**: «Compras y planes» muestra, dentro de cada evento y APARTE de los pagos del plan, el producto, el precio pagado, la fecha, el
+   estado, «Ir a la descarga» y el reembolso si lo hubo. La consola lo lista en `/admin/purchases/addons` (§13.5).
+9. **Reembolso total** en Stripe → `charge.refunded` → la compra pasa a `REFUNDED` y libera su desbloqueo; si no queda otro cobro pagado del
+   complemento, la descarga deja de estar disponible (se puede volver a comprar). Un reembolso parcial no cambia nada. Reembolsar el PLAN no
+   toca el complemento (se pagó aparte).
 
-**Contra cobros duplicados**: el botón no aparece si ya está comprado → el servicio rechaza `already_purchased` → una sesión abierta se reutiliza
-y una completada solo avisa → clave de idempotencia (doble clic = la misma sesión) → webhook idempotente (`WebhookEvent`) → la base de datos
-impide dos desbloqueos (`unlockKey` única + CHECK). Si aun así se cobraran dos pagos (dos pestañas a la vez), el segundo queda `PAID` sin
-desbloqueo y se registra `billing.addon_duplicate_payment` (Sentry): **reembólsalo** desde Stripe.
+`/pricing` presenta el complemento («También en papel, igual de especial») **sin venderlo**: no hay botón de compra; con la venta apagada se
+rotula «Muy pronto». La compra siempre se hace desde el evento, después de la vista previa.
 
-**Activar** (solo con la autorización del propietario): crea el precio de pago único de 199 MXN (modo de prueba en staging, real en
-producción), ponlo en `STRIPE_PRICE_ADDON_PRINT_FILE` y enciende `PRINT_ADDON_ENABLED=1`. Encendido sin precio, la validación del entorno lo
-marca como error en producción. Para apagar la venta: `PRINT_ADDON_ENABLED=0` (las compras ya hechas siguen descargándose).
+### 13.2 Contra cobros duplicados (dos pestañas, doble clic, reintentos)
 
-**Probar en staging** (Stripe CLI, `4242 4242 4242 4242`): evento Esencial con invitación de boda publicada → comprar → volver → descargar;
-doble clic (una sola sesión); pago cancelado (sin cargo); reenviar el evento del webhook (idempotente); reembolso total (desaparece la
-descarga); evento Gratis (no puede comprar); el plan del evento no cambia en ningún caso.
+| Capa | Qué evita |
+|---|---|
+| El botón no aparece si ya está comprado; el servicio responde `already_purchased` | Volver a comprar algo ya pagado |
+| Una sesión **abierta** del complemento se reutiliza (mismo enlace); una **completada** solo avisa «confirmando» | Abrir otra sesión mientras la primera sigue viva o ya se pagó |
+| Clave de idempotencia estable (usuario + evento + complemento + ventana de 30 min + nº de compras) y **caducidad fija dentro de la ventana** | Doble clic o dos pestañas a la vez = la MISMA sesión de Stripe (mismos parámetros) |
+| Si Stripe responde «clave en uso» (dos peticiones en el mismo instante), se espera 1,5 s y se reutiliza la sesión de la otra pestaña | Un error visible en la segunda pestaña |
+| **Índice parcial** `EventAddonPurchase_one_pending_per_event_addon`: a lo sumo UNA compra `PENDING` por evento y complemento. Si dos pestañas abren sesiones distintas (justo en el cambio de ventana), la segunda no se registra, **se caduca en Stripe** y se usa la primera | Dos sesiones pagables a la vez |
+| Webhook idempotente (`WebhookEvent`) | Aplicar dos veces el mismo aviso |
+| `unlockKey` única + CHECK | Dos desbloqueos pagados del mismo complemento |
 
-**Pendiente**: correo de confirmación del complemento (sería un tipo nuevo de `EmailDelivery`, D-36: requiere aprobación; Stripe puede enviar su
-recibo), historial del complemento en «Compras y planes» y en la consola de administración (Etapa 4), revisión fiscal.
+Con todo eso, un segundo cobro solo puede venir de fuera del flujo normal (p. ej. una sesión creada a mano en Stripe). Si ocurre, queda
+**`PAID` sin desbloqueo**, se registra `billing.addon_duplicate_payment` (Sentry), aparece como **«Cobro duplicado»** en la consola y en el
+historial del cliente («lo revisaremos para reembolsarlo») y se reembolsa con §13.6.
+
+### 13.3 Garantías sobre planes y precios
+
+El complemento nunca crea, cambia ni reembolsa compras de planes, no mueve `Event.paidAccessEndsAt`, no se lee al calcular el plan
+(`getEffectiveEventPlan` solo recibe `EventPurchase`) y su precio no puede ser el de un plan (`resolveStripeConfig` rechaza precios repetidos).
+Los precios de los planes no cambian ($0 / $499 / $799). Lo comprueban `tests/billing/addon.test.ts` y `tests/billing/addon-safety.test.ts`.
+
+### 13.4 Activar (solo con la autorización del propietario)
+
+Crea el precio de pago único de 199 MXN (modo de prueba en staging, real en producción), ponlo en `STRIPE_PRICE_ADDON_PRINT_FILE` y enciende
+`PRINT_ADDON_ENABLED=1`. Encendido sin precio, la validación del entorno lo marca como error en producción. Para apagar la venta:
+`PRINT_ADDON_ENABLED=0` (las compras ya hechas siguen descargándose). Antes del primer despliegue con este código se aplican dos migraciones
+aditivas (`20261019120000_add_event_addon_purchases`, `20261020120000_addon_single_pending_and_confirmation_email`); `npm run build` las aplica
+a la base de datos de ESE entorno.
+
+### 13.5 Consola
+
+`/admin/purchases/addons` (enlace «Ver complementos» desde Compras): búsqueda por evento o usuario, filtro por estado y **«Solo cobros
+duplicados»**, aviso con el número de duplicados pendientes. El detalle (`/admin/purchases/addons/[id]`) muestra si ese cobro desbloquea,
+la fecha de reembolso, ids enmascarados, el id del evento, cómo buscarlo en Stripe y TODAS las compras del complemento en ese evento. El
+detalle de cada evento (`/admin/events/[id]`) tiene su panel «Complementos». Solo lectura, con `requireAdmin()`, como el resto de la consola.
+
+### 13.6 Procedimiento: reembolsar un cobro duplicado
+
+1. `/admin/purchases/addons?flag=duplicate` → abre la fila marcada **«Cobro duplicado»** (desbloquea: **No**).
+2. Anota el **id del evento**, la fecha, el importe y los últimos cuatro caracteres del pago (`pi_••••••abcd`).
+3. Panel de Stripe → **Pagos** → busca `metadata["eventId"]:"<id del evento>"`. Aparecen los dos cobros de 199 MXN: elige el que coincide en
+   fecha y terminación con la fila duplicada.
+4. **Reembolsar → importe completo** (un reembolso parcial no cambia nada en Hilo Luna).
+5. Comprueba: en la consola la fila pasa a **«Reembolsada»** y el aviso de duplicados baja; el cliente conserva la descarga.
+
+Si por error se reembolsa el cobro que desbloqueaba, **el desbloqueo pasa al otro cobro pagado** (`billing.addon_unlock_transferred`): el
+cliente no pierde la descarga mientras quede un pago. Solo al reembolsar ambos se retira.
+
+### 13.7 Prueba completa en staging (Stripe en modo de prueba)
+
+**Nunca con claves de producción**: solo `sk_test_`/`pk_test_`, la base de datos de STAGING y `APP_ENV=staging`. Los pasos con casillas
+están en `docs/STAGING.md` §10.1; en resumen: checkout, webhook, desbloqueo, descarga, correo, dos pestañas, cobro duplicado y su
+reembolso, reembolso total, evento Gratis, y que el plan del evento no cambie en ningún caso.
+
+**Pendiente**: revisión fiscal (B2) antes de cobrar en producción; reintento manual del correo del complemento (hoy `retryFailedEmailDelivery`
+solo cubre compras de planes).

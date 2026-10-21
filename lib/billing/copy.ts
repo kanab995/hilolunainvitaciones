@@ -84,6 +84,22 @@ export const billingCopy = {
       PREMIUM: "Elegir Premium",
     },
     goToEvents: "Crear un evento",
+    /**
+     * Complemento «Archivo listo para imprimir» (D-48, `PricingPrintAddon`). Textos aprobados por el propietario (título, descripción,
+     * precio con impuestos aplicables incluidos). `/pricing` lo PRESENTA, nunca lo vende: la compra vive en la versión para imprimir de cada evento.
+     */
+    printAddon: {
+      eyebrow: "Complemento opcional",
+      title: "También en papel, igual de especial",
+      description: "Convierte tu invitación digital en un diseño personalizado, listo para imprimir y entregar a tus invitados.",
+      priceNote: "Pago único por evento, con impuestos aplicables incluidos.",
+      includesTitle: "Qué incluye",
+      fileOnly: "Incluye el archivo digital en PDF. No incluye la impresión física ni el envío de tarjetas.",
+      eligibility: "Opcional para eventos Esencial y Premium. Por ahora, para bodas.",
+      howTo: "Lo agregas desde «Versión para imprimir», en el panel de tu evento, después de revisar la vista previa.",
+      comingSoon: "Muy pronto",
+      comingSoonNote: "Todavía no está a la venta. Cuando lo esté, lo agregarás desde «Versión para imprimir», en el panel de tu evento.",
+    },
     /** CTA de cierre, al final de la página (`PricingFinalCta`). */
     finalCta: {
       title: "¿Listo para crear tu invitación?",
@@ -175,6 +191,16 @@ export const billingCopy = {
     purchasesTitle: "Historial de pagos",
     purchaseRow: (planName: string, price: string) => `${planName} · ${price}`,
     upgradeTag: "Mejora",
+    /** Complementos (D-48): historial PROPIO, separado del de los planes (un complemento nunca cambia el plan del evento). */
+    addonsTitle: "Complementos",
+    addonsNote: "Se compran aparte y no cambian el plan de tu evento.",
+    addonRow: (product: string, price: string) => `${product} · ${price}`,
+    addonPurchasedOn: (date: string) => `Comprado el ${date}`,
+    addonRefundedOn: (date: string) => `Reembolsado el ${date}`,
+    addonStatus: { PAID: "Pagado", REFUNDED: "Reembolsado" },
+    addonDuplicate: "Cobro duplicado · lo revisaremos para reembolsarlo",
+    addonDownload: "Ir a la descarga",
+    addonRefundedNote: "Este pago se reembolsó y ya no da acceso a la descarga.",
   },
 
   menu: { billing: "Compras y planes" },

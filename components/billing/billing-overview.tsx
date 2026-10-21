@@ -7,6 +7,7 @@ import { billingCopy } from "@/lib/billing/copy";
 import { formatPrice, planLabel } from "@/lib/billing/plans";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
+import type { AddonHistoryRow } from "@/server/services/addon-service";
 import type { BillingEventRow, BillingOverview } from "@/server/services/billing-service";
 
 const copy = billingCopy.billing;
@@ -40,8 +41,55 @@ function accessLine(event: BillingEventRow): string {
   return event.accessState === "expired" ? copy.accessExpired(formatBillingDate(event.paidAccessEndsAt)) : copy.access(formatBillingDate(event.paidAccessEndsAt));
 }
 
+/**
+ * Complementos de UN evento (D-48): historial PROPIO, debajo y separado del de los pagos del plan (un complemento nunca cambia el plan).
+ * Producto, precio pagado, fecha, estado del pago, reembolso si lo hubo y el acceso a la sección de descarga mientras siga pagado.
+ */
+function EventAddonHistory({ eventId, addons }: { eventId: string; addons: readonly AddonHistoryRow[] }) {
+  const headingId = `billing-addons-${eventId}`;
+  return (
+    <section aria-labelledby={headingId} data-billing-addons className="flex flex-col gap-2 border-t border-lu-border-subtle pt-4">
+      <div className="flex flex-col gap-0.5">
+        <Heading as="h3" id={headingId} size="title-sm">
+          {copy.addonsTitle}
+        </Heading>
+        <Text size="sm" tone="muted">
+          {copy.addonsNote}
+        </Text>
+      </div>
+      <ul className="flex flex-col gap-3">
+        {addons.map((addon) => (
+          <li key={addon.id} data-addon-purchase={addon.id} data-addon-status={addon.status} className="flex flex-col gap-1.5">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-lu-sm">
+              <span className="text-lu-text">{copy.addonRow(addon.product, formatPrice(addon.amount / 100, addon.currency))}</span>
+              <Badge tone={addon.status === "PAID" && !addon.duplicate ? "success" : addon.duplicate ? "pending" : "neutral"}>{copy.addonStatus[addon.status]}</Badge>
+            </div>
+            <Text size="sm" tone="muted">
+              {addon.paidAt ? copy.addonPurchasedOn(formatBillingDate(addon.paidAt)) : null}
+              {addon.status === "REFUNDED" && addon.refundedAt ? ` · ${copy.addonRefundedOn(formatBillingDate(addon.refundedAt))}` : null}
+            </Text>
+            {addon.duplicate ? (
+              <Text size="sm" tone="secondary" data-addon-duplicate>
+                {copy.addonDuplicate}
+              </Text>
+            ) : addon.status === "PAID" ? (
+              <Link href={routes.eventPrint(eventId)} className="self-start text-lu-sm font-medium text-lu-text underline underline-offset-2">
+                {copy.addonDownload}
+              </Link>
+            ) : (
+              <Text size="sm" tone="muted">
+                {copy.addonRefundedNote}
+              </Text>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 /** Un evento con su plan, acceso, uso e historial de pagos. */
-function EventBillingCard({ event }: { event: BillingEventRow }) {
+function EventBillingCard({ event, addons }: { event: BillingEventRow; addons: readonly AddonHistoryRow[] }) {
   const over = (event.guests.max !== null && event.guests.count > event.guests.max) || (event.gallery.max !== null && event.gallery.count > event.gallery.max);
   return (
     <Card role="region" aria-labelledby={`billing-event-${event.eventId}`} data-billing-event={event.eventId} data-plan={event.plan} className="flex flex-col gap-5">
@@ -94,6 +142,8 @@ function EventBillingCard({ event }: { event: BillingEventRow }) {
         </div>
       ) : null}
 
+      {addons.length > 0 ? <EventAddonHistory eventId={event.eventId} addons={addons} /> : null}
+
       {event.canUpgrade ? (
         <Button asChild size="lg" className="self-start max-sm:w-full">
           <Link href={routes.eventUpgrade(event.eventId)}>{copy.upgrade}</Link>
@@ -104,10 +154,11 @@ function EventBillingCard({ event }: { event: BillingEventRow }) {
 }
 
 /**
- * Compras y planes (`/dashboard/billing`, D-32): un bloque POR EVENTO (plan, «Disponible hasta…», uso, historial de pagos). No hay
- * plan de cuenta ni contador de eventos. Sin datos de pago: el recibo lo emite el proveedor. El estado nunca depende solo del color.
+ * Compras y planes (`/dashboard/billing`, D-32): un bloque POR EVENTO (plan, «Disponible hasta…», uso, historial de pagos y, aparte, sus
+ * complementos). No hay plan de cuenta ni contador de eventos. Sin datos de pago: el recibo lo emite el proveedor. El estado nunca depende
+ * solo del color.
  */
-export function BillingOverviewCard({ overview }: { overview: BillingOverview }) {
+export function BillingOverviewCard({ overview, addons = [] }: { overview: BillingOverview; addons?: readonly AddonHistoryRow[] }) {
   if (overview.events.length === 0) {
     return (
       <Card role="region" aria-label={copy.title} className="flex flex-col items-start gap-4">
@@ -121,7 +172,7 @@ export function BillingOverviewCard({ overview }: { overview: BillingOverview })
   return (
     <div className="flex flex-col gap-6">
       {overview.events.map((event) => (
-        <EventBillingCard key={event.eventId} event={event} />
+        <EventBillingCard key={event.eventId} event={event} addons={addons.filter((addon) => addon.eventId === event.eventId)} />
       ))}
       <Text size="sm" tone="muted">
         {copy.accessNote}

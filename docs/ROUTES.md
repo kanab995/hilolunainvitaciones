@@ -39,6 +39,7 @@ Convenciones: paths en **inglés**, minúsculas, con guiones. Los nombres de arc
 | `/admin/events` · `/admin/events/[id]` | `(site)/admin` | — | Dinámico | Lista con filtros `?publication=draft\|published\|changes&type=&plan=&q=&sort=&page=` y detalle (propietario, plantilla, plan, acceso, conteos de invitados/RSVP, **historial de compras**; nunca datos personales de invitados) |
 | `/admin/templates` | `(site)/admin` | — | Dinámico | Catálogo completo; **solo** visibilidad y plan mínimo del evento son editables (con confirmación) |
 | `/admin/purchases` · `/admin/purchases/[id]` | `(site)/admin` | — | Dinámico | Lista con filtros `?status=&kind=&plan=&q=&sort=&page=` y detalle (ids del proveedor enmascarados). **Solo lectura** |
+| `/admin/purchases/addons` · `/admin/purchases/addons/[id]` | `(site)/admin` | — | Dinámico | Complementos (D-48), aparte de los planes: filtros `?status=&flag=duplicate&q=&sort=&page=`; detalle con el historial del complemento en el evento y cómo localizar el pago en Stripe. **Solo lectura** |
 | `/admin/webhooks` | `(site)/admin` | — | Dinámico | Eventos del proveedor de pagos procesados (id parcial, tipo, fecha). Sin contenido ni firma |
 | `/admin/emails` | `(site)/admin` | — | Dinámico | Correo transaccional (D-36): filtros `?status=&kind=&page=`, destinatario enmascarado. Sin asunto ni cuerpo. **Solo lectura** |
 | `/admin/audit` | `(site)/admin` | — | Dinámico | Auditoría (D-34): últimos cambios de administración (quién, qué, antes → después). Solo lectura |

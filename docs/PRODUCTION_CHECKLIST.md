@@ -26,7 +26,7 @@
 | B9 | Decisión del alojamiento (host de Node.js) tomada, con build y ejecución exponiendo las mismas variables (`docs/DEPLOYMENT.md` §3.2) | ❌ Pendiente de ti | `docs/DEPLOYMENT.md` §0, §3.2 |
 | B10 | Dominio y HTTPS de producción activos (`hiloluna.com`) | ❌ Pendiente de ti | `docs/DEPLOYMENT.md` §10 |
 | B11 | **Rotar el token de Upstash** (`RATE_LIMIT_REST_TOKEN`): se mostró en una sesión de trabajo. Consola de Upstash → nuevo token → variable en Vercel → redeploy → `.env.local` | ❌ Pendiente de ti (antes de cualquier despliegue) | `docs/DEPLOYMENT.md` §8 |
-| B12 | Complemento «Archivo listo para imprimir» (D-48): precio de pago único de 199 MXN en modo real (`STRIPE_PRICE_ADDON_PRINT_FILE`), probado en staging, y `PRINT_ADDON_ENABLED=1` **solo con tu autorización final** (sin ella la venta queda apagada, que es lo seguro) | ❌ Apagado a propósito | `docs/BILLING.md` §13 |
+| B12 | Complemento «Archivo listo para imprimir» (D-48): precio de pago único de 199 MXN en modo real (`STRIPE_PRICE_ADDON_PRINT_FILE`), recorrido de staging completo (`docs/STAGING.md` §10.1: checkout, webhook, desbloqueo, descarga, correo, dos pestañas, cobro duplicado y reembolso) y `PRINT_ADDON_ENABLED=1` **solo con tu autorización final** (sin ella la venta queda apagada, que es lo seguro). Las dos migraciones del complemento se aplican con el build de cada entorno | ❌ Apagado a propósito | `docs/BILLING.md` §13 |
 
 ## 2. REQUIRED
 

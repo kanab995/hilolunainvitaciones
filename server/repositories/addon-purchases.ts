@@ -65,13 +65,28 @@ export async function findOwnedEventAddonPurchases(userId: string, eventId: stri
   return event ? event.addonPurchases.map(toRecord) : null;
 }
 
-/** Alta de la compra `PENDING` al iniciar el checkout del complemento. Idempotente por sesión de cobro. */
-export async function createPendingAddonPurchase(input: { eventId: string; userId: string; addon: AddonId; provider: BillingProviderId; checkoutSessionId: string; amount: number; currency: string }): Promise<void> {
+/**
+ * Alta de la compra `PENDING` al iniciar el checkout del complemento. Idempotente por sesión de cobro. Devuelve `false` si NO se insertó:
+ * la misma sesión ya estaba registrada o, por el índice parcial `EventAddonPurchase_one_pending_per_event_addon`, el evento ya tiene OTRA
+ * compra pendiente de ese complemento (dos pestañas a la vez). Quien llama decide qué hacer con su sesión.
+ */
+export async function createPendingAddonPurchase(input: { eventId: string; userId: string; addon: AddonId; provider: BillingProviderId; checkoutSessionId: string; amount: number; currency: string }): Promise<boolean> {
   if (getDataSource() === "demo") throw new StoreUnavailableError();
-  await prisma.eventAddonPurchase.createMany({
+  const { count } = await prisma.eventAddonPurchase.createMany({
     data: [{ eventId: input.eventId, userId: input.userId, addon: input.addon, provider: input.provider, providerCheckoutSessionId: input.checkoutSessionId, status: "PENDING", amount: input.amount, currency: input.currency }],
     skipDuplicates: true,
   });
+  return count > 0;
+}
+
+/**
+ * Historial de complementos de TODOS los eventos del usuario (propiedad en la consulta) para «Compras y planes»: solo lo cobrado y lo
+ * reembolsado (los intentos pendientes, fallidos o cancelados no son compras). Nunca se usa para calcular un plan.
+ */
+export async function listOwnedAddonHistory(userId: string): Promise<AddonPurchaseRecord[]> {
+  if (getDataSource() === "demo") return [];
+  const rows = await prisma.eventAddonPurchase.findMany({ where: { event: { ownerId: userId }, status: { in: ["PAID", "REFUNDED"] } }, select, orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
+  return rows.map(toRecord);
 }
 
 /** Operaciones de complementos DENTRO de la transacción del webhook o de la reconciliación (ver `BillingWriteOps.addons`). */
@@ -83,6 +98,8 @@ export interface AddonWriteOps {
   saveAddonPurchase(record: AddonPurchaseWrite): Promise<void>;
   /** Cambia el estado (y, al reembolsar, libera el desbloqueo: `unlockKey` → NULL). */
   setAddonStatus(purchaseId: string, status: PurchaseStatusId, at?: Date): Promise<void>;
+  /** Pasa el desbloqueo a otra compra PAGADA del mismo complemento (tras reembolsar la que lo tenía; ver `refundAddonPayment`). */
+  setAddonUnlock(purchaseId: string, unlockKey: string): Promise<void>;
 }
 
 type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
@@ -110,6 +127,10 @@ export function addonOpsFor(tx: Tx): AddonWriteOps {
     },
     async setAddonStatus(purchaseId, status, at) {
       await tx.eventAddonPurchase.update({ where: { id: purchaseId }, data: { status, ...(status === "PAID" ? {} : { unlockKey: null }), ...(status === "REFUNDED" ? { refundedAt: at ?? new Date() } : {}) } });
+    },
+    async setAddonUnlock(purchaseId, unlockKey) {
+      // La restricción CHECK exige que sea una compra PAGADA; la `unlockKey` única impide dos desbloqueos.
+      await tx.eventAddonPurchase.update({ where: { id: purchaseId }, data: { unlockKey } });
     },
   };
 }

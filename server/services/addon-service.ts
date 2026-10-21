@@ -9,12 +9,14 @@ import { getSiteUrl } from "@/lib/site-url";
 import { getBillingProviderState } from "@/server/billing";
 import type { BillingProvider, BillingProviderState, ProviderPayment } from "@/server/billing/provider";
 import { StoreUnavailableError } from "@/server/db/errors";
+import { runAfterResponse } from "@/server/email/run-after";
+import { sendPrintAddonConfirmation } from "@/server/email/service";
 import { logger } from "@/server/observability/logger";
-import { createPendingAddonPurchase, findOwnedEventAddonPurchases, type AddonPurchaseRecord } from "@/server/repositories/addon-purchases";
+import { createPendingAddonPurchase, findOwnedEventAddonPurchases, listOwnedAddonHistory, type AddonPurchaseRecord } from "@/server/repositories/addon-purchases";
 import { findOwnedEventBilling, findProviderCustomerId, prismaBillingStore, saveProviderCustomer, type BillingStore, type EventBillingState } from "@/server/repositories/billing";
 import { loadOwnedPublication, type OwnedPublication } from "@/server/repositories/publishing";
 import { confirmAddonPayment } from "@/server/services/addon-sync";
-import { CHECKOUT_SESSION_TTL_MS, checkoutIdempotencyKey } from "@/server/services/billing-service";
+import { CHECKOUT_IDEMPOTENCY_BUCKET_MS, CHECKOUT_SESSION_TTL_MS, checkoutIdempotencyKey } from "@/server/services/billing-service";
 import type { AppUser } from "@/server/services/user-sync";
 
 /**
@@ -24,13 +26,23 @@ import type { AppUser } from "@/server/services/user-sync";
  *
  * Barreras contra cobros duplicados, en orden: el botón no aparece si ya está comprado → el servicio lo rechaza (`already_purchased`) →
  * una sesión ABIERTA del mismo complemento se REUTILIZA (mismo enlace) y una ya COMPLETADA solo avisa «confirmando» → clave de
- * idempotencia estable (doble clic = la MISMA sesión de Stripe) → el webhook es idempotente → la base de datos impide dos desbloqueos
- * (`unlockKey` única).
+ * idempotencia estable (doble clic = la MISMA sesión de Stripe) → la base de datos admite a lo sumo UNA compra pendiente por evento y
+ * complemento (dos pestañas a la vez: la segunda sesión se caduca y se reutiliza la primera) → el webhook es idempotente → la base de datos
+ * impide dos desbloqueos (`unlockKey` única). Si aun así entra un segundo cobro, queda PAGADO sin desbloqueo, visible en la consola para
+ * reembolsarlo (`docs/BILLING.md` §13.6).
  */
 const ADDON: AddonId = "PRINT_FILE";
 const EVENT_ID = /^[A-Za-z0-9_-]{1,64}$/;
 const PENDING_LOOKBACK_MS = 25 * 60 * 60 * 1000;
 const PENDING_WINDOW_MS = 60 * 60 * 1000;
+/** Espera antes de buscar la sesión que otra pestaña está abriendo en ese mismo instante (Stripe responde «clave en uso»). */
+const CONCURRENT_RETRY_MS = 1500;
+
+/**
+ * Caducidad de la sesión, FIJA dentro de la ventana de la clave de idempotencia (entre 31 y 61 min desde ahora; Stripe exige ≥ 30 min): dos
+ * peticiones con la misma clave envían exactamente los mismos parámetros, así Stripe devuelve la MISMA sesión en vez de rechazar la segunda.
+ */
+export const addonCheckoutExpiry = (now: Date): Date => new Date((Math.floor(now.getTime() / CHECKOUT_IDEMPOTENCY_BUCKET_MS) + 1) * CHECKOUT_IDEMPOTENCY_BUCKET_MS + CHECKOUT_SESSION_TTL_MS);
 
 export interface AddonServiceDeps {
   getProviderState: () => BillingProviderState;
@@ -44,7 +56,14 @@ export interface AddonServiceDeps {
   store: BillingStore;
   siteUrl: () => string;
   now: () => Date;
+  /** Espera (inyectable para las pruebas). */
+  sleep?: (ms: number) => Promise<void>;
+  /** Avisa de una compra recién confirmada por la reconciliación (correo idempotente; por defecto, después de la respuesta). */
+  notifyConfirmed?: (input: { eventId: string; provider: BillingProvider["id"]; checkoutSessionId: string }) => void;
 }
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+const notifyConfirmed = (input: { eventId: string; provider: BillingProvider["id"]; checkoutSessionId: string }) => runAfterResponse(() => sendPrintAddonConfirmation(input));
 
 const defaultDeps: AddonServiceDeps = {
   getProviderState: getBillingProviderState,
@@ -58,6 +77,8 @@ const defaultDeps: AddonServiceDeps = {
   store: prismaBillingStore,
   siteUrl: () => getSiteUrl(),
   now: () => new Date(getServerNow()),
+  sleep,
+  notifyConfirmed,
 };
 
 export type AddonCheckoutCode = "not_found" | "not_available" | "not_printable" | "ineligible_plan" | "already_purchased" | "payment_pending" | "invalid_config" | "unavailable" | "error";
@@ -92,15 +113,20 @@ export async function startPrintAddonCheckout(user: Pick<AppUser, "id" | "email"
     const quote = quoteAddonPurchase(ADDON, getEffectiveEventPlan(billing.purchases), addons);
     if (!quote.ok) return quote.reason === "already_purchased" ? fail("already_purchased", copy.alreadyPurchased) : fail("ineligible_plan", copy.ineligiblePlan);
 
-    // Sesiones pendientes del complemento (más reciente primero): abierta → se reutiliza; completada → «confirmando»; caducada → se cierra.
+    // Sesiones previas del complemento (más reciente primero): abierta → se reutiliza; completada → «confirmando»; caducada → se cierra. Una
+    // compra PENDIENTE se revisa sea cual sea su antigüedad (la base de datos solo admite una y, sin cerrarla, bloquearía un intento nuevo).
     const now = deps.now();
-    const pending = addons
-      .filter((purchase) => purchase.addon === ADDON && (purchase.status === "PENDING" || purchase.status === "FAILED") && purchase.provider === provider.id && now.getTime() - purchase.createdAt.getTime() < PENDING_LOOKBACK_MS)
+    const previous = addons
+      .filter((purchase) => purchase.addon === ADDON && purchase.provider === provider.id && (purchase.status === "PENDING" || (purchase.status === "FAILED" && now.getTime() - purchase.createdAt.getTime() < PENDING_LOOKBACK_MS)))
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    for (const purchase of pending) {
+    for (const purchase of previous) {
       const existing = await provider.getCheckoutSession(purchase.checkoutSessionId);
       if (existing?.status === "complete") return fail("payment_pending", copy.paymentPending);
-      if (existing?.status === "open" && existing.url) return { ok: true, url: existing.url };
+      if (existing?.status === "open") {
+        if (existing.url) return { ok: true, url: existing.url };
+        // Abierta pero sin enlace que reutilizar: se caduca para que no quede una segunda sesión pagable.
+        await provider.expireCheckoutSession(purchase.checkoutSessionId).catch(() => undefined);
+      }
       if (purchase.status === "PENDING") await deps.store.apply(async (ops) => ops.addons.setAddonStatus(purchase.id, "CANCELED"));
     }
 
@@ -117,24 +143,54 @@ export async function startPrintAddonCheckout(user: Pick<AppUser, "id" | "email"
     }
 
     const printUrl = `${deps.siteUrl()}${routes.eventPrint(billing.eventId)}`;
-    const session = await provider.createAddonCheckout({
-      providerCustomerId: customerId,
-      priceKey: quote.priceEnvKey,
-      addon: ADDON,
-      eventId: billing.eventId,
-      userId: user.id,
-      successUrl: `${printUrl}?payment=success`,
-      cancelUrl: `${printUrl}?payment=canceled`,
-      idempotencyKey: checkoutIdempotencyKey({ userId: user.id, eventId: billing.eventId, plan: `ADDON_${ADDON}`, kind: "ADDON", now, purchaseCount: addons.length }),
-      expiresAt: new Date(now.getTime() + CHECKOUT_SESSION_TTL_MS),
-    });
-    await deps.createPending({ eventId: billing.eventId, userId: user.id, addon: ADDON, provider: provider.id, checkoutSessionId: session.checkoutSessionId, amount: quote.amountMinor, currency: quote.currency });
+    let session: { url: string; checkoutSessionId: string };
+    try {
+      session = await provider.createAddonCheckout({
+        providerCustomerId: customerId,
+        priceKey: quote.priceEnvKey,
+        addon: ADDON,
+        eventId: billing.eventId,
+        userId: user.id,
+        successUrl: `${printUrl}?payment=success`,
+        cancelUrl: `${printUrl}?payment=canceled`,
+        idempotencyKey: checkoutIdempotencyKey({ userId: user.id, eventId: billing.eventId, plan: `ADDON_${ADDON}`, kind: "ADDON", now, purchaseCount: addons.length }),
+        expiresAt: addonCheckoutExpiry(now),
+      });
+    } catch (error) {
+      // Otra pestaña abrió el pago con la MISMA clave en este mismo instante: se espera un momento y se reutiliza su sesión.
+      await (deps.sleep ?? sleep)(CONCURRENT_RETRY_MS);
+      const concurrent = await openPendingSession(deps, provider, user.id, billing.eventId);
+      if (concurrent) return concurrent;
+      throw error;
+    }
+    const created = await deps.createPending({ eventId: billing.eventId, userId: user.id, addon: ADDON, provider: provider.id, checkoutSessionId: session.checkoutSessionId, amount: quote.amountMinor, currency: quote.currency });
+    if (!created) {
+      const latest = (await deps.findOwnedAddonPurchases(user.id, billing.eventId)) ?? [];
+      if (!latest.some((purchase) => purchase.checkoutSessionId === session.checkoutSessionId)) {
+        // Otra pestaña registró ANTES su propia sesión (la base de datos admite una sola pendiente): la nuestra se caduca —nadie recibió su
+        // enlace— y se usa la suya. Así nunca quedan dos sesiones pagables del mismo complemento para el mismo evento.
+        await provider.expireCheckoutSession(session.checkoutSessionId).catch(() => undefined);
+        logger.warn("billing.addon_concurrent_checkout", { effect: "se reutiliza la sesión de la otra pestaña" });
+        return (await openPendingSession(deps, provider, user.id, billing.eventId)) ?? fail("payment_pending", copy.paymentPending);
+      }
+    }
     return { ok: true, url: session.url };
   } catch (error) {
     if (error instanceof StoreUnavailableError) return fail("unavailable", copy.unavailable);
     logger.error("billing.addon_checkout_failed", error);
     return fail("error", copy.failed);
   }
+}
+
+/** La sesión de la compra PENDIENTE del complemento de este evento, si sigue abierta (o «confirmando», si ya se pagó). */
+async function openPendingSession(deps: AddonServiceDeps, provider: BillingProvider, userId: string, eventId: string): Promise<AddonCheckoutResult | undefined> {
+  const pending = ((await deps.findOwnedAddonPurchases(userId, eventId)) ?? []).filter((purchase) => purchase.addon === ADDON && purchase.status === "PENDING" && purchase.provider === provider.id);
+  for (const purchase of pending) {
+    const existing = await provider.getCheckoutSession(purchase.checkoutSessionId);
+    if (existing?.status === "open" && existing.url) return { ok: true, url: existing.url };
+    if (existing?.status === "complete") return fail("payment_pending", copy.paymentPending);
+  }
+  return undefined;
 }
 
 /**
@@ -153,10 +209,17 @@ export async function reconcilePrintAddon(user: Pick<AppUser, "id">, eventId: st
   }
   let granted = 0;
   const now = deps.now();
+  const confirmed: string[] = [];
   if (payments.length > 0)
     await deps.store.apply(async (ops) => {
-      for (const payment of payments) if ((await confirmAddonPayment(ops, state.provider, payment, now)) === "granted") granted += 1;
+      for (const payment of payments)
+        if ((await confirmAddonPayment(ops, state.provider, payment, now)) === "granted") {
+          granted += 1;
+          confirmed.push(payment.checkoutSessionId);
+        }
     });
+  // El correo se dispara DESPUÉS de confirmar la transacción; si luego llega el webhook, el envío ya existe y no se repite.
+  for (const checkoutSessionId of confirmed) (deps.notifyConfirmed ?? notifyConfirmed)({ eventId, provider: state.provider.id, checkoutSessionId });
   return { granted };
 }
 
@@ -194,4 +257,41 @@ export async function getPrintAddonState(user: Pick<AppUser, "id">, eventId: str
 /** ¿Este evento DEL usuario tiene el complemento PAGADO? (Reembolsado = no.) Base de la descarga del PDF limpio. */
 export async function hasPaidPrintAddon(userId: string, eventId: string, deps: Pick<AddonServiceDeps, "findOwnedAddonPurchases"> = defaultDeps): Promise<boolean> {
   return hasPaidAddon((await deps.findOwnedAddonPurchases(userId, eventId)) ?? [], ADDON);
+}
+
+/** ¿Se puede comprar el complemento en este entorno? (Para `/pricing`, que lo PRESENTA pero nunca lo vende: la compra vive en cada evento.) */
+export const isPrintAddonSaleOpen = (deps: Pick<AddonServiceDeps, "saleEnabled" | "getProviderState"> = defaultDeps): boolean => saleOpen(deps as AddonServiceDeps).open;
+
+/** Una compra de complemento en «Compras y planes». Nunca se mezcla con las compras que determinan el plan. */
+export interface AddonHistoryRow {
+  id: string;
+  eventId: string;
+  addon: AddonId;
+  product: string;
+  /** Unidades menores (centavos): lo que se cobró de verdad. */
+  amount: number;
+  currency: string;
+  status: "PAID" | "REFUNDED";
+  paidAt: Date | null;
+  refundedAt: Date | null;
+  /** Cobro PAGADO que no desbloquea nada (un segundo pago del mismo complemento): pendiente de reembolso. */
+  duplicate: boolean;
+}
+
+/** Historial de complementos de los eventos DEL usuario (propiedad en la consulta), agrupable por evento. */
+export async function getAddonHistory(user: Pick<AppUser, "id">, list: (userId: string) => Promise<AddonPurchaseRecord[]> = listOwnedAddonHistory): Promise<AddonHistoryRow[]> {
+  return (await list(user.id))
+    .filter((purchase): purchase is AddonPurchaseRecord & { status: "PAID" | "REFUNDED" } => purchase.status === "PAID" || purchase.status === "REFUNDED")
+    .map((purchase) => ({
+      id: purchase.id,
+      eventId: purchase.eventId,
+      addon: purchase.addon,
+      product: ADDONS[purchase.addon].name,
+      amount: purchase.amount,
+      currency: purchase.currency,
+      status: purchase.status,
+      paidAt: purchase.paidAt,
+      refundedAt: purchase.refundedAt,
+      duplicate: purchase.status === "PAID" && purchase.unlockKey === null,
+    }));
 }

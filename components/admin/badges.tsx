@@ -38,6 +38,15 @@ export function PurchaseKindBadge({ kind }: { kind: PurchaseKindId }) {
   );
 }
 
+/** Cobro de complemento PAGADO que no desbloquea nada (segundo pago del mismo complemento): por reembolsar. */
+export function AddonDuplicateBadge() {
+  return (
+    <Badge tone="declined" dot data-addon-duplicate>
+      {adminCopy.addons.duplicateBadge}
+    </Badge>
+  );
+}
+
 const publicationTone: Record<PublicationState, "success" | "pending" | "neutral"> = { published: "success", changes: "pending", draft: "neutral" };
 
 export function PublicationBadge({ state }: { state: PublicationState }) {

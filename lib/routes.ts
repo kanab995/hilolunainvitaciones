@@ -45,6 +45,9 @@ export const routes = {
   adminMusicTrack: (id: string) => `/admin/music/${id}`,
   adminPurchases: "/admin/purchases",
   adminPurchase: (id: string) => `/admin/purchases/${id}`,
+  /** Compras de complementos (D-48): lista propia, nunca mezclada con las compras de planes. */
+  adminAddonPurchases: "/admin/purchases/addons",
+  adminAddonPurchase: (id: string) => `/admin/purchases/addons/${id}`,
   adminWebhooks: "/admin/webhooks",
   adminAudit: "/admin/audit",
   /** Envíos de correo transaccional (D-36): solo lectura, destinatario enmascarado. */

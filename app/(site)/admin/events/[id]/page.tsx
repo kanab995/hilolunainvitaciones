@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AddonPurchaseHistoryTable } from "@/components/admin/addon-purchases";
 import { AccessBadge, PlanBadge, PublicationBadge } from "@/components/admin/badges";
 import { AdminFacts, AdminPageHeader, AdminPanel, AdminStatList } from "@/components/admin/parts";
 import { PurchaseHistoryTable } from "@/components/admin/purchase-history";
@@ -8,6 +9,7 @@ import { adminCopy } from "@/lib/admin/copy";
 import { formatAdminDate, formatAdminDateTime } from "@/lib/admin/format";
 import { adminEventTypeLabel } from "@/lib/admin/options";
 import { routes } from "@/lib/routes";
+import { listAdminAddonPurchases } from "@/server/admin/addons";
 import { getAdminEvent } from "@/server/admin/events";
 import { requireAdmin } from "@/server/auth/admin";
 
@@ -36,6 +38,7 @@ export default async function AdminEventPage(props: PageProps<"/admin/events/[id
   const { id } = await props.params;
   const event = await getAdminEvent(admin, id);
   if (!event) notFound();
+  const addons = await listAdminAddonPurchases(admin, { eventId: event.id, sort: "oldest", page: 1, pageSize: 50 });
 
   return (
     <div className="flex flex-col gap-6">
@@ -91,6 +94,11 @@ export default async function AdminEventPage(props: PageProps<"/admin/events/[id
 
       <AdminPanel id="event-purchases" title={copy.purchasesTitle}>
         <PurchaseHistoryTable purchases={event.purchases} caption={copy.purchasesCaption} empty={copy.noPurchases} />
+      </AdminPanel>
+
+      {/* Complementos (D-48): en su propio panel, nunca mezclados con las compras que determinan el plan. */}
+      <AdminPanel id="event-addon-purchases" title={adminCopy.addons.eventTitle}>
+        <AddonPurchaseHistoryTable rows={addons.rows} caption={adminCopy.addons.eventCaption} empty={adminCopy.addons.noPurchases} />
       </AdminPanel>
     </div>
   );

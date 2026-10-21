@@ -637,6 +637,20 @@ Contexto: la invitación pública debe tener lenguaje visual propio (regla 7) y 
 
 **Verificado:** pruebas en memoria (checkout, doble clic, sesión reutilizada/completada/caducada, rechazos, webhook, duplicados, reembolsos, regresión de planes) y, contra una PostgreSQL temporal, la migración, el desbloqueo único (P2002), los CHECK (23514) y el reembolso. **Pendiente**: prueba con Stripe de prueba en staging, correo de confirmación del complemento (nuevo tipo de `EmailDelivery`: requiere aprobación), historial en «Compras y planes» y en la consola (Etapa 4), `/pricing` (Etapa 4), revisión fiscal, y **rotación del token de Upstash antes de cualquier despliegue**.
 
+**Etapa 4 (aprobada por el propietario; sin despliegue ni activación comercial):**
+
+(7) **`/pricing`** presenta el complemento («También en papel, igual de especial», textos del propietario, $199 MXN con impuestos aplicables incluidos, «solo el PDF, no la impresión ni el envío», Esencial y Premium) **sin botón de compra**; con la venta apagada, «Muy pronto» (`isPrintAddonSaleOpen`, el mismo interruptor que la venta).
+
+(8) **«Compras y planes»**: historial PROPIO de complementos dentro de cada evento (`getAddonHistory`, lectura aparte de `getBillingOverview`): producto, precio pagado, fecha, estado, «Ir a la descarga», reembolso y, si lo hubiera, «Cobro duplicado». Nunca se mezcla con el historial de pagos del plan.
+
+(9) **Consola**: `/admin/purchases/addons` y su detalle (solo lectura, `requireAdmin()`, DTO sin `unlockKey` y con ids enmascarados), filtro «Solo cobros duplicados», aviso de duplicados en las dos listas de compras y panel «Complementos» en el detalle del evento. Ampliación de D-33 solo de LECTURA.
+
+(10) **Correo** (ampliación aprobada de D-36): `ADDON_PURCHASE_CONFIRMATION`, «Tu invitación lista para imprimir | Hilo Luna», solo para la compra que desbloquea, con enlace al PANEL (nunca el PDF adjunto ni un enlace público); idempotente por `(kind, purchaseId)`; se pide en `granted` y en `already_paid` (la reconciliación pudo conceder primero) y desde la reconciliación.
+
+(11) **Dos pestañas**: índice único parcial `EventAddonPurchase_one_pending_per_event_addon` (migración aditiva `20261020120000_addon_single_pending_and_confirmation_email`): si dos pestañas abren sesiones distintas, la segunda no se registra, se **caduca en Stripe** y se reutiliza la primera; caducidad de sesión fija dentro de la ventana de idempotencia (mismos parámetros → la misma sesión de Stripe); «clave en uso» → espera y reutiliza; una pendiente se revisa sin límite de antigüedad; una sesión abierta sin enlace se caduca antes de cerrarla.
+
+(12) **Reembolso seguro de duplicados**: si se reembolsa el cobro que desbloqueaba y queda otro cobro pagado del mismo complemento, el desbloqueo pasa a ese cobro (`setAddonUnlock`, `billing.addon_unlock_transferred`). Procedimiento en `docs/BILLING.md` §13.6; prueba completa en staging en `docs/STAGING.md` §10.1.
+
 ### D-17 · **Aprobada (propietario)** · `InvitationTheme` con `layout` y `effects`
 → El tema declara la variante de cada bloque estructural (`hero`, `locations`, `gallery`, `timeline`) y efectos visuales (`paperTexture`, `vignette`, `photoMask`) como **configuración de plantilla**, no opciones del usuario. Permite plantillas realmente distintas sin duplicar lógica (un bloque, varias variantes). Alternativa descartada: elegir variantes solo con `TemplateDefinition.variants` (dos mecanismos para lo mismo). Ver `design/DESIGN_SYSTEM.md` §5.
 

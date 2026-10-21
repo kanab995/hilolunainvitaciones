@@ -208,6 +208,8 @@ enum EmailDeliveryKind {
   RSVP_NOTIFICATION
   PURCHASE_CONFIRMATION
   UPGRADE_CONFIRMATION
+  /// Compra del complemento «Archivo listo para imprimir» (D-48); `EmailDelivery.purchaseId` = `EventAddonPurchase.id`.
+  ADDON_PURCHASE_CONFIRMATION
 }
 
 /// `SKIPPED` = no se intentó enviar a propósito (proveedor sin configurar, o destinatario fuera de la lista de staging):
@@ -399,7 +401,8 @@ model EventPurchase {
 /// COMPRA DE UN COMPLEMENTO de un evento (D-48), en una tabla PROPIA: nunca participa en el cálculo del plan del evento (que solo lee
 /// `EventPurchase`), así que un complemento no puede conceder, quitar ni alterar un plan ni la mejora Esencial → Premium. Una fila por
 /// sesión de cobro (el historial no se sobrescribe); la escribe el checkout (`PENDING`) y el webhook verificado (`PAID`, `FAILED`,
-/// `CANCELED`, `REFUNDED`).
+/// `CANCELED`, `REFUNDED`). Fuera del esquema (Prisma no modela índices parciales ni CHECK), en las migraciones: a lo sumo UNA compra
+/// `PENDING` por evento y complemento (`EventAddonPurchase_one_pending_per_event_addon`), `unlockKey` solo en una compra PAGADA e importe ≥ 0.
 model EventAddonPurchase {
   id                        String          @id @default(cuid())
   eventId                   String

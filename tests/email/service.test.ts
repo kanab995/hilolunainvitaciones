@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EmailProvider, EmailProviderState, EmailSendResult } from "@/server/email/provider";
-import { retryFailedEmailDelivery, sendPurchaseConfirmation, sendRsvpNotification, sendUpgradeConfirmation, type EmailServiceDeps } from "@/server/email/service";
+import { retryFailedEmailDelivery, sendPrintAddonConfirmation, sendPurchaseConfirmation, sendRsvpNotification, sendUpgradeConfirmation, type EmailServiceDeps } from "@/server/email/service";
 import type { CreateDeliveryInput, CreateDeliveryResult, EventOwnerContext, GuestRsvpContext, PurchaseForRetry } from "@/server/repositories/email-delivery";
 
 const EVENT_URL = "https://hiloluna.test";
@@ -22,6 +22,7 @@ function world(over: Partial<EmailServiceDeps> = {}) {
     resolveGuestRsvpContext: vi.fn(async () => guestContext),
     resolveEventOwnerContext: vi.fn(async () => eventContext),
     findPurchaseIdBySession: vi.fn(async () => "purch_1"),
+    findUnlockingAddonPurchase: vi.fn(async () => ({ id: "addon_1", eventId: "evt_1", addon: "PRINT_FILE" as const, amount: 19900, currency: "MXN", paidAt: new Date("2027-03-01T18:00:00Z") })),
     createEmailDeliveryAttempt: vi.fn(async (input: CreateDeliveryInput): Promise<CreateDeliveryResult> => {
       const key = `${input.kind}|${input.purchaseId ?? "null"}`;
       if (input.purchaseId && attempts.has(key)) return { status: "duplicate" };
@@ -185,5 +186,54 @@ describe("(21/40) retryFailedEmailDelivery: preparado, sin interfaz — solo com
     expect(deps.reopenEmailDeliveryForRetry).toHaveBeenCalledWith("del_9");
     expect(deps.createEmailDeliveryAttempt).not.toHaveBeenCalled();
     expect(sent[0]?.subject).toBe("Tu evento ahora es Premium");
+  });
+});
+
+describe("(D-48) sendPrintAddonConfirmation — complemento «Archivo listo para imprimir»", () => {
+  const trigger = { eventId: "evt_1", provider: "STRIPE" as const, checkoutSessionId: "cs_addon_1" };
+  const message = (provider: EmailProvider) => vi.mocked(provider.send).mock.calls[0]?.[0];
+
+  it("asunto aprobado, nombre del evento, producto y enlace al PANEL (con sesión); sin adjuntos ni enlace público de descarga", async () => {
+    const { deps, provider } = world();
+    await sendPrintAddonConfirmation(trigger, deps);
+    const sent = message(provider);
+    expect(sent?.subject).toBe("Tu invitación lista para imprimir | Hilo Luna");
+    expect(Object.keys(sent ?? {}).sort()).toEqual(["html", "subject", "text", "to"]);
+    for (const body of [sent?.html ?? "", sent?.text ?? ""]) {
+      expect(body).toContain("Andrea &");
+      expect(body).toContain("Archivo listo para imprimir");
+      expect(body).toContain(`${EVENT_URL}/dashboard/events/evt_1/print`);
+      expect(body).not.toContain("/print/file");
+      expect(body).toContain("$199 MXN");
+    }
+    expect(deps.createEmailDeliveryAttempt).toHaveBeenCalledWith(expect.objectContaining({ kind: "ADDON_PURCHASE_CONFIRMATION", purchaseId: "addon_1", recipientUserId: "usr_1", eventId: "evt_1" }));
+  });
+
+  it("idempotente: el segundo disparo para la MISMA compra no envía otro correo", async () => {
+    const { deps, sent } = world();
+    await sendPrintAddonConfirmation(trigger, deps);
+    await sendPrintAddonConfirmation(trigger, deps);
+    expect(sent).toHaveLength(1);
+  });
+
+  it("un cobro duplicado o reembolsado (no desbloquea) y una compra de otro evento no reciben correo", async () => {
+    const noUnlock = world({ findUnlockingAddonPurchase: vi.fn(async () => null) });
+    await sendPrintAddonConfirmation(trigger, noUnlock.deps);
+    expect(noUnlock.deps.createEmailDeliveryAttempt).not.toHaveBeenCalled();
+    const otherEvent = world();
+    await sendPrintAddonConfirmation({ ...trigger, eventId: "evt_otro" }, otherEvent.deps);
+    expect(otherEvent.deps.createEmailDeliveryAttempt).not.toHaveBeenCalled();
+  });
+
+  it("escapa el título del evento y respeta el prefijo de staging; un fallo nunca se propaga", async () => {
+    const { deps, provider } = world({
+      resolveEventOwnerContext: vi.fn(async () => ({ eventId: "evt_1", eventTitle: "<script>x</script>", ownerId: "usr_1", ownerEmail: "owner@example.com", ownerName: null })),
+      withStagingSubjectPrefix: vi.fn((subject: string) => `[STAGING] ${subject}`),
+    });
+    await sendPrintAddonConfirmation(trigger, deps);
+    expect(message(provider)?.html).not.toContain("<script>");
+    expect(message(provider)?.subject).toBe("[STAGING] Tu invitación lista para imprimir | Hilo Luna");
+    const broken = world({ findUnlockingAddonPurchase: vi.fn(async () => Promise.reject(new Error("db caída"))) });
+    await expect(sendPrintAddonConfirmation(trigger, broken.deps)).resolves.toBeUndefined();
   });
 });

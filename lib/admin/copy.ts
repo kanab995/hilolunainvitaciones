@@ -1,4 +1,6 @@
+import type { AddonId } from "@/lib/billing/addons";
 import type { PurchaseKindId, PurchaseStatusId } from "@/lib/billing/purchase";
+import type { EmailDeliveryKindId } from "@/lib/email/delivery";
 import type { PublicationState } from "@/types/published";
 
 /**
@@ -258,6 +260,39 @@ export const adminCopy = {
     providers: { STRIPE: "Stripe", MERCADO_PAGO: "Mercado Pago" },
   },
 
+  addons: {
+    title: "Complementos",
+    description: "Compras de complementos por evento (hoy, «Archivo listo para imprimir»). Van aparte de las compras de planes y nunca cambian el plan de un evento.",
+    toAddons: "Ver complementos",
+    toPlans: "Ver compras de planes",
+    searchLabel: "Buscar por evento o usuario",
+    caption: "Compras de complementos",
+    product: "Producto",
+    flag: "Señal",
+    flagLabel: { duplicate: "Solo cobros duplicados" },
+    unlocks: "Desbloquea la descarga",
+    unlocksYes: "Sí",
+    unlocksNo: "No",
+    duplicateBadge: "Cobro duplicado",
+    refundedAt: "Reembolsada el",
+    duplicatesAlert: (count: number) => (count === 1 ? "Hay 1 cobro duplicado de un complemento pendiente de reembolso." : `Hay ${count} cobros duplicados de complementos pendientes de reembolso.`),
+    duplicatesAlertAction: "Ver cobros duplicados",
+    detailTitle: "Compra de complemento",
+    siblingsTitle: "Todas las compras de este complemento en el evento",
+    siblingsCaption: "Historial del complemento en el evento",
+    eventTitle: "Complementos",
+    eventCaption: "Compras de complementos del evento",
+    noPurchases: "Este evento no tiene compras de complementos.",
+    eventId: "Id del evento",
+    stripeSearch: "Buscar en Stripe",
+    stripeSearchHint: (eventId: string) => `En el panel de Stripe → Pagos, busca metadata["eventId"]:"${eventId}" y compara la fecha, el importe y los últimos cuatro caracteres del pago.`,
+    duplicateNote:
+      "Este cobro se pagó cuando el evento ya tenía el complemento: no desbloquea nada. Reembólsalo COMPLETO desde el panel de Stripe; el webhook lo marcará «Reembolsada» y la descarga del cliente seguirá disponible con su otro pago.",
+    refundNote:
+      "La consola no reembolsa. Un reembolso total hecho en Stripe llega por el webhook: la compra pasa a «Reembolsada» y, si no queda otro cobro pagado del complemento, la descarga deja de estar disponible.",
+    products: { PRINT_FILE: "Archivo listo para imprimir" } satisfies Record<AddonId, string>,
+  },
+
   webhooks: {
     title: "Webhooks",
     description: "Eventos del proveedor de pagos ya procesados.",
@@ -274,11 +309,16 @@ export const adminCopy = {
 
   emails: {
     title: "Correos",
-    description: "Notificaciones transaccionales enviadas a los anfitriones (RSVP, compras y mejoras).",
+    description: "Notificaciones transaccionales enviadas a los anfitriones (RSVP, compras, mejoras y complementos).",
     searchLabel: "Buscar",
     caption: "Envíos de correo transaccional",
     kind: "Tipo",
-    kindLabel: { RSVP_NOTIFICATION: "Nuevo RSVP", PURCHASE_CONFIRMATION: "Confirmación de compra", UPGRADE_CONFIRMATION: "Confirmación de mejora" } satisfies Record<"RSVP_NOTIFICATION" | "PURCHASE_CONFIRMATION" | "UPGRADE_CONFIRMATION", string>,
+    kindLabel: {
+      RSVP_NOTIFICATION: "Nuevo RSVP",
+      PURCHASE_CONFIRMATION: "Confirmación de compra",
+      UPGRADE_CONFIRMATION: "Confirmación de mejora",
+      ADDON_PURCHASE_CONFIRMATION: "Confirmación de complemento",
+    } satisfies Record<EmailDeliveryKindId, string>,
     recipient: "Destinatario",
     status: "Estado",
     statusLabel: { PENDING: "Pendiente", SENT: "Enviado", FAILED: "Fallido", SKIPPED: "Omitido" } satisfies Record<"PENDING" | "SENT" | "FAILED" | "SKIPPED", string>,

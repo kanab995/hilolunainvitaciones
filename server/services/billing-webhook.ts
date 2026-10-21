@@ -1,7 +1,7 @@
 import { getBillingProviderState } from "@/server/billing";
 import { WebhookSignatureError, type BillingProviderState, type NormalizedWebhookEvent, type ProviderPayment } from "@/server/billing/provider";
 import { isTransientDatabaseError, StoreUnavailableError } from "@/server/db/errors";
-import { sendPurchaseConfirmation, sendUpgradeConfirmation } from "@/server/email/service";
+import { sendPrintAddonConfirmation, sendPurchaseConfirmation, sendUpgradeConfirmation } from "@/server/email/service";
 import { runAfterResponse } from "@/server/email/run-after";
 import { prismaBillingStore, type BillingStore } from "@/server/repositories/billing";
 import { closeAddonPayment, confirmAddonPayment, isAddonPayment, refundAddonPayment } from "@/server/services/addon-sync";
@@ -61,11 +61,16 @@ export async function handleBillingWebhook(input: { rawBody: string; signature: 
     // correo de confirmación DESPUÉS de que la transacción de abajo haya confirmado (D-36). `provider.id` se captura aparte: `provider`
     // (con el SDK) no debe cruzar a `after()`.
     let granted: GrantedPurchase | undefined;
+    // Complemento confirmado (recién concedido, o ya pagado por la reconciliación del regreso del pago): su correo es idempotente por compra.
+    let addonConfirmed: { eventId: string; checkoutSessionId: string } | undefined;
     const providerId = provider.id;
 
     const result = await deps.store.recordEventAndApply({ provider: provider.id, externalEventId: event.id, type: event.type }, async (ops) => {
       if (event.action === "confirm_payment") {
-        if (payment && isAddonPayment(provider, payment)) await confirmAddonPayment(ops, provider, payment, event.createdAt);
+        if (payment && isAddonPayment(provider, payment)) {
+          const outcome = await confirmAddonPayment(ops, provider, payment, event.createdAt);
+          if ((outcome === "granted" || outcome === "already_paid") && payment.metadata.eventId) addonConfirmed = { eventId: payment.metadata.eventId, checkoutSessionId: payment.checkoutSessionId };
+        }
         else if (payment) await confirmPayment(ops, provider, payment, event.createdAt, (info) => (granted = info));
       } else if (event.action === "close_payment") {
         // La sesión es de un plan O de un complemento: cada cierre es «noop» si no es suyo.
@@ -91,6 +96,10 @@ export async function handleBillingWebhook(input: { rawBody: string; signature: 
           accessEndsAt: purchase.accessEndsAt,
         }),
       );
+    }
+    if (addonConfirmed && result !== "duplicate") {
+      const confirmed = addonConfirmed;
+      runAfterResponse(() => sendPrintAddonConfirmation({ eventId: confirmed.eventId, provider: providerId, checkoutSessionId: confirmed.checkoutSessionId }));
     }
     return { status: 200, body: { received: true, ...(result === "duplicate" ? { duplicate: true } : {}) } };
   } catch (error) {

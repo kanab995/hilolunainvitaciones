@@ -51,6 +51,7 @@ datos correcta (la de producción no es la de desarrollo). Aplica antes las migr
 | Plantillas | `/admin/templates` | Lista de todo el catálogo; **edita solo** visibilidad (`publicationStatus`) y plan mínimo del evento (`minimumPlan`) |
 | Música (D-46) | `/admin/music`, `/admin/music/[id]` | Biblioteca musical: categorías, pistas, subida del MP3, documentación de derechos, verificación y activación/desactivación (ver §4bis) |
 | Compras | `/admin/purchases`, `/admin/purchases/[id]` | Lista con filtros (estado, tipo, plan); detalle con ids del proveedor **enmascarados** |
+| Complementos (D-48) | `/admin/purchases/addons`, `/admin/purchases/addons/[id]` | Compras de complementos, aparte de los planes: filtro por estado y «Solo cobros duplicados», aviso de duplicados pendientes, detalle con «Desbloquea la descarga», reembolso y todas las compras del complemento en el evento. Reembolsar: en Stripe (`docs/BILLING.md` §13.6) |
 | Webhooks | `/admin/webhooks` | Eventos del proveedor de pagos ya procesados (proveedor, id parcial, tipo, fecha) |
 | Auditoría | `/admin/audit` | Cambios de administración (quién, qué, antes → después). Solo lectura |
 
