@@ -19,7 +19,8 @@ import {
   type EventBillingState,
   type OwnedEventBillingRow,
 } from "@/server/repositories/billing";
-import { confirmPayment } from "@/server/services/purchase-sync";
+import { notifyGrantedPurchase } from "@/server/services/purchase-emails";
+import { confirmPayment, type GrantedPurchase } from "@/server/services/purchase-sync";
 import type { AppUser } from "@/server/services/user-sync";
 import { logger } from "@/server/observability/logger";
 
@@ -40,6 +41,8 @@ export interface BillingServiceDeps {
   store: BillingStore;
   siteUrl: () => string;
   now: () => Date;
+  /** Correo de una compra concedida por la reconciliación (por defecto, después de la respuesta; idempotente por compra). */
+  notifyGranted?: (provider: BillingProvider["id"], purchase: GrantedPurchase) => void;
 }
 
 const defaultDeps: BillingServiceDeps = {
@@ -52,6 +55,7 @@ const defaultDeps: BillingServiceDeps = {
   store: prismaBillingStore,
   siteUrl: () => getSiteUrl(),
   now: () => new Date(getServerNow()),
+  notifyGranted: notifyGrantedPurchase,
 };
 
 export type BillingActionCode = "invalid_plan" | "not_found" | "not_configured" | "invalid_config" | "already_at_plan" | "downgrade" | "no_customer" | "payment_pending" | "unavailable" | "error";
@@ -277,7 +281,9 @@ export async function getBillingOverview(user: Pick<AppUser, "id">, deps: Billin
 
 /**
  * 3. RECONCILIACIÓN (regreso del pago / soporte): vuelve a leer del proveedor los pagos PENDIENTES de ESTE evento del usuario y los
- * aplica con las MISMAS verificaciones que el webhook. No sustituye al webhook ni cambia nada si el proveedor no está configurado.
+ * aplica con las MISMAS verificaciones que el webhook. No sustituye al webhook ni cambia nada si el proveedor no está configurado. Si concede
+ * ANTES que el webhook, es ella quien pide el correo de confirmación (el webhook verá `already_paid` y no lo pide); `EmailDelivery` impide
+ * un segundo envío en cualquier caso.
  */
 export async function reconcileEventPayments(user: Pick<AppUser, "id">, eventId: string, deps: BillingServiceDeps = defaultDeps): Promise<{ granted: number }> {
   const state = deps.getProviderState();
@@ -291,10 +297,12 @@ export async function reconcileEventPayments(user: Pick<AppUser, "id">, eventId:
     const payment = await provider.getPayment(purchase.checkoutSessionId);
     if (payment) payments.push(payment);
   }
-  let granted = 0;
   const now = deps.now();
+  const confirmed: GrantedPurchase[] = [];
   await deps.store.apply(async (ops) => {
-    for (const payment of payments) if ((await confirmPayment(ops, provider, payment, now)) === "granted") granted += 1;
+    for (const payment of payments) await confirmPayment(ops, provider, payment, now, (info) => confirmed.push(info));
   });
-  return { granted };
+  // Solo después de que la transacción confirmó: un fallo al aplicar nunca deja un correo enviado de una compra no guardada.
+  for (const purchase of confirmed) (deps.notifyGranted ?? notifyGrantedPurchase)(provider.id, purchase);
+  return { granted: confirmed.length };
 }

@@ -275,6 +275,8 @@ export function billingDeps(over: Partial<BillingServiceDeps> & { provider?: Bil
     store: world.store,
     siteUrl: () => "https://hiloluna.example",
     now: () => new Date("2027-01-15T00:00:00Z"),
+    // Sin correo real en las pruebas: las del correo de confirmación lo sustituyen a propósito.
+    notifyGranted: () => undefined,
     ...rest,
   };
   return { deps, world, pending };

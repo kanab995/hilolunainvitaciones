@@ -1,10 +1,11 @@
 import { getBillingProviderState } from "@/server/billing";
 import { WebhookSignatureError, type BillingProviderState, type NormalizedWebhookEvent, type ProviderPayment } from "@/server/billing/provider";
 import { isTransientDatabaseError, StoreUnavailableError } from "@/server/db/errors";
-import { sendPrintAddonConfirmation, sendPurchaseConfirmation, sendUpgradeConfirmation } from "@/server/email/service";
+import { sendPrintAddonConfirmation } from "@/server/email/service";
 import { runAfterResponse } from "@/server/email/run-after";
 import { prismaBillingStore, type BillingStore } from "@/server/repositories/billing";
 import { closeAddonPayment, confirmAddonPayment, isAddonPayment, refundAddonPayment } from "@/server/services/addon-sync";
+import { notifyGrantedPurchase } from "@/server/services/purchase-emails";
 import { closePayment, confirmPayment, refundPayment, type GrantedPurchase } from "@/server/services/purchase-sync";
 import { logger } from "@/server/observability/logger";
 
@@ -82,21 +83,7 @@ export async function handleBillingWebhook(input: { rawBody: string; signature: 
       }
     });
 
-    if (granted) {
-      const purchase = granted;
-      runAfterResponse(() =>
-        (purchase.kind === "UPGRADE" ? sendUpgradeConfirmation : sendPurchaseConfirmation)({
-          eventId: purchase.eventId,
-          provider: providerId,
-          checkoutSessionId: purchase.checkoutSessionId,
-          plan: purchase.plan,
-          amountMinor: purchase.amountMinor,
-          currency: purchase.currency,
-          paidAt: purchase.paidAt,
-          accessEndsAt: purchase.accessEndsAt,
-        }),
-      );
-    }
+    if (granted) notifyGrantedPurchase(providerId, granted);
     if (addonConfirmed && result !== "duplicate") {
       const confirmed = addonConfirmed;
       runAfterResponse(() => sendPrintAddonConfirmation({ eventId: confirmed.eventId, provider: providerId, checkoutSessionId: confirmed.checkoutSessionId }));
