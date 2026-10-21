@@ -43,19 +43,38 @@ describe("política del complemento (pura)", () => {
 describe("configuración", () => {
   const base = { STRIPE_SECRET_KEY: "sk_test_x", STRIPE_WEBHOOK_SECRET: "whsec_x", STRIPE_PRICE_ESSENTIAL_ONE_TIME: "price_e" };
 
-  it("el precio del complemento se lee como los de los planes, y no puede repetir el de un plan", () => {
+  it("el precio del complemento se lee como los de los planes; uno repetido o mal formado solo apaga el complemento (los planes siguen)", () => {
     const ok = resolveStripeConfig({ ...base, STRIPE_PRICE_ADDON_PRINT_FILE: "price_print" });
     expect(ok.status === "ready" && ok.config.prices.get("STRIPE_PRICE_ADDON_PRINT_FILE")).toBe("price_print");
-    expect(resolveStripeConfig({ ...base, STRIPE_PRICE_ADDON_PRINT_FILE: "price_e" }).status).toBe("invalid");
+    for (const bad of ["price_e", "prod_123", "199"]) {
+      const result = resolveStripeConfig({ ...base, STRIPE_PRICE_ADDON_PRINT_FILE: bad });
+      expect(result.status, bad).toBe("ready");
+      if (result.status !== "ready") continue;
+      expect(result.config.prices.has("STRIPE_PRICE_ADDON_PRINT_FILE"), bad).toBe(false);
+      expect(result.config.prices.get("STRIPE_PRICE_ESSENTIAL_ONE_TIME"), bad).toBe("price_e");
+      expect(result.addonProblems, bad).toHaveLength(1);
+    }
+    // Un precio de PLAN mal formado sigue invalidando la configuración (eso sí rompería cobros).
+    expect(resolveStripeConfig({ ...base, STRIPE_PRICE_ESSENTIAL_ONE_TIME: "prod_x" }).status).toBe("invalid");
     expect(ADDON_PRICE_ENV_KEYS).toEqual(["STRIPE_PRICE_ADDON_PRINT_FILE"]);
   });
 
-  it("encender la venta sin precio es un error en producción (aviso en desarrollo); apagada no exige nada", () => {
-    const prod = (extra: Record<string, string>) => validateEnv({ NODE_ENV: "production", APP_ENV: "production", ...extra }, "production").problems.filter((problem) => problem.variable === "STRIPE_PRICE_ADDON_PRINT_FILE");
-    expect(prod({ PRINT_ADDON_ENABLED: "1" })).toMatchObject([{ severity: "error" }]);
-    expect(prod({})).toEqual([]);
-    expect(prod({ PRINT_ADDON_ENABLED: "1", STRIPE_PRICE_ADDON_PRINT_FILE: "price_print" })).toEqual([]);
-    expect(validateEnv({ PRINT_ADDON_ENABLED: "1" }, "development").problems.find((problem) => problem.variable === "STRIPE_PRICE_ADDON_PRINT_FILE")?.severity).toBe("warning");
+  it("un complemento mal configurado NUNCA impide arrancar en producción: solo avisa (la venta queda apagada)", () => {
+    const prodEnv = { NODE_ENV: "production", APP_ENV: "production", STRIPE_SECRET_KEY: "sk_live_x", STRIPE_WEBHOOK_SECRET: "whsec_x", STRIPE_PRICE_ESSENTIAL_ONE_TIME: "price_e", STRIPE_PRICE_PREMIUM_ONE_TIME: "price_p", STRIPE_PRICE_ESSENTIAL_TO_PREMIUM: "price_u" };
+    const addonProblems = (extra: Record<string, string>) => validateEnv({ ...prodEnv, ...extra }, "production").problems.filter((problem) => problem.variable === "STRIPE_PRICE_ADDON_PRINT_FILE");
+    expect(addonProblems({ PRINT_ADDON_ENABLED: "1" })).toMatchObject([{ severity: "warning" }]);
+    expect(addonProblems({ PRINT_ADDON_ENABLED: "1", STRIPE_PRICE_ADDON_PRINT_FILE: "prod_123" })).toMatchObject([{ severity: "warning" }]);
+    expect(addonProblems({})).toEqual([]);
+    expect(addonProblems({ PRINT_ADDON_ENABLED: "1", STRIPE_PRICE_ADDON_PRINT_FILE: "price_print" })).toEqual([]);
+    // Ningún problema de Stripe es un error por culpa del complemento.
+    expect(validateEnv({ ...prodEnv, PRINT_ADDON_ENABLED: "1", STRIPE_PRICE_ADDON_PRINT_FILE: "prod_123" }, "production").problems.filter((problem) => problem.group === "stripe" && problem.severity === "error")).toEqual([]);
+  });
+
+  it("con el precio descartado, la venta queda cerrada (sin botón de compra) aunque el interruptor esté encendido", async () => {
+    const fake = fakeProvider({ priceRefFor: (key) => (key === "STRIPE_PRICE_ADDON_PRINT_FILE" ? undefined : (PRICE_REFS as Record<string, string>)[key]) });
+    const { deps } = setup({ provider: fake });
+    expect(await startPrintAddonCheckout(USER, EVENT, deps)).toMatchObject({ ok: false, code: "not_available" });
+    expect((await getPrintAddonState(USER, EVENT, deps))?.saleOpen).toBe(false);
   });
 
   it(".env.example declara las dos variables, vacías (la venta nace APAGADA)", () => {

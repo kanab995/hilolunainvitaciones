@@ -645,7 +645,7 @@ Contexto: la invitación pública debe tener lenguaje visual propio (regla 7) y 
 
 (3) **Checkout** (`server/services/addon-service.ts` + Server Action): mismas barreras que los planes (reutilizar sesión abierta, «confirmando» si se completó, clave de idempotencia, verificación del Price real antes de cobrar) más las del complemento (invitación de boda publicada, plan elegible, no comprado). Regreso con `?payment=success` → reconciliación (no desbloquea por sí sola).
 
-(4) **Venta apagada por defecto**: `PRINT_ADDON_ENABLED=1` + `STRIPE_PRICE_ADDON_PRINT_FILE` (declaradas en `server/config/env.ts` y `.env.example`; encendida sin precio = error en producción). Sin ellas la tarjeta dice «Muy pronto».
+(4) **Venta apagada por defecto**: `PRINT_ADDON_ENABLED=1` + `STRIPE_PRICE_ADDON_PRINT_FILE` (declaradas en `server/config/env.ts` y `.env.example`; encendida sin precio, o con un precio mal formado o repetido = solo un aviso y el complemento queda apagado; nunca invalida los planes, el webhook ni el arranque). Sin ellas la tarjeta dice «Muy pronto».
 
 (5) **Descarga**: `canDownloadPrintFile` = complemento `PAID` del evento del usuario (consulta con propietario) **o** prueba interna de ADMIN. Reembolso → `REFUNDED` → sin descarga. Reembolsar el plan no retira el complemento (se pagó aparte; decisión de la propuesta aprobada).
 

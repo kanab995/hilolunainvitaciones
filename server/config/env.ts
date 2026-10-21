@@ -1,4 +1,4 @@
-import { ADDONS, ADDON_IDS, isAddonSaleEnabled } from "@/lib/billing/addons";
+import { ADDONS, ADDON_IDS, ADDON_PRICE_ENV_KEYS, isAddonSaleEnabled } from "@/lib/billing/addons";
 import { PRICE_ENV_KEYS } from "@/lib/billing/plans";
 import { siteConfig } from "@/lib/site-config";
 import { resolveStripeConfig } from "@/server/billing/stripe/config";
@@ -136,11 +136,12 @@ export function validateEnv(env: EnvSource, mode: EnvReport["mode"] = env.NODE_E
     }
   }
 
-  // Complementos (D-48): OPCIONALES. Apagados por defecto; si se encienden (`PRINT_ADDON_ENABLED=1`) deben tener su precio, o el botón de
-  // compra aparecería sin poder cobrarse. Encenderlos en producción es una decisión del propietario.
+  // Complementos (D-48): OPCIONALES. Apagados por defecto; si se encienden (`PRINT_ADDON_ENABLED=1`) deben tener su precio válido. Un
+  // complemento mal configurado es solo un AVISO: el complemento queda apagado («Muy pronto») y el sitio y los planes siguen funcionando.
+  if (stripe.status === "ready") for (const message of stripe.addonProblems) problem("stripe", "warning", ADDON_PRICE_ENV_KEYS.find((name) => message.includes(name)) ?? "STRIPE_PRICE_ADDON_PRINT_FILE", message);
   for (const addon of ADDON_IDS) {
     const { enableEnvKey, stripePriceEnvKey } = ADDONS[addon];
-    if (isAddonSaleEnabled(addon, env) && !has(env, stripePriceEnvKey)) problem("stripe", production ? "error" : "warning", stripePriceEnvKey, `${enableEnvKey} está activo pero falta el precio de Stripe del complemento (pago único).`);
+    if (isAddonSaleEnabled(addon, env) && !has(env, stripePriceEnvKey)) problem("stripe", "warning", stripePriceEnvKey, `${enableEnvKey} está activo pero falta el precio de Stripe del complemento (pago único): la venta queda apagada.`);
     if (has(env, enableEnvKey) && !["0", "1", "true", "false", "yes", "no"].includes(value(env, enableEnvKey).toLowerCase())) problem("stripe", "warning", enableEnvKey, "Usa 1 para encender la venta del complemento o 0 para apagarla.");
   }
 

@@ -195,7 +195,7 @@ Los precios de los planes no cambian ($0 / $499 / $799). Lo comprueban `tests/bi
 ### 13.4 Activar (solo con la autorización del propietario)
 
 Crea el precio de pago único de 199 MXN (modo de prueba en staging, real en producción), ponlo en `STRIPE_PRICE_ADDON_PRINT_FILE` y enciende
-`PRINT_ADDON_ENABLED=1`. Encendido sin precio, la validación del entorno lo marca como error en producción. Para apagar la venta:
+`PRINT_ADDON_ENABLED=1`. Encendido sin precio, o con un precio mal formado (no `price_…`) o repetido, la validación del entorno solo AVISA y el complemento queda apagado («Muy pronto»): un complemento mal configurado nunca invalida los pagos de los planes, el webhook ni el arranque del sitio. Para apagar la venta:
 `PRINT_ADDON_ENABLED=0` (las compras ya hechas siguen descargándose). Antes del primer despliegue con este código se aplican dos migraciones
 aditivas (`20261019120000_add_event_addon_purchases`, `20261020120000_addon_single_pending_and_confirmation_email`); `npm run build` las aplica
 a la base de datos de ESE entorno.
