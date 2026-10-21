@@ -90,7 +90,7 @@ describe("la vista previa gratuita nunca entrega el PDF limpio", () => {
   });
 
   it("sin rasterizador no hay vista previa (nunca el SVG vectorial)", async () => {
-    expect(await getPrintPreview(owner, "evt", DEFAULT_PRINT_OPTIONS, "front", deps({ rasterize: async () => undefined }))).toEqual({ ok: false });
+    expect(await getPrintPreview(owner, "evt", DEFAULT_PRINT_OPTIONS, "front", deps({ rasterize: async () => undefined }))).toEqual({ ok: false, reason: "not_found" });
   });
 });
 
@@ -99,17 +99,17 @@ describe("descarga: con compra o como prueba interna de administración, siempre
     const paidBy = (owner: string) => vi.fn(async (userId: string) => userId === owner);
     const d = deps({ hasPaidAddon: paidBy(owner.id) });
     expect((await getPrintFile(owner, "evt", DEFAULT_PRINT_OPTIONS, d)).ok).toBe(true);
-    expect(await getPrintFile(intruder, "evt", DEFAULT_PRINT_OPTIONS, deps({ hasPaidAddon: paidBy(owner.id) }))).toEqual({ ok: false });
+    expect(await getPrintFile(intruder, "evt", DEFAULT_PRINT_OPTIONS, deps({ hasPaidAddon: paidBy(owner.id) }))).toEqual({ ok: false, reason: "not_found" });
   });
 
   it("un ADMIN no descarga el PDF de un evento AJENO (la consulta lleva su propio id)", async () => {
     const d = deps({ isAdmin: async () => true });
-    expect(await getPrintFile(intruder, "evt", DEFAULT_PRINT_OPTIONS, d)).toEqual({ ok: false });
+    expect(await getPrintFile(intruder, "evt", DEFAULT_PRINT_OPTIONS, d)).toEqual({ ok: false, reason: "not_found" });
     expect(d.loadPublication).toHaveBeenCalledWith("usr_other", "evt");
   });
 
   it("un dueño sin rol ADMIN y sin compra no descarga nada", async () => {
-    expect(await getPrintFile(owner, "evt", DEFAULT_PRINT_OPTIONS, deps())).toEqual({ ok: false });
+    expect(await getPrintFile(owner, "evt", DEFAULT_PRINT_OPTIONS, deps())).toEqual({ ok: false, reason: "not_found" });
   });
 
   it("un ADMIN dueño del evento sí, y la generación queda marcada como prueba interna en el registro", async () => {

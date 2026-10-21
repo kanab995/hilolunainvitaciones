@@ -3,13 +3,14 @@ import { join } from "node:path";
 import { decodePDFRawStream, PDFArray, PDFDocument, PDFRawStream, PDFRef } from "pdf-lib";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { PrintStudio } from "@/components/print/print-studio";
 import { QrTargetPicker } from "@/components/print/qr-target-picker";
 import { GIFT_REGISTRY_ANCHOR } from "@/lib/invitation/anchors";
 import { printCopy } from "@/lib/print/copy";
 import { buildPrintData } from "@/lib/print/data";
 import { layoutRomanticElegant } from "@/lib/print/layout";
 import { DEFAULT_PRINT_OPTIONS, parsePrintOptions, printOptionsQuery, type PrintOptions } from "@/lib/print/options";
-import { effectiveQrTarget, MAX_STORE_QR_URL_LENGTH, printQrAvailability, qrDestination, safeStoreUrl, type PrintQrTarget } from "@/lib/print/qr-target";
+import { isQrTargetAvailable, MAX_STORE_QR_URL_LENGTH, printQrAvailability, qrDestination, safeStoreUrl, type PrintQrTarget } from "@/lib/print/qr-target";
 import type { PrintScene, SceneQr, SceneText } from "@/lib/print/scene";
 import { createQrMatrix } from "@/lib/share/qr";
 import { loadPrintFonts, type PrintFontSet } from "@/server/print/fonts";
@@ -41,9 +42,10 @@ function withGifts(gifts: Invitation["giftRegistry"], visible = true): Invitatio
 }
 const oneStore = (url: string, name = "Liverpool") => withGifts({ message: "", entries: [{ id: "g1", name, url }] });
 
+/** Escena con un destino DISPONIBLE (los no disponibles no se generan: ver «sin cambios silenciosos»). */
 const sceneFor = (invitation: Invitation, target: PrintQrTarget, expired = false): PrintScene => {
   const availability = printQrAvailability(invitation, { expired });
-  const qr = qrDestination(effectiveQrTarget(target, availability), availability, URL_A);
+  const qr = qrDestination(target, availability, URL_A);
   return layoutRomanticElegant(buildPrintData(invitation, qr ? { qr } : {}), { format: "5x7", includeBack: true }, fonts.metrics);
 };
 const backItems = (scene: PrintScene) => scene.pages.find((page) => page.kind === "back")?.items ?? [];
@@ -110,12 +112,13 @@ describe("destinos disponibles según la invitación PUBLICADA", () => {
     expect(printQrAvailability(store, { expired: true })).toMatchObject({ invitation: false, gifts: false, giftLink: { ok: true } });
   });
 
-  it("un destino que ya no existe cae a la invitación, y sin invitación vigente, a «sin QR»", () => {
+  it("un destino que ya no existe NO se resuelve hacia otro: no hay destino (el servicio pide elegir de nuevo)", () => {
     const noGifts = printQrAvailability(withGifts(undefined), { expired: false });
-    expect(effectiveQrTarget("gifts", noGifts)).toBe("invitation");
-    expect(effectiveQrTarget("gift-link", noGifts)).toBe("invitation");
-    expect(effectiveQrTarget("gifts", printQrAvailability(withGifts(undefined), { expired: true }))).toBe("none");
-    expect(effectiveQrTarget("none", noGifts)).toBe("none");
+    expect(isQrTargetAvailable("gifts", noGifts)).toBe(false);
+    expect(qrDestination("gifts", noGifts, URL_A)).toBeUndefined();
+    expect(qrDestination("gift-link", noGifts, URL_A)).toBeUndefined();
+    expect(isQrTargetAvailable("invitation", printQrAvailability(demo, { expired: true }))).toBe(false);
+    expect(isQrTargetAvailable("none", noGifts)).toBe(true);
   });
 });
 
@@ -244,19 +247,44 @@ describe("servicio: guardar la elección, vista previa y PDF", () => {
     expect(await rowsFor(owner, "evt_A", "gifts")).toEqual(createQrMatrix("https://hiloluna.com/i/andrea-y-fernando#regalos").rows);
     expect(await rowsFor(other, "evt_B", "gift-link")).toEqual(createQrMatrix("https://otra-tienda.com.mx/lista-de-b").rows);
     expect(await rowsFor(owner, "evt_A", "none")).toBeUndefined();
-    // Pedir el enlace directo donde no existe cae a la invitación, nunca a una URL inventada.
-    expect(await rowsFor(owner, "evt_A", "gift-link")).toEqual(createQrMatrix("https://hiloluna.com/i/andrea-y-fernando").rows);
+  });
+
+  it("sin cambios silenciosos: un destino que ya no existe no genera ni vista previa del reverso ni PDF (pide elegir de nuevo)", async () => {
+    // La mesa de regalos se retiró y se volvió a publicar después de elegir «Mesa de regalos».
+    const removed: OwnedPublication = { state: "published", invitation: withGifts(undefined), slug: "andrea-y-fernando", title: "Boda A", expired: false };
+    const d = deps({ loadPublication: async (userId) => (userId === owner.id ? removed : undefined), getQrTarget: async () => "gifts" });
+    expect(await getPrintFile(owner, "evt_A", { ...DEFAULT_PRINT_OPTIONS, qr: "gifts" }, d)).toEqual({ ok: false, reason: "qr_unavailable" });
+    expect(await getPrintPreview(owner, "evt_A", { ...DEFAULT_PRINT_OPTIONS, qr: "gifts" }, "back", d)).toEqual({ ok: false, reason: "qr_unavailable" });
+    // Dos tiendas: pedir el enlace directo tampoco cae a la invitación.
+    expect(await getPrintFile(owner, "evt_A", { ...DEFAULT_PRINT_OPTIONS, qr: "gift-link" }, deps())).toEqual({ ok: false, reason: "qr_unavailable" });
+    // La página conserva la elección guardada y avisa que hay que elegir otra.
+    expect(await getPrintPageView(owner, "evt_A", d)).toMatchObject({ status: "ready", qr: { selected: "gifts", needsChoice: true } });
+    // Elegir otra opción disponible (o quitar el reverso) vuelve a permitir generar.
+    expect((await getPrintFile(owner, "evt_A", { ...DEFAULT_PRINT_OPTIONS, qr: "invitation" }, d)).ok).toBe(true);
+    expect((await getPrintFile(owner, "evt_A", { ...DEFAULT_PRINT_OPTIONS, qr: "gifts", includeBack: false }, d)).ok).toBe(true);
+    // Invitación vencida con el destino «invitación»: tampoco se omite el QR en silencio.
+    const expired = deps({ loadPublication: async (userId) => (userId === owner.id ? { ...removed, expired: true } : undefined) });
+    expect(await getPrintFile(owner, "evt_A", { ...DEFAULT_PRINT_OPTIONS, qr: "invitation" }, expired)).toEqual({ ok: false, reason: "qr_unavailable" });
+    expect((await getPrintFile(owner, "evt_A", { ...DEFAULT_PRINT_OPTIONS, qr: "none" }, expired)).ok).toBe(true);
+  });
+
+  it("las rutas responden 409 con un mensaje claro (nunca un PDF con otro destino)", () => {
+    for (const route of ["preview", "file"]) {
+      const code = readFileSync(join(ROOT, `app/(site)/dashboard/(workspace)/events/[id]/print/${route}/route.ts`), "utf8");
+      expect(code, route).toMatch(/reason === "qr_unavailable" \? qrUnavailable\(\)/);
+      expect(code, route).toMatch(/status: 409/);
+    }
   });
 
   it("sin elección guardada (eventos existentes) el QR sigue apuntando a la invitación", async () => {
     const view = await getPrintPageView(owner, "evt_A", deps({ getQrTarget: async () => "invitation" }));
-    expect(view).toMatchObject({ status: "ready", qr: { selected: "invitation", savedUnavailable: false } });
+    expect(view).toMatchObject({ status: "ready", qr: { selected: "invitation", needsChoice: false } });
     expect(DEFAULT_PRINT_OPTIONS.qr).toBe("invitation");
   });
 });
 
 describe("selector en «Versión para imprimir»", () => {
-  const view = (invitation: Invitation) => ({ selected: "invitation" as const, savedUnavailable: false, availability: printQrAvailability(invitation, { expired: false }), invitationUrl: URL_A, giftsUrl: `${URL_A}#regalos`, validUntil: new Date("2027-06-16T23:00:00Z") });
+  const view = (invitation: Invitation) => ({ selected: "invitation" as const, needsChoice: false, availability: printQrAvailability(invitation, { expired: false }), invitationUrl: URL_A, giftsUrl: `${URL_A}#regalos`, validUntil: new Date("2027-06-16T23:00:00Z") });
 
   it("ofrece invitación, mesa de regalos y sin QR; muestra el texto que se imprimirá, a dónde abre y su vigencia", () => {
     const html = renderToStaticMarkup(<QrTargetPicker eventId="evt_A" qr={view(demo)} value="gifts" includeBack onChange={() => undefined} />);
@@ -279,6 +307,23 @@ describe("selector en «Versión para imprimir»", () => {
     expect(html).toMatch(/data-qr-target="gift-link" data-available="true"/);
     expect(html).toContain("Abre Liverpool sin pasar por la invitación.");
     expect(html).toContain(printCopy.page.qr.directValidity);
+  });
+
+  it("destino elegido que ya no existe: aviso, sin texto de vista previa, sin reverso ni botón de descarga hasta elegir otro", () => {
+    const qr = { ...view(withGifts(undefined)), selected: "gifts" as const, needsChoice: true };
+    const picker = renderToStaticMarkup(<QrTargetPicker eventId="evt_A" qr={qr} value="gifts" includeBack onChange={() => undefined} />);
+    expect(picker).toContain('role="alert"');
+    expect(picker).toContain("La mesa de regalos que elegiste ya no está en tu invitación publicada.");
+    expect(picker).not.toContain("data-qr-preview");
+    const studio = renderToStaticMarkup(<PrintStudio eventId="evt_A" qr={qr} defaultInitials="AF" defaultPlace="" download="purchase" product={null} />);
+    expect(studio).toContain("data-back-blocked");
+    expect(studio).toContain("data-download-blocked");
+    expect(studio).not.toContain("/print/file?");
+    expect(studio).not.toMatch(/print\/preview\?side=back/);
+    // Con un destino disponible vuelven el reverso y la descarga.
+    const ok = renderToStaticMarkup(<PrintStudio eventId="evt_A" qr={view(demo)} defaultInitials="AF" defaultPlace="" download="purchase" product={null} />);
+    expect(ok).toContain("/print/file?format=5x7&amp;back=1&amp;qr=invitation");
+    expect(ok).not.toContain("data-download-blocked");
   });
 
   it("la invitación pública tiene el ancla estable #regalos en la sección de la mesa", () => {

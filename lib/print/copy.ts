@@ -67,7 +67,20 @@ export const printCopy = {
         invalid: "El enlace de tu tienda no es una dirección pública válida: no lo imprimimos directo. Usa «Mesa de regalos».",
         too_long: "El enlace de tu tienda es demasiado largo para un código legible en papel. Usa «Mesa de regalos».",
       },
-      savedUnavailable: "La opción que habías elegido ya no está disponible en tu invitación publicada: el código vuelve a tu invitación digital.",
+      /** El destino elegido ya no existe en lo publicado: no se cambia solo; hay que elegir de nuevo antes de descargar o imprimir. */
+      blocked: {
+        title: "Elige de nuevo el destino del código QR",
+        reason: {
+          invitation: "Tu invitación ya no está vigente, así que un código hacia ella no abriría nada.",
+          gifts: "La mesa de regalos que elegiste ya no está en tu invitación publicada.",
+          "gift-link": "El enlace directo a tu tienda ya no está disponible en tu invitación publicada.",
+          none: "",
+        } satisfies Record<PrintQrTarget, string>,
+        action: "Elige otra opción (o vuelve a publicar tu mesa de regalos) para ver el reverso y descargar el archivo.",
+        preview: "Elige el destino del código QR para ver el reverso.",
+        download: "Antes de descargar, elige de nuevo el destino del código QR.",
+        http: "El destino del código QR elegido ya no está disponible. Vuelve a «Versión para imprimir» y elige otro.",
+      },
       previewTitle: "Así se imprimirá",
       opens: "Abre",
       validity: (date: string) => `Este código depende de tu invitación digital: funcionará hasta el ${date}, 30 días después de tu evento.`,

@@ -21,6 +21,34 @@
 
 ---
 
+### 0.1 Separar Preview (staging) de Production en Vercel — OBLIGATORIO antes del primer despliegue Preview
+
+Comprobado el 21-oct-2026 con `vercel env ls` (solo nombres; los valores son sensibles y la CLI no puede leerlos): estas variables son UNA sola
+entrada para «Production, Preview», es decir, **el mismo valor**: `DATABASE_URL`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, los tres
+`STRIPE_PRICE_*` de planes, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `S3_*`, `APP_ENV`, `CSP_REPORT_ONLY`; y
+`NEXT_PUBLIC_SITE_URL` vale `https://hiloluna.com` en Preview. Como el build de Vercel es `npm run build` (= `prisma migrate deploy && next build`),
+**un despliegue Preview hoy aplicaría las migraciones a la base de PRODUCCIÓN y usaría Stripe real.** No hay ningún despliegue Preview todavía.
+
+En Vercel → Settings → Environment Variables, para cada variable de la lista: editar → dejar marcada solo **Production** → guardar; y crear
+una entrada nueva solo para **Preview** con el valor de staging:
+
+| Variable (solo Preview) | Valor de staging |
+|---|---|
+| `APP_ENV` | `staging` |
+| `NEXT_PUBLIC_SITE_URL` | `https://staging.hiloluna.com` (o la URL fija de la rama) |
+| `DATABASE_URL` | una base **nueva** de staging (otra Prisma Postgres/Neon), nunca la de producción |
+| `STRIPE_SECRET_KEY` / `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | `sk_test_…` / `pk_test_…` (modo de prueba) |
+| `STRIPE_WEBHOOK_SECRET` | el `whsec_…` del endpoint de **prueba** que apunta a staging |
+| `STRIPE_PRICE_ESSENTIAL_ONE_TIME`, `…_PREMIUM_ONE_TIME`, `…_ESSENTIAL_TO_PREMIUM`, `STRIPE_PRICE_ADDON_PRINT_FILE` | los `price_…` de **prueba** (499 / 799 / 300 / 199 MXN, pago único) |
+| `PRINT_ADDON_ENABLED` | `1` (solo Preview) |
+| `CLERK_SECRET_KEY` / `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | las de una instancia de Clerk de **desarrollo** (`sk_test_`/`pk_test_`) |
+| `S3_*` | un bucket propio de staging (p. ej. `hiloluna-staging-media`) |
+| `EMAIL_STAGING_ALLOWLIST` | tu correo |
+
+El código lo vigila: con `APP_ENV=staging`, una clave `_live_` o el dominio `hiloluna.com` impiden arrancar (`server/config/env.ts`).
+Después: un dominio fijo para staging (Vercel → Domains → `staging.hiloluna.com` asignado a la rama) y la protección de despliegues: Stripe
+debe poder llegar al webhook (desactiva «Vercel Authentication» para ese dominio o usa «Protection Bypass for Automation»).
+
 ## 1. Variables de entorno
 
 1. Rellena la columna **staging** de la matriz de `docs/DEPLOYMENT.md` §3.1, respetando **build vs ejecución** (§3.2).
@@ -225,6 +253,32 @@ Esperado en staging: `X-Robots-Tag: noindex, nofollow` en **todas** las rutas; C
    descargándose.
 
 Anota cada resultado en §18. Si algo no coincide, **no** se enciende en producción.
+
+### 10.2 Compra completa de prueba antes del lanzamiento (boda + QR a la mesa de regalos)
+
+Requisitos: §0.1 hecho (staging con base, Stripe de **prueba**, Clerk de desarrollo y dominio propios) y §10.1 «Preparación» hecha. Tarjeta
+`4242 4242 4242 4242`. Anota cada resultado en §18.
+
+1. [ ] **Plantilla de boda**: `/templates` → una plantilla de boda (p. ej. Magnolia) → «Usar esta plantilla» (con cuenta de prueba).
+2. [ ] **Crear y publicar**: completa nombres, fecha, ceremonia y recepción; en «Mesa de regalos» agrega al menos una tienda (para probar
+   también el enlace directo, deja **una sola** con `https://`); **Publicar**. Abre `/i/<slug>` y confirma que se ve la mesa.
+3. [ ] **Plan**: mejora el evento a **Esencial** (499 de prueba) y confirma el webhook (§10 paso 3).
+4. [ ] **QR a la mesa de regalos**: Versión para imprimir → «Código QR del reverso» → **Mesa de regalos**. Debe decir «Elección guardada», la
+   vista previa del reverso debe mostrar «Mesa de regalos / Escanea para ver nuestra mesa de regalos» y «Abre: …/i/<slug>#regalos».
+5. [ ] **Comprar**: «Comprar · $199 MXN» → Stripe muestra 199 MXN → paga.
+6. [ ] **Webhook**: Stripe (modo de prueba) → Webhooks → el endpoint de staging muestra `checkout.session.completed` con **200**; en
+   `/admin/purchases/addons` aparece la compra **Pagada · Desbloquea: Sí**; llega el correo «[STAGING] Tu invitación lista para imprimir».
+7. [ ] **Descargar el PDF** (5×7 y A5). Ábrelo: el reverso trae el QR y el texto de la mesa de regalos.
+8. [ ] **Escanear el QR** impreso (o en pantalla) con la **cámara** de un iPhone y de un Android: debe abrir `staging…/i/<slug>#regalos` y
+   mostrar directamente «Mesa de regalos» (no la portada). Repite con datos móviles y con la página recién abierta (sin caché).
+9. [ ] **Volver a descargar**: recarga la página y descarga otra vez (también desde «Compras y planes» → «Ir a la descarga»): sin cobro nuevo.
+10. [ ] **Sin doble cobro**: la tarjeta dice «Comprado» y no hay botón de compra; en otra pestaña abierta antes del pago, «Comprar» lleva a la
+    misma sesión ya pagada o a «Estamos confirmando tu pago…»; en Stripe hay **un** solo pago de 199.
+11. [ ] **Destino que desaparece**: en el editor quita la mesa de regalos (u oculta la sección) y **publica**. En Versión para imprimir debe
+    aparecer «Elige de nuevo el destino del código QR», sin reverso ni botón de descarga (nunca un PDF con otro destino). Elige otro destino
+    y la descarga vuelve. Restaura la mesa.
+12. [ ] **Reembolso**: Stripe → el pago de 199 → Reembolsar el importe completo → la compra pasa a **Reembolsada** (consola y «Compras y
+    planes»), la descarga responde 404 y vuelve «Comprar»; el plan Esencial no cambia.
 
 ## 11. Límite de tasa real (Upstash)
 

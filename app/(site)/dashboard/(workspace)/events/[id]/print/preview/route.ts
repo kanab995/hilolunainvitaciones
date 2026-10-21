@@ -1,4 +1,5 @@
 import { isPreviewSide, parsePrintOptions } from "@/lib/print/options";
+import { printCopy } from "@/lib/print/copy";
 import { resolveOwnedEvent } from "@/server/auth/ownership";
 import { getPrintPreview } from "@/server/services/print-service";
 
@@ -10,6 +11,8 @@ import { getPrintPreview } from "@/server/services/print-service";
 export const dynamic = "force-dynamic";
 
 const notFound = () => new Response("No encontrado", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", "X-Robots-Tag": "noindex" } });
+/** El destino del QR elegido ya no existe en la invitación publicada (D-49): no se genera con otro destino; la página pide elegir de nuevo. */
+const qrUnavailable = () => new Response(printCopy.page.qr.blocked.http, { status: 409, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", "X-Robots-Tag": "noindex" } });
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
@@ -20,7 +23,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   if (owned.status !== "ok") return notFound();
 
   const preview = await getPrintPreview(owned.user, owned.event.id, parsePrintOptions(params), side);
-  if (!preview.ok) return notFound();
+  if (!preview.ok) return preview.reason === "qr_unavailable" ? qrUnavailable() : notFound();
   return new Response(new Blob([preview.body as Uint8Array<ArrayBuffer>], { type: preview.contentType }), {
     status: 200,
     headers: { "Content-Type": preview.contentType, "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex, nofollow", "X-Content-Type-Options": "nosniff" },

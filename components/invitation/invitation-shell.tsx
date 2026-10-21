@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { MusicPlayer } from "@/components/invitation/music-player";
+import { browserAnchorEnvironment, keepAnchorInPlace } from "@/lib/invitation/hash-anchor";
 import { createOpenController, type OpenController } from "@/lib/invitation/open-controller";
 import type { ResolvedMusic } from "@/lib/music/resolve";
 
@@ -43,6 +44,8 @@ type InvitationShellProps = {
 export function InvitationShell({ children, music, ...articleProps }: InvitationShellProps) {
   const [controller] = useState(createOpenController);
   const [opened, setOpened] = useState(false);
+  // Llegada por ancla (p. ej. el QR impreso hacia `#regalos`, D-49): el destino se mantiene alineado mientras la página carga y recibe el foco.
+  useEffect(() => keepAnchorInPlace(browserAnchorEnvironment()), []);
 
   const value = useMemo<InvitationOpenState>(
     () => ({

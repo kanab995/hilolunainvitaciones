@@ -14,6 +14,7 @@ import { parseInitials } from "@/lib/print/data";
 import { cleanPlaceInput } from "@/lib/print/place";
 import { PRINT_FORMAT_SPECS, PRINT_FORMATS, type PrintFormat } from "@/lib/print/formats";
 import { DEFAULT_PRINT_OPTIONS, printOptionsQuery, type PreviewSide, type PrintOptions } from "@/lib/print/options";
+import { isQrTargetAvailable } from "@/lib/print/qr-target";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import type { PrintQrView } from "@/server/services/print-service";
@@ -67,6 +68,8 @@ export function PrintStudio({
   const [options, setOptions] = useState<PrintOptions>({ ...DEFAULT_PRINT_OPTIONS, qr: qr.selected });
   const [initialsText, setInitialsText] = useState(defaultInitials);
   const initialsInvalid = initialsText.trim() !== "" && !parseInitials(initialsText);
+  // Destino del QR que ya no existe en lo publicado (D-49): sin reverso ni descarga hasta que el anfitrión elija otro.
+  const qrBlocked = options.includeBack && !isQrTargetAvailable(options.qr, qr.availability);
 
   const update = (patch: Partial<PrintOptions>) => setOptions((current) => ({ ...current, ...patch }));
   const onInitials = (value: string) => {
@@ -86,7 +89,13 @@ export function PrintStudio({
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <section aria-label="Vista previa" className="flex flex-col gap-8">
         <Preview eventId={eventId} side="front" options={options} label={copy.previews.front} />
-        {options.includeBack ? <Preview eventId={eventId} side="back" options={options} label={copy.previews.back} /> : null}
+        {options.includeBack && !qrBlocked ? <Preview eventId={eventId} side="back" options={options} label={copy.previews.back} /> : null}
+        {qrBlocked ? (
+          <figure data-back-blocked className="flex flex-col gap-3">
+            <div className="flex min-h-48 items-center justify-center rounded-lu-xs border border-dashed border-lu-border-strong bg-lu-surface-tint p-6 text-center text-lu-sm text-lu-text-secondary">{copy.qr.blocked.preview}</div>
+            <figcaption className="text-center text-lu-sm text-lu-text-muted">{copy.previews.back}</figcaption>
+          </figure>
+        ) : null}
         <Preview eventId={eventId} side="envelope" options={options} label={copy.previews.envelope} envelope />
         <p className="text-center text-lu-sm text-lu-text-muted">{copy.previewNote}</p>
       </section>
@@ -131,11 +140,17 @@ export function PrintStudio({
           <Card variant="tint" className="flex flex-col gap-4" data-print-download={download}>
             <ToggleRow id="print-marks" label={copy.product.cropMarks} hint={download === "purchase" ? copy.product.downloadNote : copy.product.adminNote} checked={options.cropMarks} onChange={(cropMarks) => update({ cropMarks })} />
             {/* El PDF lleva EXACTAMENTE las opciones de la vista previa (formato, reverso, QR, iniciales y ciudad). */}
-            <Button asChild variant={download === "purchase" ? "primary" : "secondary"} fullWidth>
-              <a href={routes.eventPrintFile(eventId, printOptionsQuery(options))} download>
-                {download === "purchase" ? copy.product.download : copy.product.adminDownload}
-              </a>
-            </Button>
+            {qrBlocked ? (
+              <p role="note" data-download-blocked className="text-lu-sm text-lu-text">
+                {copy.qr.blocked.download}
+              </p>
+            ) : (
+              <Button asChild variant={download === "purchase" ? "primary" : "secondary"} fullWidth>
+                <a href={routes.eventPrintFile(eventId, printOptionsQuery(options))} download>
+                  {download === "purchase" ? copy.product.download : copy.product.adminDownload}
+                </a>
+              </Button>
+            )}
           </Card>
         ) : null}
         {product}

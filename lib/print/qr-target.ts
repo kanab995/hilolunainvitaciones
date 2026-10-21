@@ -93,15 +93,6 @@ export function isQrTargetAvailable(target: PrintQrTarget, availability: PrintQr
   return true;
 }
 
-/**
- * Destino que se imprime de verdad. Uno elegido que ya no está disponible (p. ej. se retiró la mesa de regalos y se volvió a publicar) cae a la
- * invitación y, si tampoco hay invitación vigente, a «sin QR»: nunca se imprime un QR hacia algo que no existe.
- */
-export function effectiveQrTarget(requested: PrintQrTarget, availability: PrintQrAvailability): PrintQrTarget {
-  if (isQrTargetAvailable(requested, availability)) return requested;
-  return availability.invitation ? "invitation" : "none";
-}
-
 export interface PrintQrDestination {
   kind: Exclude<PrintQrTarget, "none">;
   /** Lo que codifica el QR. */
@@ -115,7 +106,10 @@ const withoutScheme = (url: string) => url.replace(/^https?:\/\//, "");
 /** URL de la sección de regalos de la invitación pública. */
 export const giftRegistryPublicUrl = (invitationUrl: string): string => `${invitationUrl}#${GIFT_REGISTRY_ANCHOR}`;
 
-/** Destino resuelto de un objetivo YA efectivo (`effectiveQrTarget`); `undefined` = sin QR. */
+/**
+ * Destino resuelto de un objetivo DISPONIBLE; `undefined` = sin QR. Un destino elegido que ya no está disponible (p. ej. se retiró la mesa de
+ * regalos y se volvió a publicar) NUNCA se cambia por otro en silencio: el servicio se niega a generar y la página pide elegir de nuevo.
+ */
 export function qrDestination(target: PrintQrTarget, availability: PrintQrAvailability, invitationUrl: string): PrintQrDestination | undefined {
   if (target === "invitation" && availability.invitation) return { kind: "invitation", url: invitationUrl, label: withoutScheme(invitationUrl) };
   if (target === "gifts" && availability.gifts) return { kind: "gifts", url: giftRegistryPublicUrl(invitationUrl), label: withoutScheme(invitationUrl) };

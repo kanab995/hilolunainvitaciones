@@ -11,8 +11,8 @@ export interface PrintOptions {
   format: PrintFormat;
   includeBack: boolean;
   /**
-   * Destino del QR (D-49): invitación, mesa de regalos, enlace directo a la tienda o sin QR. El servicio solo respeta uno DISPONIBLE para la
-   * invitación publicada (`effectiveQrTarget`); sin reverso no hay QR.
+   * Destino del QR (D-49): invitación, mesa de regalos, enlace directo a la tienda o sin QR. Con un destino que la invitación publicada ya no
+   * admite, el servicio NO genera nada (la página pide elegir de nuevo); sin reverso no hay QR.
    */
   qr: PrintQrTarget;
   cropMarks: boolean;

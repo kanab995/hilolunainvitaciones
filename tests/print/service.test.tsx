@@ -49,7 +49,7 @@ describe("página «Versión para imprimir»", () => {
 
   it("lista: versión publicada, iniciales, estado del complemento, sin descarga y precio de $199", async () => {
     const view = await getPrintPageView(user, "evt", deps());
-    expect(view).toMatchObject({ status: "ready", publicationVersion: 3, qr: { selected: "invitation", savedUnavailable: false, invitationUrl: "https://hiloluna.com/i/andrea-y-fernando", giftsUrl: "https://hiloluna.com/i/andrea-y-fernando#regalos" }, defaultInitials: "AF", addon: { plan: "ESSENTIAL", eligible: true }, download: "none", price: 199, warnings: [] });
+    expect(view).toMatchObject({ status: "ready", publicationVersion: 3, qr: { selected: "invitation", needsChoice: false, invitationUrl: "https://hiloluna.com/i/andrea-y-fernando", giftsUrl: "https://hiloluna.com/i/andrea-y-fernando#regalos" }, defaultInitials: "AF", addon: { plan: "ESSENTIAL", eligible: true }, download: "none", price: 199, warnings: [] });
   });
 
   it("descarga: «purchase» con el complemento pagado; «internal» para ADMIN sin compra", async () => {
@@ -59,7 +59,7 @@ describe("página «Versión para imprimir»", () => {
 
   it("un evento Gratis ve la vista previa pero no es elegible; un acceso vencido no ofrece QR", async () => {
     expect(await getPrintPageView(user, "evt", deps({ getAddonState: async () => addonState({ plan: "FREE", eligible: false }) }))).toMatchObject({ status: "ready", addon: { eligible: false } });
-    expect(await getPrintPageView(user, "evt", deps({ loadPublication: async () => ({ ...published, expired: true }) }))).toMatchObject({ status: "ready", qr: { selected: "none", invitationUrl: null, giftsUrl: null, availability: { invitation: false, gifts: false } } });
+    expect(await getPrintPageView(user, "evt", deps({ loadPublication: async () => ({ ...published, expired: true }) }))).toMatchObject({ status: "ready", qr: { selected: "invitation", needsChoice: true, invitationUrl: null, giftsUrl: null, availability: { invitation: false, gifts: false } } });
   });
 
   it("la propiedad viaja hasta la consulta (userId + eventId)", async () => {
@@ -79,9 +79,9 @@ describe("vista previa", () => {
   });
 
   it("sin rasterizador NO hay vista previa (nunca el SVG vectorial); sin reverso no hay vista del reverso", async () => {
-    expect(await getPrintPreview(user, "evt", DEFAULT_PRINT_OPTIONS, "back", deps({ rasterize: async () => undefined }))).toEqual({ ok: false });
-    expect(await getPrintPreview(user, "evt", { ...DEFAULT_PRINT_OPTIONS, includeBack: false }, "back", deps())).toEqual({ ok: false });
-    expect(await getPrintPreview(user, "evt", DEFAULT_PRINT_OPTIONS, "front", deps({ loadPublication: async () => ({ state: "draft" }) }))).toEqual({ ok: false });
+    expect(await getPrintPreview(user, "evt", DEFAULT_PRINT_OPTIONS, "back", deps({ rasterize: async () => undefined }))).toEqual({ ok: false, reason: "not_found" });
+    expect(await getPrintPreview(user, "evt", { ...DEFAULT_PRINT_OPTIONS, includeBack: false }, "back", deps())).toEqual({ ok: false, reason: "not_found" });
+    expect(await getPrintPreview(user, "evt", DEFAULT_PRINT_OPTIONS, "front", deps({ loadPublication: async () => ({ state: "draft" }) }))).toEqual({ ok: false, reason: "not_found" });
   });
 });
 
@@ -96,7 +96,7 @@ describe("PDF limpio", () => {
 
   it("sin compra ni rol ADMIN no se genera NADA (ni se lee el evento)", async () => {
     const d = deps();
-    expect(await getPrintFile(user, "evt", DEFAULT_PRINT_OPTIONS, d)).toEqual({ ok: false });
+    expect(await getPrintFile(user, "evt", DEFAULT_PRINT_OPTIONS, d)).toEqual({ ok: false, reason: "not_found" });
     expect(d.loadPublication).not.toHaveBeenCalled();
   });
 
@@ -109,10 +109,13 @@ describe("PDF limpio", () => {
     expect(doc.getPageCount()).toBe(3);
   });
 
-  it("el QR apunta a la URL pública GENERAL; con el acceso vencido no se imprime QR", async () => {
+  it("el QR apunta a la URL pública GENERAL; con el acceso vencido no se imprime un QR hacia ella sin que el anfitrión lo elija", async () => {
     const admin = deps({ isAdmin: async () => true });
+    const expiredDeps = deps({ isAdmin: async () => true, loadPublication: async () => ({ ...published, expired: true }) });
     const withQr = await getPrintFile(user, "evt", DEFAULT_PRINT_OPTIONS, admin);
-    const expired = await getPrintFile(user, "evt", DEFAULT_PRINT_OPTIONS, deps({ isAdmin: async () => true, loadPublication: async () => ({ ...published, expired: true }) }));
+    // Vencida: el destino «invitación» ya no sirve y NO se omite en silencio; con «Sin código QR» sí se genera.
+    expect(await getPrintFile(user, "evt", DEFAULT_PRINT_OPTIONS, expiredDeps)).toEqual({ ok: false, reason: "qr_unavailable" });
+    const expired = await getPrintFile(user, "evt", { ...DEFAULT_PRINT_OPTIONS, qr: "none" }, expiredDeps);
     expect(withQr.ok && expired.ok).toBe(true);
     if (!withQr.ok || !expired.ok) return;
     // El texto del enlace se imprime junto al QR (incrustado en el PDF como glifos); el reverso sin QR es más ligero.

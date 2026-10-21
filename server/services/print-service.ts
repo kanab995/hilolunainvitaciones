@@ -4,7 +4,7 @@ import { PRINT_FORMAT_SPECS } from "@/lib/print/formats";
 import { layoutRomanticElegant } from "@/lib/print/layout";
 import { DEFAULT_PRINT_OPTIONS, type PreviewSide, type PrintOptions } from "@/lib/print/options";
 import { printCopy } from "@/lib/print/copy";
-import { effectiveQrTarget, giftRegistryPublicUrl, isPrintQrTarget, isQrTargetAvailable, printQrAvailability, qrDestination, type PrintQrAvailability, type PrintQrTarget } from "@/lib/print/qr-target";
+import { giftRegistryPublicUrl, isPrintQrTarget, isQrTargetAvailable, printQrAvailability, qrDestination, type PrintQrAvailability, type PrintQrTarget } from "@/lib/print/qr-target";
 import type { PrintScene, PrintWarning } from "@/lib/print/scene";
 import { getPublicInvitationUrl } from "@/lib/site-url";
 import { isCurrentUserAdmin } from "@/server/auth/admin";
@@ -24,8 +24,9 @@ import type { AppUser } from "@/server/services/user-sync";
  *  - Los datos salen de la invitación PUBLICADA del evento del usuario (propiedad en la consulta); un borrador no se imprime.
  *  - El QR (D-49) apunta a la invitación pública GENERAL, a su sección de regalos (`#regalos`) o, si la mesa publicada tiene una sola tienda
  *    con un enlace seguro, directamente a ella; o no hay QR. Nunca a una ruta privada ni a un enlace personalizado de invitado. Los dos
- *    primeros exigen la invitación publicada y vigente (un QR impreso hacia una invitación caducada no sirve). Un destino guardado que ya no
- *    está disponible cae a la invitación (`effectiveQrTarget`). Todo sale de la publicación de ESE evento del usuario.
+ *    primeros exigen la invitación publicada y vigente (un QR impreso hacia una invitación caducada no sirve). Un destino elegido que ya no
+ *    está disponible NO se sustituye: ni vista previa del reverso ni PDF hasta que el anfitrión elija otro (`qr_unavailable`). Todo sale de la
+ *    publicación de ESE evento del usuario.
  *  - La VISTA PREVIA es libre (imagen con marca de agua). El PDF limpio exige `canDownloadPrintFile`: el complemento PAGADO de ESTE evento
  *    del usuario (D-48; descargas ilimitadas desde la versión publicada vigente; un reembolso la retira) o la prueba interna de una cuenta
  *    ADMIN de SUS eventos. Un no autorizado recibe lo mismo que un evento inexistente.
@@ -62,10 +63,10 @@ const defaultDeps: PrintDeps = {
 
 /** Lo que la página necesita para el selector del destino del QR. */
 export interface PrintQrView {
-  /** Elección inicial del selector: la guardada si sigue disponible; si no, la que se imprimiría. */
+  /** Elección guardada (o la predeterminada, invitación). */
   selected: PrintQrTarget;
-  /** La guardada no está disponible ahora (p. ej. se quitó la mesa de regalos): la página lo avisa. */
-  savedUnavailable: boolean;
+  /** La elección guardada ya no está disponible (p. ej. se quitó la mesa de regalos): la página lo avisa y no deja descargar hasta elegir otra. */
+  needsChoice: boolean;
   availability: PrintQrAvailability;
   /** URL pública de la invitación y de su sección de regalos (para mostrar el destino); `null` sin invitación vigente. */
   invitationUrl: string | null;
@@ -104,15 +105,15 @@ export async function getPrintPageView(user: AppUser, eventId: string, deps: Pri
   const fonts = await deps.loadFonts();
   const availability = printQrAvailability(source.invitation, { expired: source.expired });
   const saved = (await deps.getQrTarget(user.id, eventId)) ?? DEFAULT_PRINT_OPTIONS.qr;
-  const selected = effectiveQrTarget(saved, availability);
+  const needsChoice = !isQrTargetAvailable(saved, availability);
   const invitationUrl = availability.invitation ? deps.publicUrl(source.slug) : null;
-  const qr = qrDestination(selected, availability, deps.publicUrl(source.slug));
+  const qr = qrDestination(saved, availability, deps.publicUrl(source.slug));
   const data = buildPrintData(source.invitation, qr ? { qr } : {});
   const scene = layoutRomanticElegant(data, { format: DEFAULT_PRINT_OPTIONS.format, includeBack: true }, fonts.metrics);
   return {
     status: "ready",
     ...(source.publication ? { publicationVersion: source.publication.version } : {}),
-    qr: { selected, savedUnavailable: selected !== saved, availability, invitationUrl, giftsUrl: invitationUrl && availability.gifts ? giftRegistryPublicUrl(invitationUrl) : null, validUntil: addon.qrValidUntil },
+    qr: { selected: saved, needsChoice, availability, invitationUrl, giftsUrl: invitationUrl && availability.gifts ? giftRegistryPublicUrl(invitationUrl) : null, validUntil: addon.qrValidUntil },
     defaultInitials: initialsFromNames(source.invitation.names).join(""),
     defaultPlace: detectedPlace(source.invitation) ?? "",
     addon,
@@ -122,45 +123,52 @@ export async function getPrintPageView(user: AppUser, eventId: string, deps: Pri
   };
 }
 
-type Built = { ok: true; scene: PrintScene; data: PrintData; source: Extract<OwnedPublication, { state: "published" }>; fonts: PrintFontSet } | { ok: false };
+/** `qr_unavailable`: el destino del QR pedido ya no existe en la invitación publicada; hay que elegir otro (nunca se cambia en silencio). */
+export type PrintFailure = { ok: false; reason: "not_found" | "qr_unavailable" };
+
+type Built = { ok: true; scene: PrintScene; data: PrintData; source: Extract<OwnedPublication, { state: "published" }>; fonts: PrintFontSet } | PrintFailure;
 
 async function build(user: AppUser, eventId: string, options: PrintOptions, deps: PrintDeps): Promise<Built> {
   const source = await deps.loadPublication(user.id, eventId);
-  if (!source || source.state !== "published" || !isPrintableEventType(source.invitation.eventType)) return { ok: false };
-  // Sin reverso no hay QR. El destino pedido solo se respeta si la invitación PUBLICADA de este evento lo admite.
+  if (!source || source.state !== "published" || !isPrintableEventType(source.invitation.eventType)) return { ok: false, reason: "not_found" };
+  // Sin reverso no hay QR. Con reverso, el destino pedido debe existir en la invitación PUBLICADA de este evento: si no, no se genera nada.
   const availability = printQrAvailability(source.invitation, { expired: source.expired });
-  const qr = options.includeBack ? qrDestination(effectiveQrTarget(options.qr, availability), availability, deps.publicUrl(source.slug)) : undefined;
+  if (options.includeBack && !isQrTargetAvailable(options.qr, availability)) return { ok: false, reason: "qr_unavailable" };
+  const qr = options.includeBack ? qrDestination(options.qr, availability, deps.publicUrl(source.slug)) : undefined;
   const data = buildPrintData(source.invitation, { ...(qr ? { qr } : {}), ...(options.initials ? { initials: options.initials } : {}), ...(options.place !== undefined ? { place: options.place } : {}) });
   const fonts = await deps.loadFonts();
   const scene = layoutRomanticElegant(data, { format: options.format, includeBack: options.includeBack }, fonts.metrics);
   return { ok: true, scene, data, source, fonts };
 }
 
-export type PrintPreviewResult = { ok: true; body: Uint8Array; contentType: "image/png"; warnings: readonly PrintWarning[] } | { ok: false };
+export type PrintPreviewResult = { ok: true; body: Uint8Array; contentType: "image/png"; warnings: readonly PrintWarning[] } | PrintFailure;
 
 /** Píxeles por punto de la vista previa: ≈ 1300 px de ancho para 5×7" (nítida en pantalla, insuficiente para imprimir). */
 const PREVIEW_PX_PER_PT = 2.6;
 
 export async function getPrintPreview(user: AppUser, eventId: string, options: PrintOptions, side: PreviewSide, deps: PrintDeps = defaultDeps): Promise<PrintPreviewResult> {
   const built = await build(user, eventId, options, deps);
-  if (!built.ok) return { ok: false };
+  if (!built.ok) return built;
   const page = built.scene.pages.find((candidate) => candidate.kind === side);
-  if (!page) return { ok: false };
+  if (!page) return { ok: false, reason: "not_found" };
   const svg = renderPrintSvg(page, built.fonts, { watermark: true, pixelsPerPoint: PREVIEW_PX_PER_PT });
   // Solo una IMAGEN rasterizada con la marca de agua «quemada»: un SVG sería arte vectorial al que basta borrarle la marca de agua
   // para tener el diseño limpio. Sin rasterizador no hay vista previa (404), nunca un atajo hacia el arte.
   const png = await deps.rasterize(svg);
-  return png ? { ok: true, body: png, contentType: "image/png", warnings: built.scene.warnings } : { ok: false };
+  return png ? { ok: true, body: png, contentType: "image/png", warnings: built.scene.warnings } : { ok: false, reason: "not_found" };
 }
 
-export type PrintFileResult = { ok: true; bytes: Uint8Array; filename: string } | { ok: false };
+export type PrintFileResult = { ok: true; bytes: Uint8Array; filename: string } | PrintFailure;
 
 export async function getPrintFile(user: AppUser, eventId: string, options: PrintOptions, deps: PrintDeps = defaultDeps): Promise<PrintFileResult> {
   // Primero la autorización (barata), después la generación. La compra se busca con el usuario en la consulta (evento propio).
   const purchased = await deps.hasPaidAddon(user.id, eventId);
-  if (!canDownloadPrintFile({ purchased, isAdmin: purchased ? false : await deps.isAdmin() })) return { ok: false };
+  if (!canDownloadPrintFile({ purchased, isAdmin: purchased ? false : await deps.isAdmin() })) return { ok: false, reason: "not_found" };
   const built = await build(user, eventId, options, deps);
-  if (!built.ok) return { ok: false };
+  if (!built.ok) {
+    if (built.reason === "qr_unavailable") logger.warn("print.qr_target_unavailable", { eventId, target: options.qr });
+    return built;
+  }
   const spec = PRINT_FORMAT_SPECS[options.format];
   const names = built.data.names.join(" & ");
   const bytes = await renderPrintPdf(built.scene, built.fonts, {

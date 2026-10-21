@@ -23,8 +23,10 @@ const withoutScheme = (url: string) => url.replace(/^https?:\/\//, "");
  */
 export function QrTargetPicker({ eventId, qr, value, includeBack, onChange }: { eventId: string; qr: PrintQrView; value: PrintQrTarget; includeBack: boolean; onChange: (target: PrintQrTarget) => void }) {
   const [pending, startTransition] = useTransition();
-  const [status, setStatus] = useState<{ tone: "ok" | "error"; message: string } | null>(qr.savedUnavailable ? { tone: "error", message: copy.savedUnavailable } : null);
+  const [status, setStatus] = useState<{ tone: "ok" | "error"; message: string } | null>(null);
   const { availability } = qr;
+  // El destino elegido ya no existe en lo publicado: se avisa y se pide elegir otro (nunca se cambia solo).
+  const blocked = includeBack && !isQrTargetAvailable(value, availability);
   // El enlace directo solo se ofrece con UNA tienda; con varias, la sección de regalos es la que deja elegir.
   const offered = PRINT_QR_TARGETS.filter((target) => target !== "gift-link" || availability.giftLink.ok || (availability.giftLink.reason !== "several" && availability.giftLink.reason !== "no_registry"));
 
@@ -83,6 +85,14 @@ export function QrTargetPicker({ eventId, qr, value, includeBack, onChange }: { 
         })}
       </div>
 
+      {blocked ? (
+        <div role="alert" data-qr-blocked={value} className="flex flex-col gap-1 rounded-lu-card border border-lu-border-strong bg-lu-pending-bg px-3 py-3">
+          <p className="text-lu-sm font-medium text-lu-text">{copy.blocked.title}</p>
+          <p className="text-lu-xs text-lu-text">{copy.blocked.reason[value]}</p>
+          <p className="text-lu-xs text-lu-text-secondary">{copy.blocked.action}</p>
+        </div>
+      ) : null}
+
       {!availability.giftsConfigured ? (
         <div role="note" data-gifts-missing className="flex flex-col gap-1.5 rounded-lu-card border border-dashed border-lu-border-strong px-3 py-3">
           <p className="text-lu-sm font-medium text-lu-text">{copy.giftsMissing.title}</p>
@@ -93,7 +103,7 @@ export function QrTargetPicker({ eventId, qr, value, includeBack, onChange }: { 
         </div>
       ) : null}
 
-      {includeBack ? (
+      {includeBack && !blocked ? (
         <div data-qr-preview={value} className="flex flex-col gap-1 rounded-lu-card bg-lu-surface-tint px-3 py-3">
           <p className="text-lu-xs font-medium uppercase tracking-wide text-lu-text-muted">{copy.previewTitle}</p>
           {value === "none" ? (

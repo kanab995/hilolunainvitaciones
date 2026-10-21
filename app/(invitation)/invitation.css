@@ -253,3 +253,11 @@
     scroll-behavior: auto !important;
   }
 }
+
+/*
+ * Destinos de foco programático (llegada por ancla, D-49, y «Abrir invitación»): la sección recibe el foco para que los lectores de pantalla
+ * empiecen ahí, sin dibujar un anillo alrededor de toda la sección (los controles conservan su foco visible).
+ */
+[data-template] section[tabindex="-1"]:focus {
+  outline: none;
+}
