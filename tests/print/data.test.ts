@@ -60,14 +60,14 @@ describe("iniciales del monograma", () => {
 
 describe("datos de la versión impresa (de la invitación publicada)", () => {
   it("la boda de demostración da exactamente lo del arte aprobado", () => {
-    const data = buildPrintData(demo, { publicUrl: DEMO_URL });
+    const data = buildPrintData(demo, { qr: { kind: "invitation", url: DEMO_URL, label: "hiloluna.com/i/demo-magnolia" } });
     expect(data.names).toEqual(["Andrea", "Fernando"]);
     expect(data.dateLine).toBe("LUNES 17 DE MAYO DE 2027");
     expect(data.timeLine).toBe("a las cinco de la tarde");
     expect(data.ceremony).toMatchObject({ name: "Parroquia de San Miguel Arcángel", time: "a las cinco de la tarde", city: "San Miguel de Allende, Guanajuato" });
     expect(data.reception).toMatchObject({ name: "Hacienda Los Olivos", time: "a las siete de la noche" });
     expect(data.dressCode?.style).toBe("Formal y elegante");
-    expect(data.qr).toEqual({ url: DEMO_URL, label: "hiloluna.com/i/demo-magnolia" });
+    expect(data.qr).toEqual({ kind: "invitation", url: DEMO_URL, label: "hiloluna.com/i/demo-magnolia" });
   });
 
   it("sin URL pública no hay QR; con iniciales personalizadas, se usan esas", () => {
@@ -102,12 +102,12 @@ describe("datos de la versión impresa (de la invitación publicada)", () => {
 describe("opciones (llegan del navegador)", () => {
   it("valida todo y cae en los valores por defecto", () => {
     expect(parsePrintOptions(new URLSearchParams())).toEqual(DEFAULT_PRINT_OPTIONS);
-    expect(parsePrintOptions(new URLSearchParams("format=a5&back=0&qr=0&marks=1&initials=mj"))).toEqual({ format: "a5", includeBack: false, includeQr: false, cropMarks: true, initials: ["M", "J"] });
+    expect(parsePrintOptions(new URLSearchParams("format=a5&back=0&qr=0&marks=1&initials=mj"))).toEqual({ format: "a5", includeBack: false, qr: "none", cropMarks: true, initials: ["M", "J"] });
     expect(parsePrintOptions(new URLSearchParams("format=a4&back=yes&initials=<script>"))).toEqual(DEFAULT_PRINT_OPTIONS);
   });
 
   it("ida y vuelta por la query string", () => {
-    const options = { format: "a5" as const, includeBack: true, includeQr: false, cropMarks: true, initials: ["A", "L"] };
+    const options = { format: "a5" as const, includeBack: true, qr: "gifts" as const, cropMarks: true, initials: ["A", "L"] };
     expect(parsePrintOptions(new URLSearchParams(printOptionsQuery(options)))).toEqual(options);
   });
 });

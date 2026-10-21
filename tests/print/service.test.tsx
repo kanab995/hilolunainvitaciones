@@ -33,6 +33,8 @@ function deps(overrides: Partial<PrintDeps> = {}): PrintDeps {
     hasPaidAddon: vi.fn(async () => false),
     isAdmin: vi.fn(async () => false),
     publicUrl: (slug) => `https://hiloluna.com/i/${slug}`,
+    getQrTarget: vi.fn(async () => "invitation" as const),
+    saveQrTarget: vi.fn(async () => true),
     rasterize: vi.fn(async () => new Uint8Array([0x89, 0x50, 0x4e, 0x47])),
     ...overrides,
   };
@@ -47,7 +49,7 @@ describe("página «Versión para imprimir»", () => {
 
   it("lista: versión publicada, iniciales, estado del complemento, sin descarga y precio de $199", async () => {
     const view = await getPrintPageView(user, "evt", deps());
-    expect(view).toMatchObject({ status: "ready", publicationVersion: 3, qrAvailable: true, defaultInitials: "AF", addon: { plan: "ESSENTIAL", eligible: true }, download: "none", price: 199, warnings: [] });
+    expect(view).toMatchObject({ status: "ready", publicationVersion: 3, qr: { selected: "invitation", savedUnavailable: false, invitationUrl: "https://hiloluna.com/i/andrea-y-fernando", giftsUrl: "https://hiloluna.com/i/andrea-y-fernando#regalos" }, defaultInitials: "AF", addon: { plan: "ESSENTIAL", eligible: true }, download: "none", price: 199, warnings: [] });
   });
 
   it("descarga: «purchase» con el complemento pagado; «internal» para ADMIN sin compra", async () => {
@@ -57,7 +59,7 @@ describe("página «Versión para imprimir»", () => {
 
   it("un evento Gratis ve la vista previa pero no es elegible; un acceso vencido no ofrece QR", async () => {
     expect(await getPrintPageView(user, "evt", deps({ getAddonState: async () => addonState({ plan: "FREE", eligible: false }) }))).toMatchObject({ status: "ready", addon: { eligible: false } });
-    expect(await getPrintPageView(user, "evt", deps({ loadPublication: async () => ({ ...published, expired: true }) }))).toMatchObject({ status: "ready", qrAvailable: false });
+    expect(await getPrintPageView(user, "evt", deps({ loadPublication: async () => ({ ...published, expired: true }) }))).toMatchObject({ status: "ready", qr: { selected: "none", invitationUrl: null, giftsUrl: null, availability: { invitation: false, gifts: false } } });
   });
 
   it("la propiedad viaja hasta la consulta (userId + eventId)", async () => {

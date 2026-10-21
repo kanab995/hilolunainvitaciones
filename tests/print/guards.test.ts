@@ -36,6 +36,8 @@ function deps(overrides: Partial<PrintDeps> = {}): PrintDeps {
     hasPaidAddon: async () => false,
     isAdmin: async () => false,
     publicUrl: (slug) => `https://hiloluna.com/i/${slug}`,
+    getQrTarget: vi.fn(async () => "invitation" as const),
+    saveQrTarget: vi.fn(async () => true),
     rasterize: vi.fn(async () => new Uint8Array([0x89, 0x50, 0x4e, 0x47])),
     ...overrides,
   };

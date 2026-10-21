@@ -4,6 +4,7 @@ import { buildPrintData } from "@/lib/print/data";
 import { BLEED_PT, ENVELOPE_ART_PT, PRINT_FORMAT_SPECS, PT_PER_MM, SAFE_PT } from "@/lib/print/formats";
 import { layoutRomanticElegant } from "@/lib/print/layout";
 import { PRINT_COLORS, type PrintScene, type SceneQr, type SceneText } from "@/lib/print/scene";
+import { qrDestination, printQrAvailability } from "@/lib/print/qr-target";
 import { createQrMatrix } from "@/lib/share/qr";
 import { loadPrintFonts, type PrintFontSet } from "@/server/print/fonts";
 import { renderPrintPdf } from "@/server/print/pdf";
@@ -15,8 +16,12 @@ beforeAll(async () => {
   fonts = await loadPrintFonts();
 });
 
-const scene = (invitation = demo, format: "5x7" | "a5" = "5x7", includeBack = true, publicUrl: string | null = DEMO_URL): PrintScene =>
-  layoutRomanticElegant(buildPrintData(invitation, publicUrl ? { publicUrl } : {}), { format, includeBack }, fonts.metrics);
+/** Destino del QR hacia la invitación (el comportamiento de siempre) para una URL pública. */
+const invitationQr = (invitation: typeof demo, url: string) => qrDestination("invitation", printQrAvailability(invitation, { expired: false }), url);
+const scene = (invitation = demo, format: "5x7" | "a5" = "5x7", includeBack = true, publicUrl: string | null = DEMO_URL): PrintScene => {
+  const qr = publicUrl ? invitationQr(invitation, publicUrl) : undefined;
+  return layoutRomanticElegant(buildPrintData(invitation, qr ? { qr } : {}), { format, includeBack }, fonts.metrics);
+};
 const texts = (s: PrintScene, kind: "front" | "back") => (s.pages.find((page) => page.kind === kind)?.items ?? []).filter((item): item is SceneText => item.kind === "text");
 const width = (t: SceneText) => fonts.metrics.widthOf(t.font, t.text, t.size) + (t.tracking ?? 0) * Math.max(0, [...t.text].length - 1);
 

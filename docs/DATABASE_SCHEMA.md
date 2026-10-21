@@ -384,6 +384,12 @@ Migración aditiva `20260928000000_transactional_email`. No borra, renombra ni a
 - **`MusicSettings`** gana `isEnabled` (`DEFAULT true`: las filas anteriores no cambian) y una FK `libraryTrackId → MusicTrack` (`Restrict`: una pista elegida no se puede borrar; se desactiva). `trackUrl` NUNCA se escribe para la biblioteca: la URL del audio se deriva de `audioKey` al mostrar.
 - **Snapshot publicado**: guarda `libraryTrackId`, nunca la URL; `/i/[slug]` resuelve la pista con su estado actual y el plan del evento (`musicLibrary`).
 
+## 23. Versión impresa: `PrintSettings` (D-49)
+
+- **`PrintSettings`** — preferencias de la versión impresa de un evento: `eventId` (`@unique`, FK `Cascade`), `qrTarget` (`PrintQrTarget`: `INVITATION` | `GIFT_REGISTRY` | `GIFT_REGISTRY_LINK` | `NONE`, por defecto `INVITATION`), `createdAt`, `updatedAt`.
+- Sin fila = `INVITATION` (comportamiento anterior): la migración aditiva `20261021120000_add_print_settings` no crea filas ni toca otras tablas.
+- No guarda URLs: el destino se resuelve al generar desde la invitación PUBLICADA del evento (`lib/print/qr-target.ts`). Lectura y escritura con el dueño en la consulta (`server/repositories/print-settings.ts`).
+
 ## 22. Complementos: `EventAddonPurchase` (D-48)
 
 - **`EventAddonPurchase`** — compra de un complemento de un evento (hoy `AddonProduct.PRINT_FILE`, «Archivo listo para imprimir»), en una tabla

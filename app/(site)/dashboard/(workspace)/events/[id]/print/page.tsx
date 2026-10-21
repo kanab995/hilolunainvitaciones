@@ -77,7 +77,7 @@ export default async function EventPrintPage(props: PageProps<"/dashboard/events
           ) : null}
           <PrintStudio
             eventId={data.event.id}
-            qrAvailable={view.qrAvailable}
+            qr={view.qr}
             defaultInitials={view.defaultInitials}
             defaultPlace={view.defaultPlace}
             download={view.download}

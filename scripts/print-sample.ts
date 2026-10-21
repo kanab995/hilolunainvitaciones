@@ -9,6 +9,9 @@
  * cada cara (con marca de agua); y `prueba-impresa-carta.pdf`: frente y reverso 5×7" a tamaño real en hojas carta, el QR en cuatro
  * tamaños e instrucciones (para imprimir en casa y escanear con teléfonos reales). El QR apunta a la demostración pública
  * (`/i/demo-magnolia`), que existe en producción.
+ *
+ * Comparación del destino del QR (D-49), en `comparacion-qr/`: el mismo 5×7" con QR hacia la invitación, hacia la mesa de regalos
+ * (`/i/demo-magnolia#regalos`) y sin QR, con la vista previa del reverso de cada uno.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -17,6 +20,7 @@ import { andreaFernandoInvitation } from "@/lib/invitation/mock/andrea-fernando"
 import { buildPrintData } from "@/lib/print/data";
 import { PRINT_FORMATS, PT_PER_MM } from "@/lib/print/formats";
 import { layoutRomanticElegant } from "@/lib/print/layout";
+import { printQrAvailability, qrDestination, type PrintQrTarget } from "@/lib/print/qr-target";
 import { PRINT_COLORS } from "@/lib/print/scene";
 import { createQrMatrix } from "@/lib/share/qr";
 import { fontkit } from "@/server/print/fontkit";
@@ -29,7 +33,12 @@ const DEMO_URL = "https://hiloluna.com/i/demo-magnolia";
 const out = resolve(process.argv[2] ?? "print-sample");
 mkdirSync(out, { recursive: true });
 const fonts = await loadPrintFonts();
-const data = buildPrintData(andreaFernandoInvitation, { publicUrl: DEMO_URL });
+const availability = printQrAvailability(andreaFernandoInvitation, { expired: false });
+const dataFor = (target: PrintQrTarget) => {
+  const qr = qrDestination(target, availability, DEMO_URL);
+  return buildPrintData(andreaFernandoInvitation, qr ? { qr } : {});
+};
+const data = dataFor("invitation");
 
 for (const format of PRINT_FORMATS) {
   const scene = layoutRomanticElegant(data, { format, includeBack: true }, fonts.metrics);
@@ -101,4 +110,22 @@ letter(front, "Prueba impresa 2/2 · Frente 5×7\" a tamaño real · datos de de
   "· no el tono exacto del dorado (eso se valida con el PDF 5x7 en la imprenta).",
 ]);
 writeFileSync(join(out, "prueba-impresa-carta.pdf"), await sheet.save());
+
+/* ───────── comparación del destino del QR (D-49) ───────── */
+const compare = join(out, "comparacion-qr");
+mkdirSync(compare, { recursive: true });
+const variants: Array<[PrintQrTarget, string, string]> = [
+  ["invitation", "qr-invitacion-digital", "QR A LA INVITACIÓN"],
+  ["gifts", "qr-mesa-de-regalos", "QR A LA MESA DE REGALOS"],
+  ["none", "sin-qr", "SIN QR"],
+];
+for (const [target, slug, label] of variants) {
+  const variant = dataFor(target);
+  const scene = layoutRomanticElegant(variant, { format: "5x7", includeBack: true }, fonts.metrics);
+  writeFileSync(join(compare, `5x7-${slug}.pdf`), await renderPrintPdf(scene, fonts, { cropMarks: false, title: `Andrea & Fernando — Invitación 5x7 · ${label.toLowerCase()} (demostración)`, label: `ANDREA & FERNANDO · 5×7 · ${label}` }));
+  const backPage = scene.pages.find((page) => page.kind === "back");
+  const png = backPage ? await rasterizeSvg(renderPrintSvg(backPage, fonts, { watermark: true, pixelsPerPoint: 2.6 })) : undefined;
+  if (png) writeFileSync(join(compare, `5x7-${slug}-reverso.png`), png);
+  console.log(`${slug}: ${variant.qr ? variant.qr.url : "sin QR"}${scene.warnings.length ? ` · avisos: ${scene.warnings.join(", ")}` : ""}`);
+}
 console.log(`listo → ${out}`);

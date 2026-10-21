@@ -1,6 +1,7 @@
 import { parseInitials } from "@/lib/print/data";
 import { DEFAULT_PRINT_FORMAT, isPrintFormat, type PrintFormat } from "@/lib/print/formats";
 import { cleanPlaceInput } from "@/lib/print/place";
+import { DEFAULT_PRINT_QR_TARGET, isPrintQrTarget, type PrintQrTarget } from "@/lib/print/qr-target";
 
 /**
  * OPCIONES de la versión impresa (D-47), leídas de la URL de la vista previa y de la descarga. Todo lo que llega del navegador se
@@ -9,8 +10,11 @@ import { cleanPlaceInput } from "@/lib/print/place";
 export interface PrintOptions {
   format: PrintFormat;
   includeBack: boolean;
-  /** Solo se respeta si hay una invitación publicada y vigente (lo decide el servicio). */
-  includeQr: boolean;
+  /**
+   * Destino del QR (D-49): invitación, mesa de regalos, enlace directo a la tienda o sin QR. El servicio solo respeta uno DISPONIBLE para la
+   * invitación publicada (`effectiveQrTarget`); sin reverso no hay QR.
+   */
+  qr: PrintQrTarget;
   cropMarks: boolean;
   /** Iniciales personalizadas del monograma; sin ellas, las de los nombres. */
   initials?: readonly string[];
@@ -18,7 +22,7 @@ export interface PrintOptions {
   place?: string;
 }
 
-export const DEFAULT_PRINT_OPTIONS: PrintOptions = { format: DEFAULT_PRINT_FORMAT, includeBack: true, includeQr: true, cropMarks: false };
+export const DEFAULT_PRINT_OPTIONS: PrintOptions = { format: DEFAULT_PRINT_FORMAT, includeBack: true, qr: DEFAULT_PRINT_QR_TARGET, cropMarks: false };
 
 export const PREVIEW_SIDES = ["front", "back", "envelope"] as const;
 export type PreviewSide = (typeof PREVIEW_SIDES)[number];
@@ -28,13 +32,20 @@ type Params = Pick<URLSearchParams, "get">;
 
 const flag = (value: string | null, fallback: boolean) => (value === "1" ? true : value === "0" ? false : fallback);
 
+/** `qr` de la URL. Acepta los enlaces anteriores a D-49 (`qr=1` = invitación, `qr=0` = sin QR); lo desconocido vuelve al de por defecto. */
+function qrTarget(value: string | null): PrintQrTarget {
+  if (value === "1") return "invitation";
+  if (value === "0") return "none";
+  return isPrintQrTarget(value) ? value : DEFAULT_PRINT_OPTIONS.qr;
+}
+
 export function parsePrintOptions(params: Params): PrintOptions {
   const format = params.get("format");
   const initials = parseInitials(params.get("initials") ?? "");
   return {
     format: isPrintFormat(format) ? format : DEFAULT_PRINT_OPTIONS.format,
     includeBack: flag(params.get("back"), DEFAULT_PRINT_OPTIONS.includeBack),
-    includeQr: flag(params.get("qr"), DEFAULT_PRINT_OPTIONS.includeQr),
+    qr: qrTarget(params.get("qr")),
     cropMarks: flag(params.get("marks"), DEFAULT_PRINT_OPTIONS.cropMarks),
     ...(initials ? { initials } : {}),
     ...(params.get("place") !== null ? { place: cleanPlaceInput(params.get("place") ?? "") } : {}),
@@ -43,7 +54,7 @@ export function parsePrintOptions(params: Params): PrintOptions {
 
 /** Query string de unas opciones (para las URLs de vista previa y descarga). */
 export function printOptionsQuery(options: PrintOptions, extra: Record<string, string> = {}): string {
-  const query = new URLSearchParams({ ...extra, format: options.format, back: options.includeBack ? "1" : "0", qr: options.includeQr ? "1" : "0", marks: options.cropMarks ? "1" : "0" });
+  const query = new URLSearchParams({ ...extra, format: options.format, back: options.includeBack ? "1" : "0", qr: options.qr, marks: options.cropMarks ? "1" : "0" });
   if (options.initials?.length) query.set("initials", options.initials.join(""));
   if (options.place !== undefined) query.set("place", options.place);
   return query.toString();

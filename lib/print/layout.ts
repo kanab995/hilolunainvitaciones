@@ -7,7 +7,8 @@ import { createQrMatrix } from "@/lib/share/qr";
 /**
  * COMPOSICIÓN «ROMÁNTICA ELEGANTE» (D-47) — el diseño aprobado por el propietario (iteración 3, variante B) convertido en reglas:
  * doble filete abierto por el monograma de luna, nombres en Pinyon Script, textos en Cormorant Garamond, rama fina con la estrella de la
- * marca; reverso con ceremonia · recepción · vestimenta y QR opcional; arte del sobre con el monograma.
+ * marca; reverso con ceremonia · recepción · vestimenta y QR opcional (hacia la invitación, la mesa de regalos o la tienda, D-49); arte del
+ * sobre con el monograma.
  *
  * Todo se compone en un espacio VIRTUAL de 360 pt de alto (la tarjeta 5×7" aprobada) y se escala al formato real (A5 = ×1,165): la
  * composición, las proporciones y los márgenes relativos son idénticos en los dos formatos.
@@ -376,36 +377,46 @@ function back(c: Canvas, data: PrintData, warnings: Set<PrintWarning>) {
   const qr = data.qr;
   // Con QR, las columnas arrancan en 246 (composición aprobada). Sin QR, el bloque se centra entre el título y el filete inferior.
   const height = 246 - run(246, false) + T.label.size;
-  const top = qr ? 246 : Math.min(246, (262 + 28) / 2 + height / 2);
+  // Sin QR (D-49): el bloque sube un poco del centro óptico y lo cierra el mismo filete corto que separa las columnas del QR.
+  const top = qr ? 246 : Math.min(246, (262 + 28) / 2 + height / 2 + 12);
   const lowest = run(top, true);
   for (let index = 0; index < columns.length - 1; index++) {
     const x = ((xs[index] ?? 0) + (xs[index + 1] ?? 0)) / 2;
     c.line(x, Math.max(lowest - 6, qr ? 150 : 0), x, top + 6, 0.4);
   }
+  if (!qr && lowest - 30 > 40) c.line(c.cx - 22, lowest - 30, c.cx + 22, lowest - 30, 0.4);
 
   if (qr) {
     // QR: corrección M, lado ≥ 1" y módulo ≥ 0,75 mm (crece con URLs largas). Elegido con la simulación de impresión + cámara.
     const matrix = createQrMatrix(qr.url);
     const size = Math.max(72 * c.k, matrix.size * 0.75 * PT_PER_MM) / c.k; // en puntos reales: ≥ 1" (escalado) y módulo ≥ 0,75 mm
     const qy = 46, gapX = 20;
+    const words = card.qr[qr.kind];
     // El enlace escrito se ajusta (hasta 7 pt) para que el grupo QR + texto quepa dentro del marco.
     const room = c.w - 2 * 40 - size - gapX;
-    const titleWidth = c.width(card.rsvpTitle, T.rsvpTitle);
     let urlStyle: Style = T.url;
-    if (c.width(qr.label, urlStyle) > room) {
+    if (qr.label && c.width(qr.label, urlStyle) > room) {
       const scale = Math.max(7 / T.url.size, room / c.width(qr.label, urlStyle));
       urlStyle = { ...T.url, size: T.url.size * scale, tracking: (T.url.tracking ?? 0) * scale };
       warnings.add("textFitted");
     }
-    const textWidth = Math.max(titleWidth, c.width(qr.label, urlStyle), c.width(card.rsvpHint, T.addr));
+    // La indicación va en una línea si cabe junto al QR; si no, en líneas equilibradas.
+    const hintLines = balanceLines(words.hint, room, (value) => c.width(value, T.addr));
+    // Renglones del bloque (estilo, texto, distancia desde el anterior). El enlace directo a una tienda no se escribe: solo se escanea.
+    const lines: Array<[Style, string, number]> = [[T.rsvpTitle, words.title, 0], ...hintLines.map((line, index): [Style, string, number] => [T.addr, line, index === 0 ? 15 : 11.5]), ...(qr.label ? [[urlStyle, qr.label, 12] as [Style, string, number]] : [])];
+    const textWidth = Math.max(...lines.map(([style, text]) => c.width(text, style)));
     const qx = c.cx - (size + gapX + textWidth) / 2;
     if (lowest >= 150) c.line(c.cx - 22, 138, c.cx + 22, 138, 0.4);
     else if (lowest < qy + size + 16) warnings.add("columnsTight");
     c.qr(matrix.rows, qx, qy, size);
     const tx = qx + size + gapX, mid = qy + size / 2;
-    c.text(card.rsvpTitle, T.rsvpTitle, tx, mid + 9);
-    c.text(card.rsvpHint, T.addr, tx, mid - 6);
-    c.text(qr.label, urlStyle, tx, mid - 18);
+    // Bloque centrado en la altura del QR (con título, indicación y enlace: título en mid + 9, como en la composición aprobada).
+    const span = lines.reduce((sum, [, , gap]) => sum + gap, 0);
+    let baseline = mid + span / 2 - 4.5;
+    for (const [style, text, gap] of lines) {
+      baseline -= gap;
+      c.text(text, style, tx, baseline);
+    }
   }
 }
 

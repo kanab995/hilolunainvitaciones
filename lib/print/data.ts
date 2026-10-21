@@ -1,5 +1,6 @@
 import { displayNames } from "@/lib/invitation/format";
 import { formatPlace, placeFromAddress } from "@/lib/print/place";
+import type { PrintQrDestination } from "@/lib/print/qr-target";
 import { clockAt, printableTime, socialTime } from "@/lib/print/time-words";
 import type { Invitation } from "@/types/invitation";
 import type { EventCategoryId } from "@/types/marketing";
@@ -27,7 +28,8 @@ export interface PrintData {
   ceremony?: PrintVenue & { city?: string };
   reception?: PrintVenue;
   dressCode?: { style: string; description?: string; palette: readonly string[] };
-  qr?: { url: string; label: string };
+  /** QR del reverso (D-49): invitación, mesa de regalos o enlace directo a la tienda. Sin él, el reverso se recompone sin QR. */
+  qr?: PrintQrDestination;
 }
 
 /** Por ahora el diseño aprobado es de boda (sus textos hablan de «matrimonio»). Otros tipos de evento esperan su propio texto. */
@@ -66,8 +68,8 @@ function dateLineOf(iso: string, timezone: string): string {
 }
 
 export interface BuildPrintDataOptions {
-  /** URL pública vigente (invitación publicada y con acceso activo); sin ella no hay QR. */
-  publicUrl?: string;
+  /** Destino del QR ya resuelto por el servicio (`lib/print/qr-target.ts`); sin él no hay QR. */
+  qr?: PrintQrDestination;
   initials?: readonly string[];
   /**
    * Ciudad y estado que confirmó el anfitrión (`PrintOptions.place`). `undefined` = la que se lee de la dirección; `""` = no imprimir
@@ -119,6 +121,6 @@ export function buildPrintData(invitation: Invitation, options: BuildPrintDataOp
     ...(ceremony ? { ceremony } : {}),
     ...(reception ? { reception } : {}),
     ...(dressCode ? { dressCode } : {}),
-    ...(options.publicUrl ? { qr: { url: options.publicUrl, label: options.publicUrl.replace(/^https?:\/\//, "") } } : {}),
+    ...(options.qr ? { qr: options.qr } : {}),
   };
 }

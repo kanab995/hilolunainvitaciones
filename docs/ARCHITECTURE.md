@@ -619,6 +619,22 @@ Contexto: la invitación pública debe tener lenguaje visual propio (regla 7) y 
 
 **Sin cambios de base de datos** en esta etapa (nada que migrar). **Pendiente:** Etapa 3 (compra con Stripe: `EventPurchase` para complementos, checkout, webhook, desbloqueo, registro `PrintExport` para la consola), Etapa 4 (`/pricing` y panel), prueba física de color en imprenta (dorado y marfil), textos impresos para XV años, bautizo, cumpleaños y demás tipos (requieren aprobación), CMYK/PDF-X (hoy RGB, declarado). La vista previa es SOLO un PNG con la marca de agua quemada: sin rasterizador no hay vista previa (404), nunca el SVG vectorial.
 
+### D-49 · **Aprobada (propietario)** · Destino del QR de la versión impresa: invitación, mesa de regalos o sin QR
+
+→ El anfitrión elige en «Versión para imprimir» a dónde lleva el QR del reverso: **invitación digital** (por defecto y comportamiento anterior), **mesa de regalos** o **sin QR**; y, si la mesa PUBLICADA tiene una sola tienda con enlace seguro, **enlace directo a la tienda** (opción adicional que el propietario pidió evaluar).
+
+(1) **Destinos** (`lib/print/qr-target.ts`, puro): invitación = `/i/<slug>`; mesa de regalos = `/i/<slug>#regalos` (la sección pública donde el invitado elige entre todas las tiendas; nunca el panel); enlace directo = la URL de la tienda tras `safeStoreUrl` (solo `https:`, sin usuario/contraseña ni puerto, dominio público —sin IP, `localhost` ni dominios internos— y ≤ 160 caracteres para que el QR siga legible a 1"). La disponibilidad sale SIEMPRE de la invitación PUBLICADA de ESE evento (`loadOwnedPublication`, con el dueño en la consulta): la mesa cuenta si su sección está visible y tiene al menos un enlace. Invitación y mesa exigen el acceso vigente; el enlace directo no depende de él. Un destino guardado que ya no existe cae a la invitación (y sin invitación vigente, a «sin QR»): nunca se imprime un QR hacia algo que no existe.
+
+(2) **Ancla pública estable `#regalos`** (`lib/invitation/anchors.ts`): un marcador invisible en la sección de la mesa (`SectionShell.anchorId`). Corta a propósito (QR con módulos más grandes) y no depende del id de la sección; no se renombra nunca (rompería los QR impresos). No cambia el contenido ni el diseño de ninguna invitación.
+
+(3) **Persistencia**: tabla `PrintSettings` (una fila por evento, `qrTarget`; migración aditiva `20261021120000_add_print_settings`). Sin fila = invitación: los eventos existentes no cambian. La guarda una Server Action que comprueba sesión, propiedad y que el destino exista en lo publicado (`savePrintQrTarget`). No guarda URLs: se resuelven al generar.
+
+(4) **Diseño B intacto**: mismo bloque del QR (título en Cormorant cursiva, indicación, dirección) con los textos del propietario — invitación: «Confirma tu asistencia» + «Escanea para ver nuestra invitación digital»; regalos: «Mesa de regalos» + «Escanea para ver nuestra mesa de regalos»; el enlace directo no escribe dirección. QR vectorial, corrección M, ≥ 1" y módulo ≥ 0,75 mm. Sin QR, el bloque de columnas sube un poco del centro y lo cierra el mismo filete corto de la versión con QR.
+
+(5) **Sin cambios** en el precio del complemento ($199 MXN), Stripe, checkout, planes ni webhooks. La URL de vista previa y descarga acepta `qr=invitation|gifts|gift-link|none` (y los enlaces anteriores `qr=1|0`).
+
+**Verificado:** pruebas de escena, vista previa (el SVG enviado al rasterizador) y PDF (matriz del QR reconstruida desde el PDF) para cada destino; aislamiento entre eventos; validación de URLs; persistencia contra PostgreSQL temporal; y los PDF finales rasterizados con pdf.js y leídos con jsQR (300/150/100 ppp y con desenfoque).
+
 ### D-48 · **Aprobada (propietario, Etapa 3 de «música e impresión»)** · Compra del complemento «Archivo listo para imprimir» con Stripe, en una tabla propia
 
 → Decisiones del propietario: diseño B aprobado definitivamente tras la prueba física (cartulina color hueso de 250 g, impresión convencional, dorado impreso sin foil); complemento **$199 MXN por evento, impuestos aplicables incluidos**, solo **Esencial y Premium**, compra opcional e independiente del plan, vista previa antes de pagar, descarga tras el pago y re-descargas ilimitadas, protegida por usuario y evento, sin cobros duplicados, respetando reembolsos, sin alterar planes ni la mejora, y explicando la vigencia del QR. **No se activa en producción hasta su autorización final.**

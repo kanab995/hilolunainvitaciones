@@ -1,3 +1,4 @@
+import type { PrintQrTarget } from "@/lib/print/qr-target";
 import { siteConfig } from "@/lib/site-config";
 
 /**
@@ -13,8 +14,12 @@ export const printCopy = {
     ceremony: "CEREMONIA",
     reception: "RECEPCIÓN",
     dressCode: "VESTIMENTA",
-    rsvpTitle: "Confirma tu asistencia",
-    rsvpHint: "Escanea el código o visita",
+    /** Bloque del QR según su destino (D-49). El título de la invitación es el del diseño aprobado; las indicaciones, las del propietario. */
+    qr: {
+      invitation: { title: "Confirma tu asistencia", hint: "Escanea para ver nuestra invitación digital" },
+      gifts: { title: "Mesa de regalos", hint: "Escanea para ver nuestra mesa de regalos" },
+      "gift-link": { title: "Mesa de regalos", hint: "Escanea para ver nuestra mesa de regalos" },
+    },
   },
   page: {
     title: "Versión para imprimir",
@@ -33,14 +38,55 @@ export const printCopy = {
       format: "Formato",
       back: "Incluir reverso",
       backHint: "Ceremonia, recepción, vestimenta y QR.",
-      qr: "Código QR para confirmar",
-      qrHint: "Lleva a tu invitación publicada.",
-      qrUnavailable: "El QR necesita una invitación publicada y vigente.",
       initials: "Iniciales del monograma",
       initialsHint: "Una o dos letras. Por defecto, las de los nombres.",
       initialsInvalid: "Usa una o dos letras.",
       place: "Ciudad en el frente",
       placeHint: "Va bajo el nombre de la ceremonia. Revísala; déjala vacía para no imprimirla.",
+    },
+    /** Destino del QR del reverso (D-49). */
+    qr: {
+      legend: "Código QR del reverso",
+      hint: "Elige a dónde lleva el código impreso.",
+      noBack: "Activa el reverso para incluir un código QR.",
+      options: {
+        invitation: { label: "Invitación digital", description: "Abre tu invitación completa, donde tus invitados también confirman su asistencia." },
+        gifts: { label: "Mesa de regalos", description: "Abre tu invitación directamente en la mesa de regalos, donde tus invitados eligen la tienda." },
+        "gift-link": { label: "Enlace directo a la tienda", description: "Abre tu única mesa de regalos sin pasar por la invitación." },
+        none: { label: "Sin código QR", description: "El reverso se reacomoda para conservar el diseño." },
+      } satisfies Record<PrintQrTarget, { label: string; description: string }>,
+      giftLinkStore: (store: string) => `Abre ${store} sin pasar por la invitación.`,
+      invitationUnavailable: "Necesita una invitación publicada y vigente.",
+      giftsMissing: {
+        title: "Tu invitación publicada no tiene mesa de regalos",
+        description: "Agrégala en el editor (sección «Mesa de regalos»), publica los cambios y vuelve aquí para elegir esta opción.",
+        action: "Ir al editor",
+      },
+      giftLinkProblem: {
+        insecure: "El enlace de tu tienda no empieza con https://: por seguridad no lo imprimimos directo. Usa «Mesa de regalos».",
+        invalid: "El enlace de tu tienda no es una dirección pública válida: no lo imprimimos directo. Usa «Mesa de regalos».",
+        too_long: "El enlace de tu tienda es demasiado largo para un código legible en papel. Usa «Mesa de regalos».",
+      },
+      savedUnavailable: "La opción que habías elegido ya no está disponible en tu invitación publicada: el código vuelve a tu invitación digital.",
+      previewTitle: "Así se imprimirá",
+      opens: "Abre",
+      validity: (date: string) => `Este código depende de tu invitación digital: funcionará hasta el ${date}, 30 días después de tu evento.`,
+      validityOpen: "Este código depende de tu invitación digital: funciona mientras tu invitación esté publicada.",
+      directValidity: "Este código abre la tienda directamente: no depende de la vigencia de tu invitación, sino de que la tienda conserve ese enlace.",
+      noneNote: "El reverso no llevará código.",
+      saving: "Guardando…",
+      saved: "Elección guardada.",
+      save: {
+        invalid: "Esa opción no es válida.",
+        notFound: "No encontramos este evento.",
+        unavailable: {
+          invitation: "Publica tu invitación (y mantenla vigente) para imprimir su código.",
+          gifts: "Configura y publica tu mesa de regalos antes de elegir esta opción.",
+          "gift-link": "El enlace directo solo está disponible con una única tienda con un enlace https:// válido.",
+          none: "No pudimos guardar tu elección.",
+        } satisfies Record<PrintQrTarget, string>,
+        store: "No pudimos guardar tu elección. Inténtalo de nuevo.",
+      },
     },
     previews: { front: "Frente", back: "Reverso", envelope: "Monograma para el sobre" },
     watermark: `VISTA PREVIA · ${siteConfig.name.toLocaleUpperCase("es-MX")}`,

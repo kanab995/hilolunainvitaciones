@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, fieldErrorId, fieldHintId } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { QrTargetPicker } from "@/components/print/qr-target-picker";
 import { printCopy } from "@/lib/print/copy";
 import { parseInitials } from "@/lib/print/data";
 import { cleanPlaceInput } from "@/lib/print/place";
@@ -15,6 +16,7 @@ import { PRINT_FORMAT_SPECS, PRINT_FORMATS, type PrintFormat } from "@/lib/print
 import { DEFAULT_PRINT_OPTIONS, printOptionsQuery, type PreviewSide, type PrintOptions } from "@/lib/print/options";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
+import type { PrintQrView } from "@/server/services/print-service";
 
 const copy = printCopy.page;
 
@@ -41,27 +43,28 @@ function Preview({ eventId, side, options, label, envelope = false }: { eventId:
 }
 
 /**
- * VERSIÓN PARA IMPRIMIR (D-47): vistas previas del frente, el reverso y el monograma del sobre; a la derecha (debajo en móvil) las opciones y
- * el complemento.
+ * VERSIÓN PARA IMPRIMIR (D-47): vistas previas del frente, el reverso y el monograma del sobre; a la derecha (debajo en móvil) las opciones
+ * (formato, reverso, destino del QR —D-49—, ciudad y monograma) y el complemento.
  * Cada cambio pide imágenes nuevas al servidor (la composición vive allí: misma que el PDF). Pantalla aprobada sin mockup.
  */
 export function PrintStudio({
   eventId,
-  qrAvailable,
+  qr,
   defaultInitials,
   defaultPlace,
   download,
   product,
 }: {
   eventId: string;
-  qrAvailable: boolean;
+  /** Destino del QR: elección guardada, destinos disponibles en la invitación publicada y su vigencia. */
+  qr: PrintQrView;
   defaultInitials: string;
   defaultPlace: string;
   /** `purchase` = complemento pagado (descargas ilimitadas); `internal` = prueba de ADMIN sin compra; `none` = sin descarga. */
   download: "purchase" | "internal" | "none";
   product: ReactNode;
 }) {
-  const [options, setOptions] = useState<PrintOptions>({ ...DEFAULT_PRINT_OPTIONS, includeQr: qrAvailable });
+  const [options, setOptions] = useState<PrintOptions>({ ...DEFAULT_PRINT_OPTIONS, qr: qr.selected });
   const [initialsText, setInitialsText] = useState(defaultInitials);
   const initialsInvalid = initialsText.trim() !== "" && !parseInitials(initialsText);
 
@@ -99,14 +102,7 @@ export function PrintStudio({
             onChange={(format) => update({ format })}
           />
           <ToggleRow id="print-back" label={copy.options.back} hint={copy.options.backHint} checked={options.includeBack} onChange={(includeBack) => update({ includeBack })} />
-          <ToggleRow
-            id="print-qr"
-            label={copy.options.qr}
-            hint={qrAvailable ? copy.options.qrHint : copy.options.qrUnavailable}
-            checked={qrAvailable && options.includeBack && options.includeQr}
-            disabled={!qrAvailable || !options.includeBack}
-            onChange={(includeQr) => update({ includeQr })}
-          />
+          <QrTargetPicker eventId={eventId} qr={qr} value={options.qr} includeBack={options.includeBack} onChange={(target) => update({ qr: target })} />
           <Field htmlFor="print-place" label={copy.options.place} hint={copy.options.placeHint}>
             <Input
               id="print-place"

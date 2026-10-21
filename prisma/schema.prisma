@@ -198,6 +198,15 @@ enum PurchaseKind {
   UPGRADE
 }
 
+/// Destino del QR impreso (D-49): la invitación (por defecto, el comportamiento anterior), la sección de regalos de la invitación, el enlace
+/// directo a la única tienda o ninguno.
+enum PrintQrTarget {
+  INVITATION
+  GIFT_REGISTRY
+  GIFT_REGISTRY_LINK
+  NONE
+}
+
 /// Complemento que se compra APARTE del plan de un evento (D-48). Hoy solo «Archivo listo para imprimir».
 enum AddonProduct {
   PRINT_FILE
@@ -482,6 +491,7 @@ model Event {
   mediaAssets    MediaAsset[]
   purchases      EventPurchase[]
   addonPurchases EventAddonPurchase[]
+  printSettings  PrintSettings?
 
   @@index([ownerId])
   /// Resumen de la consola: eventos de pago por vencer / vencidos.
@@ -888,4 +898,17 @@ model RsvpAnswer {
   question RsvpQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@unique([rsvpId, questionId])
+}
+
+/// PREFERENCIAS DE LA VERSIÓN IMPRESA de un evento (D-49). Una fila por evento, creada la primera vez que el anfitrión elige algo; sin fila =
+/// valores por defecto (QR hacia la invitación, como antes de D-49). Solo la escribe el dueño del evento (propiedad en la consulta). No guarda
+/// URLs: el destino se resuelve al generar, siempre desde la invitación PUBLICADA de ESE evento.
+model PrintSettings {
+  id        String        @id @default(cuid())
+  eventId   String        @unique
+  qrTarget  PrintQrTarget @default(INVITATION)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 }
