@@ -104,7 +104,7 @@ for (const mm of [25.4, 20, 16, 12]) {
 }
 letter(front, "Prueba impresa 2/2 · Frente 5×7\" a tamaño real · datos de demostración", [
   "Qué revisar a tamaño real",
-  "· Que se lean sin esfuerzo la ciudad (8 pt) y «a las cinco de la tarde» (8,5 pt).",
+  "· Que se lean sin esfuerzo la ciudad (8 pt) y «17:00 horas» (8,5 pt).",
   "· Que la frase dorada y el monograma pequeño no se vean cortados ni demasiado claros.",
   "· Una impresora de casa NO reproduce el color de la imprenta: aquí se validan tamaños y QR,",
   "· no el tono exacto del dorado (eso se valida con el PDF 5x7 en la imprenta).",

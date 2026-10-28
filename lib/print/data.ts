@@ -12,7 +12,7 @@ import type { EventCategoryId } from "@/types/marketing";
 export interface PrintVenue {
   name: string;
   addressLines: readonly string[];
-  /** Hora ya escrita para imprimir («a las cinco de la tarde»). */
+  /** Hora ya escrita para imprimir («17:00 horas»). */
   time?: string;
 }
 
@@ -23,7 +23,7 @@ export interface PrintData {
   initials: readonly string[];
   /** «LUNES 17 DE MAYO DE 2027». */
   dateLine: string;
-  /** «a las cinco de la tarde» (hora del evento). */
+  /** «17:00 horas» (hora del evento). */
   timeLine: string;
   ceremony?: PrintVenue & { city?: string };
   reception?: PrintVenue;

@@ -5,20 +5,15 @@ import { DEFAULT_PRINT_OPTIONS, parsePrintOptions, printOptionsQuery } from "@/l
 import { clockAt, parseClock, printableTime, socialTime } from "@/lib/print/time-words";
 import { DEMO_URL, demo, longWedding, minimalWedding } from "./fixtures";
 
-describe("hora «social» (aprobada: «a las cinco de la tarde»)", () => {
-  it("escribe con letra las horas en punto, y cuarto y y media, con su periodo del día", () => {
-    expect(socialTime({ hour: 17, minute: 0 })).toBe("a las cinco de la tarde");
-    expect(socialTime({ hour: 19, minute: 0 })).toBe("a las siete de la noche");
-    expect(socialTime({ hour: 13, minute: 30 })).toBe("a la una y media de la tarde");
-    expect(socialTime({ hour: 12, minute: 0 })).toBe("a las doce del día");
-    expect(socialTime({ hour: 0, minute: 0 })).toBe("a las doce de la noche");
-    expect(socialTime({ hour: 1, minute: 15 })).toBe("a la una y cuarto de la madrugada");
-    expect(socialTime({ hour: 11, minute: 0 })).toBe("a las once de la mañana");
-  });
-
-  it("otros minutos vuelven a la cifra", () => {
-    expect(socialTime({ hour: 17, minute: 20 })).toBe("a las 17:20 horas");
-    expect(socialTime({ hour: 9, minute: 45 })).toBe("a las 9:45 horas");
+describe("hora impresa (decisión del propietario: «17:00 horas», con cifras y reloj de 24 horas)", () => {
+  it("escribe la hora con cifras en formato de 24 horas, nunca con letra", () => {
+    expect(socialTime({ hour: 17, minute: 0 })).toBe("17:00 horas");
+    expect(socialTime({ hour: 19, minute: 0 })).toBe("19:00 horas");
+    expect(socialTime({ hour: 13, minute: 30 })).toBe("13:30 horas");
+    expect(socialTime({ hour: 12, minute: 0 })).toBe("12:00 horas");
+    expect(socialTime({ hour: 0, minute: 0 })).toBe("0:00 horas");
+    expect(socialTime({ hour: 17, minute: 20 })).toBe("17:20 horas");
+    expect(socialTime({ hour: 9, minute: 5 })).toBe("9:05 horas");
   });
 
   it("lee las horas que escribe el anfitrión en el editor", () => {
@@ -63,9 +58,9 @@ describe("datos de la versión impresa (de la invitación publicada)", () => {
     const data = buildPrintData(demo, { qr: { kind: "invitation", url: DEMO_URL, label: "hiloluna.com/i/demo-magnolia" } });
     expect(data.names).toEqual(["Andrea", "Fernando"]);
     expect(data.dateLine).toBe("LUNES 17 DE MAYO DE 2027");
-    expect(data.timeLine).toBe("a las cinco de la tarde");
-    expect(data.ceremony).toMatchObject({ name: "Parroquia de San Miguel Arcángel", time: "a las cinco de la tarde", city: "San Miguel de Allende, Guanajuato" });
-    expect(data.reception).toMatchObject({ name: "Hacienda Los Olivos", time: "a las siete de la noche" });
+    expect(data.timeLine).toBe("17:00 horas");
+    expect(data.ceremony).toMatchObject({ name: "Parroquia de San Miguel Arcángel", time: "17:00 horas", city: "San Miguel de Allende, Guanajuato" });
+    expect(data.reception).toMatchObject({ name: "Hacienda Los Olivos", time: "19:00 horas" });
     expect(data.dressCode?.style).toBe("Formal y elegante");
     expect(data.qr).toEqual({ kind: "invitation", url: DEMO_URL, label: "hiloluna.com/i/demo-magnolia" });
   });
@@ -83,13 +78,13 @@ describe("datos de la versión impresa (de la invitación publicada)", () => {
     expect(minimal.reception).toBeUndefined();
     expect(minimal.dressCode).toBeUndefined();
     // Sin hora escrita en la sede, la ceremonia usa la hora del evento.
-    expect(minimal.ceremony?.time).toBe("a las doce del día");
+    expect(minimal.ceremony?.time).toBe("12:00 horas");
   });
 
-  it("las horas libres del editor se escriben con letra", () => {
+  it("las horas libres del editor se imprimen con cifras («17:00 horas»), sea cual sea cómo las escribió el anfitrión", () => {
     const data = buildPrintData(longWedding);
-    expect(data.ceremony?.time).toBe("a la una y media de la tarde");
-    expect(data.reception?.time).toBe("a las ocho de la noche");
+    expect(data.ceremony?.time).toBe("13:30 horas");
+    expect(data.reception?.time).toBe("20:00 horas");
   });
 
   it("el diseño aprobado es de boda: los demás tipos esperan su texto", () => {

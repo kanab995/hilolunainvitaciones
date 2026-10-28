@@ -31,7 +31,7 @@ describe("composición «Romántica elegante» (diseño aprobado)", () => {
     const at = (text: string) => front.find((t) => t.text === text);
     expect(at("Junto a sus familias")).toMatchObject({ font: "script", size: 17, y: 272 });
     expect(at("LUNES 17 DE MAYO DE 2027")).toMatchObject({ font: "caps", size: 10.5, tracking: 1.5 });
-    expect(at("A LAS CINCO DE LA TARDE")).toMatchObject({ font: "caps", size: 8.5 });
+    expect(at("17:00 HORAS")).toMatchObject({ font: "caps", size: 8.5 });
     expect(at("Tu presencia hará este día todavía más especial")).toMatchObject({ font: "script", size: 16, stroke: 0.16, color: PRINT_COLORS.gold, y: 50 });
     const names = front.filter((t) => t.role === "nombres");
     expect(names.map((t) => t.text)).toEqual(["Andrea", "&", "Fernando"]);
