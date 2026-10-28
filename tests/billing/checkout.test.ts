@@ -56,10 +56,13 @@ describe("Checkout de UN evento (18, 19, 75)", () => {
     expect(provider.priceRefFor("STRIPE_PRICE_PREMIUM_ONE_TIME")).toBe("price_pre_once");
   });
 
-  it("(75.5) la sesión de Stripe es de PAGO ÚNICO (mode: payment), con metadata mínima y sin suscripción, cupones ni pruebas", () => {
+  it("(75.5) la sesión de Stripe es de PAGO ÚNICO (mode: payment), con metadata mínima y sin suscripción ni pruebas; los únicos descuentos son los códigos que el propietario crea en Stripe", () => {
     const source = code("server/billing/stripe/stripe-provider.ts");
     expect(source).toMatch(/mode: "payment"/);
-    expect(source).not.toMatch(/mode: "subscription"|subscription_data|allow_promotion_codes|trial_period_days|coupon|discounts/);
+    expect(source).not.toMatch(/mode: "subscription"|subscription_data|trial_period_days/);
+    // La app nunca aplica por su cuenta un cupón o descuento: solo habilita el campo de código promocional (planes y complemento).
+    expect(source).not.toMatch(/coupon|\bdiscounts\s*:|\bpromotion_code\s*:/);
+    expect(source.match(/allow_promotion_codes: true/g)).toHaveLength(2);
     expect(source).toMatch(/const metadata = \{ hiloLunaUserId: input\.userId, eventId: input\.eventId, targetPlan: input\.plan \}/);
     expect(source).toMatch(/payment_intent_data: \{ metadata \}/);
   });

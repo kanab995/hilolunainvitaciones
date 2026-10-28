@@ -1,7 +1,7 @@
 import { maskExternalId } from "@/lib/admin/mask";
 import { isPaidPlanId, planIncludes, PRICING_CURRENCY, type PaidPlanId } from "@/lib/billing/plans";
 import { computePaidAccessEnd, expectedPurchaseAmountMinor, getEffectiveEventPlan, purchaseForPriceKey, type PurchaseKindId } from "@/lib/billing/purchase";
-import type { BillingProvider, ProviderPayment } from "@/server/billing/provider";
+import { chargeMatchesPrice, type BillingProvider, type ProviderPayment } from "@/server/billing/provider";
 import type { BillingWriteOps } from "@/server/repositories/billing";
 import { logger } from "@/server/observability/logger";
 
@@ -12,7 +12,8 @@ import { logger } from "@/server/observability/logger";
  *   1. el pago está COBRADO (`PAID`);
  *   2. la sesión trae exactamente UN precio y es un precio CONOCIDO de la configuración del servidor (compra inicial o mejora);
  *   3. el plan de ese precio coincide con `targetPlan` de la metadata (una metadata falsa de «Premium» sobre un precio de Esencial no concede nada);
- *   4. la moneda es MXN y el importe cobrado es EXACTAMENTE el esperado (precio del plan, o la diferencia en una mejora);
+ *   4. la moneda es MXN y el importe cobrado es EXACTAMENTE el esperado (precio del plan, o la diferencia en una mejora), o ese precio
+ *      menos el descuento de un código promocional del proveedor (`chargeMatchesPrice`);
  *   5. el evento existe y su propietario es el usuario de la metadata (y del cliente del proveedor, si está registrado);
  *   6. una mejora exige que el evento ya tenga el plan de origen pagado.
  * La compra se guarda como una fila POR SESIÓN de cobro (idempotente); el historial nunca se sobrescribe. Al conceder, se fija el fin del
@@ -70,7 +71,7 @@ export async function confirmPayment(
   if (purchase.plan !== targetPlan) return reject("rejected_mismatch", payment);
 
   if (payment.currency !== PRICING_CURRENCY) return reject("rejected_currency", payment);
-  if (payment.amountMinor !== expectedPurchaseAmountMinor(purchase)) return reject("rejected_amount", payment);
+  if (!chargeMatchesPrice(payment, expectedPurchaseAmountMinor(purchase))) return reject("rejected_amount", payment);
 
   const event = await ops.findEvent(eventId);
   if (!event) return reject("rejected_event", payment);

@@ -159,6 +159,15 @@ describe("webhook del complemento", () => {
     expect(world.writes.some((write) => write.startsWith("save:") || write.startsWith("access:"))).toBe(false);
   });
 
+  it("con un código de descuento (incluso de 100 %), se desbloquea si precio − descuento = cobrado", async () => {
+    for (const [index, item] of [addonPayment({ amountMinor: 9900, subtotalMinor: 19900, discountMinor: 10000 }), addonPayment({ amountMinor: 0, subtotalMinor: 19900, discountMinor: 19900, paymentIntentId: null })].entries()) {
+      const fake = fakeProvider({ payments: { [item.checkoutSessionId]: item } });
+      const { world } = setup({ provider: fake });
+      await webhook(world, fake, completed(item.checkoutSessionId, `evt_discount_${index}`));
+      expect(world.addonPurchases, `caso ${index}`).toMatchObject([{ status: "PAID", unlockKey: "evt_A:PRINT_FILE", amount: item.amountMinor }]);
+    }
+  });
+
   it("el mismo evento de webhook dos veces no se aplica dos veces", async () => {
     const fake = fakeProvider({ payments: { cs_addon_1: addonPayment() } });
     const { world } = setup({ provider: fake });
@@ -170,6 +179,9 @@ describe("webhook del complemento", () => {
   it("verificación estricta: importe, moneda, precio, metadata, propietario", async () => {
     const bad: ProviderPayment[] = [
       addonPayment({ amountMinor: 100 }),
+      // Un «descuento» que no cuadra con el precio de lista no desbloquea nada.
+      addonPayment({ amountMinor: 0, subtotalMinor: 100, discountMinor: 100 }),
+      addonPayment({ amountMinor: 9900, subtotalMinor: 19900, discountMinor: 0 }),
       addonPayment({ currency: "USD" }),
       // Precio de un PLAN con metadata de complemento: ni complemento ni plan.
       addonPayment({ priceRefs: [PRICE_REFS.STRIPE_PRICE_ESSENTIAL_ONE_TIME], amountMinor: 49900 }),

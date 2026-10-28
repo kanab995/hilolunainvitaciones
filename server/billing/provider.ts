@@ -16,10 +16,17 @@ export interface ProviderPayment {
   checkoutSessionId: string;
   paymentIntentId: string | null;
   providerCustomerId: string | null;
-  /** `PAID` = cobrado; `PENDING` = abierto o sin cobrar todavía; `EXPIRED` = la sesión caducó sin pago. */
+  /**
+   * `PAID` = cobrado (o completado sin cobro porque un código de descuento dejó el total en 0); `PENDING` = abierto o sin cobrar todavía;
+   * `EXPIRED` = la sesión caducó sin pago.
+   */
   status: "PAID" | "PENDING" | "EXPIRED";
-  /** Importe cobrado en unidades menores (centavos). */
+  /** Importe cobrado en unidades menores (centavos), ya con el descuento aplicado. */
   amountMinor: number;
+  /** Importe ANTES de descuentos (precio de las líneas). Sin él se asume `amountMinor` (sesión sin descuentos). */
+  subtotalMinor?: number;
+  /** Descuento aplicado por un código promocional del proveedor. Sin él se asume 0. */
+  discountMinor?: number;
   /** ISO 4217 en mayúsculas (`MXN`). */
   currency: string;
   /** Referencias de precio del proveedor de las líneas cobradas (p. ej. `price_…`). */
@@ -38,6 +45,17 @@ export type NormalizedWebhookEvent = { id: string; type: string; createdAt: Date
   | { action: "refund_payment"; paymentIntentId: string }
   | { action: "ignore" }
 );
+
+/**
+ * ¿El cobro corresponde EXACTAMENTE al precio esperado? Admite códigos de descuento del proveedor (creados por el propietario en su
+ * panel), pero solo si las cuentas cuadran: el precio de lista (subtotal) es el esperado, el descuento no es negativo ni mayor que el
+ * precio, y lo cobrado es precio − descuento. Un importe distinto sin descuento que lo explique se sigue rechazando.
+ */
+export function chargeMatchesPrice(payment: Pick<ProviderPayment, "amountMinor" | "subtotalMinor" | "discountMinor">, expectedMinor: number): boolean {
+  const subtotal = payment.subtotalMinor ?? payment.amountMinor;
+  const discount = payment.discountMinor ?? 0;
+  return subtotal === expectedMinor && discount >= 0 && discount <= expectedMinor && payment.amountMinor === expectedMinor - discount;
+}
 
 /** La firma del webhook no es válida (o falta): el cuerpo no se procesa. */
 export class WebhookSignatureError extends Error {

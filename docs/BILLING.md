@@ -30,10 +30,10 @@
 
 El evento de Stripe es solo un aviso: el servidor vuelve a leer la sesión de cobro y **no confía en la metadata**. Se concede solo si TODO se cumple:
 
-1. la sesión está **cobrada** (`payment_status = paid`);
+1. la sesión está **cobrada** (`payment_status = paid`), o completada sin cobro porque un código de 100 % dejó el total en 0 (§14);
 2. trae exactamente **un precio** y es uno **conocido** (una de las tres variables `STRIPE_PRICE_…`);
 3. el plan de ese precio coincide con `targetPlan`;
-4. la moneda es **MXN** y el importe cobrado es **exactamente** el esperado (`499`, `799` o la diferencia `300`, en centavos);
+4. la moneda es **MXN** y el importe cobrado es **exactamente** el esperado (`499`, `799` o la diferencia `300`, en centavos), o ese precio menos el descuento de un código promocional de Stripe, siempre que las cuentas cuadren (§14);
 5. el evento existe y su propietario es el usuario de la metadata (y del cliente de Stripe, si está registrado);
 6. una mejora exige que el evento ya tenga **Esencial pagada**.
 
@@ -227,3 +227,33 @@ reembolso, reembolso total, evento Gratis, y que el plan del evento no cambie en
 
 **Pendiente**: revisión fiscal (B2) antes de cobrar en producción; reintento manual del correo del complemento (hoy `retryFailedEmailDelivery`
 solo cubre compras de planes).
+
+## 14. Códigos de descuento (Stripe)
+
+La página de pago de Stripe muestra **«Agregar código promocional»** en todos los cobros (planes, mejora y complemento). Los códigos se
+crean y administran **solo en el panel de Stripe**: Hilo Luna nunca aplica un descuento por su cuenta, no guarda códigos y no tiene
+pantalla para crearlos.
+
+**Cómo verifica el webhook un cobro con descuento** (`chargeMatchesPrice`, `server/billing/provider.ts`): el punto 4 de §2.1 se amplía.
+El precio de lista de la sesión (`amount_subtotal`) debe ser EXACTAMENTE el esperado, el descuento (`total_details.amount_discount`) no
+puede ser negativo ni mayor que el precio, y lo cobrado debe ser precio − descuento. El resto de comprobaciones no cambia.
+
+**100 % de descuento (cortesía):** Stripe completa la sesión sin cobrar (`payment_status = no_payment_required`, total 0, **sin
+`payment_intent`**). Cuenta como pagada solo si la sesión está `complete` y su total es 0. La compra queda en el historial con importe
+`$0` y el correo de confirmación dice «Pago: $0 MXN».
+**Ojo:** una cortesía no se puede «reembolsar»: no hay cobro que devolver. Si hiciera falta retirarla, hoy no hay forma desde la
+aplicación (deuda conocida).
+
+**Crear un código** (Stripe → modo real, o modo de prueba para ensayar):
+
+1. **Catálogo de productos → Cupones → Crear cupón.**
+   - Tipo: porcentaje (p. ej. **100 %** para una cortesía) o importe fijo en **MXN**.
+   - Duración: **Una vez** (son pagos únicos).
+   - **Aplicar a productos específicos**: elige SOLO el producto que quieres (p. ej. «Plan Esencial»). Sin esta restricción el
+     código serviría también para Premium, la mejora y el archivo para imprimir.
+2. Dentro del cupón: **Crear código promocional** → escribe el código (p. ej. `SOBRINO`).
+   - **Limitar a 1 canje** si es para una sola persona; opcional: fecha de caducidad y «solo primera compra».
+3. Comparte el código. En la página de pago la persona toca «Agregar código promocional», lo escribe y paga (o termina sin pagar si
+   es 100 %).
+
+Desactivar un código en Stripe impide usarlo desde ese momento; no afecta a las compras ya hechas.

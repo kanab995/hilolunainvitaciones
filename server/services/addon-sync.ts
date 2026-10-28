@@ -1,7 +1,7 @@
 import { maskExternalId } from "@/lib/admin/mask";
 import { addonForPriceKey, expectedAddonAmountMinor, isAddonId, type AddonId } from "@/lib/billing/addons";
 import { PRICING_CURRENCY } from "@/lib/billing/plans";
-import type { BillingProvider, ProviderPayment } from "@/server/billing/provider";
+import { chargeMatchesPrice, type BillingProvider, type ProviderPayment } from "@/server/billing/provider";
 import { addonUnlockKey, type AddonWriteOps } from "@/server/repositories/addon-purchases";
 import type { BillingWriteOps } from "@/server/repositories/billing";
 import { logger } from "@/server/observability/logger";
@@ -60,7 +60,7 @@ export async function confirmAddonPayment(ops: BillingWriteOps, provider: Pick<B
   if ((claimed && claimed !== addon) || (claimed && !isAddonId(claimed)) || targetPlan) return reject("rejected_mismatch", payment);
 
   if (payment.currency !== PRICING_CURRENCY) return reject("rejected_currency", payment);
-  if (payment.amountMinor !== expectedAddonAmountMinor(addon)) return reject("rejected_amount", payment);
+  if (!chargeMatchesPrice(payment, expectedAddonAmountMinor(addon))) return reject("rejected_amount", payment);
 
   const event = await ops.findEvent(eventId);
   if (!event) return reject("rejected_event", payment);

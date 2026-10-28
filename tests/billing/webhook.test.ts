@@ -119,6 +119,17 @@ describe("Normalización de eventos de Stripe (22, 63)", () => {
     expect(normalizeStripeSession(session({ payment_status: "unpaid", status: "expired" }) as unknown as Stripe.Checkout.Session).status).toBe("EXPIRED");
     expect(normalizeStripeSession(session({ payment_status: "no_payment_required" }) as unknown as Stripe.Checkout.Session).status).toBe("PENDING");
   });
+
+  it("código de descuento: trae el precio de lista y el descuento; con 100 % la sesión completada sin cobro cuenta como pagada", () => {
+    const discounted = normalizeStripeSession(session({ amount_subtotal: 49900, amount_total: 39900, total_details: { amount_discount: 10000, amount_shipping: 0, amount_tax: 0 } }) as unknown as Stripe.Checkout.Session);
+    expect(discounted).toMatchObject({ status: "PAID", amountMinor: 39900, subtotalMinor: 49900, discountMinor: 10000 });
+
+    const free = { payment_status: "no_payment_required", status: "complete", amount_subtotal: 49900, amount_total: 0, payment_intent: null, total_details: { amount_discount: 49900, amount_shipping: 0, amount_tax: 0 } };
+    expect(normalizeStripeSession(session(free) as unknown as Stripe.Checkout.Session)).toMatchObject({ status: "PAID", amountMinor: 0, subtotalMinor: 49900, discountMinor: 49900, paymentIntentId: null });
+    // Sin completar (abierta) o con importe pendiente, nunca.
+    expect(normalizeStripeSession(session({ ...free, status: "open" }) as unknown as Stripe.Checkout.Session).status).toBe("PENDING");
+    expect(normalizeStripeSession(session({ ...free, amount_total: 100 }) as unknown as Stripe.Checkout.Session).status).toBe("PENDING");
+  });
 });
 
 // ───────── Servicio del webhook con proveedor de pruebas ─────────
@@ -354,6 +365,13 @@ describe("Cada verificación rechaza por SU motivo (24)", () => {
     expect(await run(payment({ metadata: { userId: "usr_A", eventId: "evt_A", targetPlan: "PREMIUM" } }))).toBe("rejected_mismatch");
     expect(await run(payment({ currency: "USD" }))).toBe("rejected_currency");
     expect(await run(payment({ amountMinor: 49800 }))).toBe("rejected_amount");
+    // Con código de descuento: solo si precio de lista − descuento = importe cobrado.
+    expect(await run(payment({ amountMinor: 39900, subtotalMinor: 49900, discountMinor: 10000 }))).toBe("granted");
+    expect(await run(payment({ amountMinor: 0, subtotalMinor: 49900, discountMinor: 49900, paymentIntentId: null }))).toBe("granted");
+    expect(await run(payment({ amountMinor: 39900, subtotalMinor: 49900, discountMinor: 0 }))).toBe("rejected_amount"); // importe menor sin descuento que lo explique
+    expect(await run(payment({ amountMinor: 0, subtotalMinor: 49800, discountMinor: 49800 }))).toBe("rejected_amount"); // precio de lista distinto
+    expect(await run(payment({ amountMinor: 0, subtotalMinor: 49900, discountMinor: 60000 }))).toBe("rejected_amount");
+    expect(await run(payment({ amountMinor: 10000, subtotalMinor: 49900, discountMinor: -10000 }))).toBe("rejected_amount");
     expect(await run(payment({ metadata: { userId: "usr_A", eventId: "evt_zzz", targetPlan: "ESSENTIAL" } }))).toBe("rejected_event");
     expect(await run(payment({ metadata: { userId: "usr_A", eventId: "evt_of_b", targetPlan: "ESSENTIAL" } }))).toBe("rejected_owner");
     expect(await run(payment({ providerCustomerId: "cus_B" }))).toBe("rejected_owner");

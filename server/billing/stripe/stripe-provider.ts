@@ -14,12 +14,17 @@ import type { StripeConfig } from "@/server/billing/stripe/config";
  *    página de pago).
  *  - `metadata` mínima (`hiloLunaUserId`, `eventId`, `targetPlan`) solo como pista: la autoridad es el precio, el importe y la moneda
  *    verificados por el servicio, no la metadata.
+ *  - CÓDIGOS DE DESCUENTO: la página de pago admite los códigos promocionales que el propietario crea en el panel de Stripe
+ *    (`allow_promotion_codes`). El servicio acepta el cobro solo si precio de lista − descuento = importe cobrado (`chargeMatchesPrice`).
+ *    Con un 100 % de descuento Stripe completa la sesión sin cobro y sin `payment_intent` (`no_payment_required`): cuenta como pagada.
  */
 const asId = (value: string | { id: string } | null | undefined): string | null => (typeof value === "string" ? value : (value?.id ?? null));
 
 /** Sesión de cobro de Stripe → pago neutral. Necesita `line_items` expandido para conocer los precios cobrados. */
 export function normalizeStripeSession(session: Stripe.Checkout.Session): ProviderPayment {
-  const status: ProviderPayment["status"] = session.payment_status === "paid" ? "PAID" : session.status === "expired" ? "EXPIRED" : "PENDING";
+  // Gratis por un código de 100 %: solo si la sesión se COMPLETÓ y su total es 0 (nunca una sesión abierta o con importe pendiente).
+  const freeWithCode = session.payment_status === "no_payment_required" && session.status === "complete" && session.amount_total === 0;
+  const status: ProviderPayment["status"] = session.payment_status === "paid" || freeWithCode ? "PAID" : session.status === "expired" ? "EXPIRED" : "PENDING";
   const metadata = session.metadata ?? {};
   return {
     checkoutSessionId: session.id,
@@ -27,6 +32,8 @@ export function normalizeStripeSession(session: Stripe.Checkout.Session): Provid
     providerCustomerId: asId(session.customer),
     status,
     amountMinor: typeof session.amount_total === "number" ? session.amount_total : -1,
+    ...(typeof session.amount_subtotal === "number" ? { subtotalMinor: session.amount_subtotal } : {}),
+    ...(typeof session.total_details?.amount_discount === "number" ? { discountMinor: session.total_details.amount_discount } : {}),
     currency: (session.currency ?? "").toUpperCase(),
     priceRefs: (session.line_items?.data ?? []).map((item) => item.price?.id).filter((id): id is string => typeof id === "string"),
     metadata: {
@@ -144,6 +151,8 @@ export class StripeBillingProvider implements BillingProvider {
         client_reference_id: input.eventId,
         metadata,
         payment_intent_data: { metadata },
+        // Códigos promocionales del panel de Stripe (el propietario decide a qué productos aplican y cuántas veces se usan).
+        allow_promotion_codes: true,
         locale: "es-419",
         // Stripe exige entre 30 minutos y 24 horas. Una sesión abandonada caduca sola (y su webhook `expired` cierra la compra pendiente).
         expires_at: Math.floor(input.expiresAt.getTime() / 1000),
@@ -170,6 +179,7 @@ export class StripeBillingProvider implements BillingProvider {
         client_reference_id: input.eventId,
         metadata,
         payment_intent_data: { metadata },
+        allow_promotion_codes: true,
         locale: "es-419",
         expires_at: Math.floor(input.expiresAt.getTime() / 1000),
       },
