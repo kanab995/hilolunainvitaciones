@@ -158,7 +158,7 @@ const json = (value: object): Prisma.InputJsonObject => value as Prisma.InputJso
 
 /** Todos los ids de `MediaAsset` que el borrador referencia. */
 function mediaIdsOf(invitation: Invitation): string[] {
-  const ids = [invitation.cover.photo?.mediaAssetId, ...invitation.locations.map((location) => location.photo?.mediaAssetId), ...invitation.gallery.map((image) => image.mediaAssetId)];
+  const ids = [invitation.cover.photo?.mediaAssetId, invitation.dressCode?.illustration?.mediaAssetId, ...invitation.locations.map((location) => location.photo?.mediaAssetId), ...invitation.gallery.map((image) => image.mediaAssetId)];
   return [...new Set(ids.filter((id): id is string => typeof id === "string"))];
 }
 

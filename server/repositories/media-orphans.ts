@@ -38,7 +38,7 @@ export async function listOrphanCandidates(cutoffs: { pending: Date; ready: Date
     FROM "MediaAsset" m
     WHERE (m."status" = 'PENDING' AND m."createdAt" < ${cutoffs.pending})
        OR (m."status" = 'READY' AND m."createdAt" < ${cutoffs.ready}
-           AND NOT EXISTS (SELECT 1 FROM "Invitation" i WHERE i."coverMediaId" = m."id")
+           AND NOT EXISTS (SELECT 1 FROM "Invitation" i WHERE i."coverMediaId" = m."id" OR i."dressCodeMediaId" = m."id")
            AND NOT EXISTS (SELECT 1 FROM "GalleryImage" g WHERE g."mediaAssetId" = m."id")
            AND NOT EXISTS (SELECT 1 FROM "Location" l WHERE l."mediaAssetId" = m."id")
            AND NOT EXISTS (SELECT 1 FROM "InvitationPublication" p WHERE p."isCurrent" AND m."id" = ANY(p."mediaAssetIds")))
@@ -55,7 +55,7 @@ export async function summarizeOrphanCandidates(cutoffs: { pending: Date; ready:
     FROM "MediaAsset" m
     WHERE (m."status" = 'PENDING' AND m."createdAt" < ${cutoffs.pending})
        OR (m."status" = 'READY' AND m."createdAt" < ${cutoffs.ready}
-           AND NOT EXISTS (SELECT 1 FROM "Invitation" i WHERE i."coverMediaId" = m."id")
+           AND NOT EXISTS (SELECT 1 FROM "Invitation" i WHERE i."coverMediaId" = m."id" OR i."dressCodeMediaId" = m."id")
            AND NOT EXISTS (SELECT 1 FROM "GalleryImage" g WHERE g."mediaAssetId" = m."id")
            AND NOT EXISTS (SELECT 1 FROM "Location" l WHERE l."mediaAssetId" = m."id")
            AND NOT EXISTS (SELECT 1 FROM "InvitationPublication" p WHERE p."isCurrent" AND m."id" = ANY(p."mediaAssetIds")))

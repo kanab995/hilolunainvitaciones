@@ -61,6 +61,7 @@ export class FakeMediaRepository implements MediaRepository {
   events = new Map<string, string>();
   slugs = new Map<string, string>();
   cover = new Map<string, { assetId: string | null; alt: string }>();
+  dressCode = new Map<string, { assetId: string | null; alt: string }>();
   gallery: { id: string; eventId: string; assetId: string | null; src: string | null; alt: string; position: number }[] = [];
   locations: { id: string; eventId: string; assetId: string | null; alt: string }[] = [];
   /** Assets que la publicación VIGENTE referencia (D-29): protegen el archivo aunque el borrador ya no lo use. */
@@ -89,7 +90,7 @@ export class FakeMediaRepository implements MediaRepository {
     if (row) row.status = "DELETED";
   }
   async countReferences(assetId: string) {
-    return [...this.cover.values()].filter((c) => c.assetId === assetId).length + this.gallery.filter((g) => g.assetId === assetId).length + this.locations.filter((l) => l.assetId === assetId).length + (this.publishedAssetIds.has(assetId) ? 1 : 0);
+    return [...this.cover.values(), ...this.dressCode.values()].filter((c) => c.assetId === assetId).length + this.gallery.filter((g) => g.assetId === assetId).length + this.locations.filter((l) => l.assetId === assetId).length + (this.publishedAssetIds.has(assetId) ? 1 : 0);
   }
   private owns(ownerId: string, eventId: string) {
     return this.events.get(eventId) === ownerId;
@@ -98,6 +99,12 @@ export class FakeMediaRepository implements MediaRepository {
     if (!this.owns(ownerId, eventId)) return undefined;
     const previous = this.cover.get(eventId)?.assetId ?? null;
     this.cover.set(eventId, { assetId, alt: assetId ? alt : "" });
+    return { previousAssetId: previous, revision: ++this.revision };
+  }
+  async setDressCodeImage(ownerId: string, eventId: string, assetId: string | null, alt: string) {
+    if (!this.owns(ownerId, eventId)) return undefined;
+    const previous = this.dressCode.get(eventId)?.assetId ?? null;
+    this.dressCode.set(eventId, { assetId, alt: assetId ? alt : "" });
     return { previousAssetId: previous, revision: ++this.revision };
   }
   async addGalleryImage(ownerId: string, eventId: string, assetId: string, alt: string) {

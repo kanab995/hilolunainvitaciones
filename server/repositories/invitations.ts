@@ -20,6 +20,7 @@ export const ownerMediaOptions: MediaMapOptions = { mediaUrl: getMediaUrl, expos
 export const invitationInclude = {
   template: { select: { slug: true } },
   coverMedia: mediaSelect,
+  dressCodeMedia: mediaSelect,
   sections: { orderBy: { position: "asc" } },
   event: {
     include: {

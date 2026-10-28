@@ -121,6 +121,7 @@ export function validateInvitation(invitation: Invitation): ValidationErrors {
   if (invitation.dressCode) {
     set("dressCode.style", maxLength(invitation.dressCode.style, LIMITS.dressStyle, "El estilo"));
     set("dressCode.description", maxLength(invitation.dressCode.description, LIMITS.dressDescription, "La descripción"));
+    if (invitation.dressCode.illustration?.src) set("dressCode.illustration.alt", altCheck(invitation.dressCode.illustration.alt));
     invitation.dressCode.palette.forEach((swatch, index) => {
       if (!/^#[0-9a-f]{6}$/i.test(swatch.hex)) errors[`dressCode.palette.${index}`] = "El color debe ser #RRGGBB.";
     });

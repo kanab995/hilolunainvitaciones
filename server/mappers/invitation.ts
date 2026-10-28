@@ -26,6 +26,7 @@ import {
   type SectionSettings,
 } from "@/server/mappers/json";
 import type {
+  DressCode,
   ImageRef,
   InvitationCover,
   EventLocation,
@@ -73,6 +74,8 @@ export type SectionRowData = Pick<SectionRow, "id" | "type" | "position" | "isVi
 export type InvitationAggregateRow = Pick<InvitationRow, "id" | "slug" | "contentVersion" | "names" | "styleOverrides"> & {
   coverAlt?: string;
   coverMedia?: MediaRefRow | null;
+  dressCodeAlt?: string;
+  dressCodeMedia?: MediaRefRow | null;
   template: { slug: string };
   sections: readonly SectionRowData[];
   event: EventRowForInvitation;
@@ -176,6 +179,13 @@ function withManagedCover(cover: InvitationCover, row: InvitationAggregateRow, o
   return photo ? { ...cover, photo } : cover;
 }
 
+/** La ilustración PROPIA del código de vestimenta (MediaAsset) sustituye a la del contenido, como la portada. */
+function withManagedDressCode(dressCode: DressCode | undefined, row: InvitationAggregateRow, options: MediaMapOptions): DressCode | undefined {
+  const illustration = managedImage(row.dressCodeMedia, row.dressCodeAlt ?? "", options);
+  if (!illustration) return dressCode;
+  return { ...(dressCode ?? { style: "", description: "", palette: [] }), illustration };
+}
+
 /**
  * Fila de BD → invitación del dominio. Las listas se ordenan por `position` (no se confía en el orden
  * de la consulta) y la visibilidad se conserva tal cual. La fecha y la zona salen SIEMPRE de `Event`.
@@ -208,7 +218,7 @@ export function dbInvitationToDomain(row: InvitationAggregateRow, options: Media
     locations: byPosition(row.event.locations).map((location) => dbLocationToDomain(location, options)),
     timeline: byPosition(row.event.timelineItems).map(dbTimelineToDomain),
     gallery: byPosition(row.event.galleryImages).map((image) => dbGalleryToDomain(image, options)),
-    dressCode: parseDressCode(contentOf("DRESS_CODE"), `${context}.DRESS_CODE`),
+    dressCode: withManagedDressCode(parseDressCode(contentOf("DRESS_CODE"), `${context}.DRESS_CODE`), row, options),
     giftRegistry,
     music: row.event.music ? dbMusicToDomain(row.event.music) : undefined,
     rsvp: parseRsvpSettings(contentOf("RSVP"), `${context}.RSVP`),
@@ -240,7 +250,8 @@ function sectionContent(invitation: Invitation, type: InvitationSection["type"])
     case "story":
       return invitation.story;
     case "dressCode":
-      return invitation.dressCode ?? {};
+      // Igual que la portada: la ilustración gestionada vive en `Invitation.dressCodeMediaId`, nunca dentro del JSON.
+      return invitation.dressCode?.illustration?.mediaAssetId ? { ...invitation.dressCode, illustration: undefined } : (invitation.dressCode ?? {});
     case "giftRegistry":
       return invitation.giftRegistry ? compact({ message: invitation.giftRegistry.message, moreUrl: invitation.giftRegistry.moreUrl, photo: invitation.giftRegistry.photo }) : {};
     case "rsvp":

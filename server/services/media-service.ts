@@ -222,26 +222,37 @@ async function readyAsset(deps: MediaServiceDeps, ctx: Ctx, assetId: unknown): P
   return asset && asset.status === "READY" ? asset : undefined;
 }
 
-export async function attachCoverImage(eventRef: string, assetId: unknown, alt: unknown, deps: MediaServiceDeps = defaultDeps): Promise<MediaServiceOutcome<{ image: ImageRef; revision: number }>> {
+/** Imágenes únicas de la invitación (una por invitación): portada y código de vestimenta. Se gestionan igual. */
+type InvitationImageSlot = "cover" | "dressCode";
+
+const setSlotImage = (deps: MediaServiceDeps, slot: InvitationImageSlot, ctx: Ctx, assetId: string | null, alt: string) =>
+  slot === "cover" ? deps.repo.setCover(ctx.userId, ctx.eventId, assetId, alt) : deps.repo.setDressCodeImage(ctx.userId, ctx.eventId, assetId, alt);
+
+function attachInvitationImage(slot: InvitationImageSlot, eventRef: string, assetId: unknown, alt: unknown, deps: MediaServiceDeps): Promise<MediaServiceOutcome<{ image: ImageRef; revision: number }>> {
   return withOwnedEvent<{ image: ImageRef; revision: number }>(eventRef, deps, async (ctx) => {
     const asset = await readyAsset(deps, ctx, assetId);
     if (!asset) return { result: denied };
     const cleanAlt = sanitizeAlt(alt);
-    const change = await deps.repo.setCover(ctx.userId, ctx.eventId, asset.id, cleanAlt);
+    const change = await setSlotImage(deps, slot, ctx, asset.id, cleanAlt);
     if (!change) return { result: denied };
     if (change.previousAssetId !== asset.id) await releaseIfUnused(deps, ctx, change.previousAssetId); // reemplazar = clave nueva; la anterior se retira
     return { result: { ok: true, image: imageOf(deps, asset, cleanAlt), revision: change.revision }, revalidate: await slugFor(deps, ctx) };
   });
 }
 
-export async function removeCoverImage(eventRef: string, deps: MediaServiceDeps = defaultDeps): Promise<MediaServiceOutcome<{ revision: number }>> {
+function removeInvitationImage(slot: InvitationImageSlot, eventRef: string, deps: MediaServiceDeps): Promise<MediaServiceOutcome<{ revision: number }>> {
   return withOwnedEvent<{ revision: number }>(eventRef, deps, async (ctx) => {
-    const change = await deps.repo.setCover(ctx.userId, ctx.eventId, null, "");
+    const change = await setSlotImage(deps, slot, ctx, null, "");
     if (!change) return { result: denied };
     await releaseIfUnused(deps, ctx, change.previousAssetId);
     return { result: { ok: true, revision: change.revision }, revalidate: await slugFor(deps, ctx) };
   });
 }
+
+export const attachCoverImage = (eventRef: string, assetId: unknown, alt: unknown, deps: MediaServiceDeps = defaultDeps) => attachInvitationImage("cover", eventRef, assetId, alt, deps);
+export const removeCoverImage = (eventRef: string, deps: MediaServiceDeps = defaultDeps) => removeInvitationImage("cover", eventRef, deps);
+export const attachDressCodeImage = (eventRef: string, assetId: unknown, alt: unknown, deps: MediaServiceDeps = defaultDeps) => attachInvitationImage("dressCode", eventRef, assetId, alt, deps);
+export const removeDressCodeImage = (eventRef: string, deps: MediaServiceDeps = defaultDeps) => removeInvitationImage("dressCode", eventRef, deps);
 
 export async function attachLocationImage(eventRef: string, locationId: unknown, assetId: unknown, alt: unknown, deps: MediaServiceDeps = defaultDeps): Promise<MediaServiceOutcome<{ image: ImageRef; revision: number }>> {
   return withOwnedEvent<{ image: ImageRef; revision: number }>(eventRef, deps, async (ctx) => {

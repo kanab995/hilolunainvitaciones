@@ -77,6 +77,17 @@ describe("Repositorio de archivos: alcance por propietario y evento", () => {
     expect(await repo.setCover("usr_B", "evt_A", null, "")).toBeUndefined();
   });
 
+  it("código de vestimenta: igual que la portada (evento del propietario, su propia columna) y cuenta como referencia", async () => {
+    tx.invitation.findFirst.mockImplementation(rec("inv.findFirst", { id: "inv_1", dressCodeMediaId: "old_dress", slug: "s" }));
+    expect(await repo.setDressCodeImage("usr_A", "evt_A", "ast_1", "alt")).toMatchObject({ previousAssetId: "old_dress" });
+    expect(where("inv.findFirst")).toEqual({ eventId: "evt_A", event: { ownerId: "usr_A" } });
+    expect(log.calls.find((call) => call.op === "inv.update")?.args.data).toEqual({ dressCodeMediaId: "ast_1", dressCodeAlt: "alt", draftRevision: { increment: 1 } });
+    await repo.countReferences("ast_1");
+    expect(where("inv.count")).toEqual({ OR: [{ coverMediaId: "ast_1" }, { dressCodeMediaId: "ast_1" }] });
+    tx.invitation.findFirst.mockImplementation(rec("inv.findFirst", null));
+    expect(await repo.setDressCodeImage("usr_B", "evt_A", null, "")).toBeUndefined();
+  });
+
   it("galería: añadir, quitar y ajustar exigen el evento del propietario", async () => {
     await repo.addGalleryImage("usr_A", "evt_A", "ast_1", "");
     expect(where("event.findFirst")).toEqual({ id: "evt_A", ownerId: "usr_A" });

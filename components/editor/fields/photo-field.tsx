@@ -11,7 +11,7 @@ import type { ImageRef } from "@/types/invitation";
 /**
  * Imagen opcional de una sección (portada, sede, regalos, dress code): muestra la actual (o la
  * predeterminada de la plantilla si existe), permite reemplazarla y quitarla.
- *  - Con `managed` (portada y sedes guardadas): la imagen se SUBE y se guarda de verdad; sin
+ *  - Con `managed` (portada, código de vestimenta y sedes guardadas): la imagen se SUBE y se guarda de verdad; sin
  *    almacenamiento la carga se desactiva y se explica.
  *  - Sin `managed`: archivo LOCAL solo para la vista previa (las URL de objeto se revocan al sustituir o quitar).
  */

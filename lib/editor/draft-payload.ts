@@ -67,6 +67,8 @@ export interface DraftDressCodeDto {
   style: string;
   description: string;
   palette: { name?: string; hex: string }[];
+  /** Texto alternativo de la ilustración GESTIONADA (la imagen en sí se cambia con sus propias acciones, como la portada). */
+  illustrationAlt?: string;
 }
 
 export interface DraftGiftDto {
@@ -126,7 +128,9 @@ export function invitationToDraftPayload(invitation: Invitation, baseRevision: n
     story: { paragraphs: [...invitation.story.paragraphs] },
     closing: { message: invitation.closing.message },
     rsvp: compact({ ...invitation.rsvp }),
-    dressCode: invitation.dressCode ? { style: invitation.dressCode.style, description: invitation.dressCode.description, palette: invitation.dressCode.palette.map((swatch) => compact({ name: swatch.name, hex: swatch.hex })) } : null,
+    dressCode: invitation.dressCode
+      ? compact({ style: invitation.dressCode.style, description: invitation.dressCode.description, palette: invitation.dressCode.palette.map((swatch) => compact({ name: swatch.name, hex: swatch.hex })), illustrationAlt: invitation.dressCode.illustration?.mediaAssetId ? invitation.dressCode.illustration.alt : undefined })
+      : null,
     giftRegistry: invitation.giftRegistry ? compact({ message: invitation.giftRegistry.message, moreUrl: invitation.giftRegistry.moreUrl, entries: invitation.giftRegistry.entries.map((entry) => ({ id: entry.id, name: entry.name, url: entry.url })) }) : null,
     music: musicToDto(invitation.music),
     styleOverrides: { ...(invitation.styleOverrides ?? {}) },
@@ -203,6 +207,7 @@ export function parseDraftPayload(raw: unknown): ParseResult {
         style: str(dressRaw.style) ?? "",
         description: str(dressRaw.description) ?? "",
         palette: list(dressRaw.palette, DRAFT_LIMITS.palette).flatMap((swatch) => (isRecord(swatch) && typeof swatch.hex === "string" ? [compact({ name: optStr(swatch.name, 60), hex: swatch.hex.slice(0, 9) })] : [])),
+        ...(typeof dressRaw.illustrationAlt === "string" ? { illustrationAlt: str(dressRaw.illustrationAlt, 300) } : {}),
       }
     : null;
 
@@ -381,7 +386,9 @@ export function applyDraftPayload(current: Invitation, dto: DraftPayload, librar
     return change ? compact({ ...image, alt: change.alt, caption: change.caption }) : image;
   });
 
-  const dressCode: DressCode | undefined = dto.dressCode ? compact({ style: dto.dressCode.style, description: dto.dressCode.description, palette: dto.dressCode.palette.map((swatch) => compact({ name: swatch.name, hex: swatch.hex })), illustration: current.dressCode?.illustration }) : undefined;
+  const currentIllustration = current.dressCode?.illustration;
+  const illustration = currentIllustration?.mediaAssetId && dto.dressCode?.illustrationAlt !== undefined ? { ...currentIllustration, alt: dto.dressCode.illustrationAlt } : currentIllustration;
+  const dressCode: DressCode | undefined = dto.dressCode ? compact({ style: dto.dressCode.style, description: dto.dressCode.description, palette: dto.dressCode.palette.map((swatch) => compact({ name: swatch.name, hex: swatch.hex })), illustration }) : undefined;
 
   const giftRegistry: GiftRegistry | undefined = dto.giftRegistry ? compact({ message: dto.giftRegistry.message, entries: dto.giftRegistry.entries, moreUrl: dto.giftRegistry.moreUrl, photo: current.giftRegistry?.photo }) : undefined;
 

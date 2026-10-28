@@ -1,9 +1,9 @@
 import { MEDIA_LIMITS, validateImageMeta } from "@/lib/media/limits";
 
 /**
- * Imágenes LOCALES solo para la vista previa: las de campos que aún no se guardan (ilustración del dress
- * code, sedes nuevas del borrador…). NO se sube nada. Las imágenes de portada, galería y sedes guardadas
- * se gestionan como archivos persistentes (`components/editor/use-media-controller.ts`).
+ * Imágenes LOCALES solo para la vista previa: las de lo que aún no está guardado (sedes nuevas del borrador…).
+ * NO se sube nada. Las imágenes de portada, código de vestimenta, galería y sedes
+ * guardadas se gestionan como archivos persistentes (`components/editor/use-media-controller.ts`).
  * Se crean con `URL.createObjectURL` y se REVOCAN al sustituirlas, eliminarlas o al salir del editor.
  */
 export const ACCEPTED_IMAGE_TYPES = MEDIA_LIMITS.acceptedMimeTypes;

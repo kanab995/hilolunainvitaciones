@@ -15,7 +15,7 @@ import type { Invitation } from "@/types/invitation";
  * consulta (`event.ownerId`) y control de concurrencia OPTIMISTA por `draftRevision`: si el borrador ya avanzó
  * (otra ventana, una operación de imágenes) el guardado se RECHAZA en lugar de pisarlo en silencio.
  * Qué cambia lo decide `build` (lógica pura del servicio: aplicar el DTO y validar); aquí solo se escribe.
- * Las imágenes no se tocan por esta vía (`imagePath`, `mediaAssetId`, `coverMediaId`): son operaciones propias.
+ * Las imágenes no se tocan por esta vía (`imagePath`, `mediaAssetId`, `coverMediaId`, `dressCodeMediaId`): son operaciones propias.
  */
 export type DraftBuild = (current: Invitation, eventType: string) => { ok: true; invitation: Invitation } | { ok: false; message: string };
 
@@ -73,7 +73,7 @@ export async function saveOwnedDraft(userId: string, eventId: string, baseRevisi
       });
       await tx.invitation.update({
         where: { id: row.id },
-        data: { names: write.invitation.names, styleOverrides: json(write.invitation.styleOverrides), ...(templateId ? { templateId } : {}), ...(row.coverMediaId ? { coverAlt: next.cover.photo?.alt ?? "" } : {}) },
+        data: { names: write.invitation.names, styleOverrides: json(write.invitation.styleOverrides), ...(templateId ? { templateId } : {}), ...(row.coverMediaId ? { coverAlt: next.cover.photo?.alt ?? "" } : {}), ...(row.dressCodeMediaId ? { dressCodeAlt: next.dressCode?.illustration?.alt ?? "" } : {}) },
       });
 
       // Secciones: orden (posición 0..n-1, sin duplicados), visibilidad, encabezados y contenido.

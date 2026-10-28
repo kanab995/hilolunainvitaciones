@@ -4,7 +4,7 @@ import { prisma } from "@/server/db/client";
 import { StoreUnavailableError } from "@/server/db/errors";
 
 /**
- * ACCESO A DATOS de los archivos gestionados (`MediaAsset`) y de sus referencias (portada, galería, sedes).
+ * ACCESO A DATOS de los archivos gestionados (`MediaAsset`) y de sus referencias (portada, galería, sedes, código de vestimenta).
  * TODA consulta lleva el propietario y el evento EN LA PROPIA CONSULTA (`ownerId`, `eventId`,
  * `event.ownerId`): un id ajeno es indistinguible de uno inexistente. Nada de esto se importa desde
  * componentes. Sin base de datos (origen de demostración) las operaciones se rechazan.
@@ -43,11 +43,13 @@ export interface MediaRepository {
   findOwned(ownerId: string, eventId: string, assetId: string): Promise<MediaAssetRecord | undefined>;
   markReady(assetId: string, data: ReadyAssetData): Promise<MediaAssetRecord | undefined>;
   markDeleted(assetId: string): Promise<void>;
-  /** Cuántas referencias tiene el archivo: portada, galería y sedes del BORRADOR + la publicación VIGENTE (D-29). */
+  /** Cuántas referencias tiene el archivo: portada, galería, sedes y código de vestimenta del BORRADOR + la publicación VIGENTE (D-29). */
   countReferences(assetId: string): Promise<number>;
   /** Fija (o quita con `null`) la portada. Devuelve el archivo anterior; `undefined` si la invitación no es del usuario. */
   /** Toda operación que cambia el borrador devuelve la NUEVA revisión (`draftRevision`, D-29). */
   setCover(ownerId: string, eventId: string, assetId: string | null, alt: string): Promise<{ previousAssetId: string | null; revision: number } | undefined>;
+  /** Igual que `setCover`, para la ilustración del código de vestimenta. */
+  setDressCodeImage(ownerId: string, eventId: string, assetId: string | null, alt: string): Promise<{ previousAssetId: string | null; revision: number } | undefined>;
   addGalleryImage(ownerId: string, eventId: string, assetId: string, alt: string): Promise<{ id: string; revision: number } | undefined>;
   removeGalleryImage(ownerId: string, eventId: string, galleryId: string): Promise<{ assetId: string | null; revision: number } | undefined>;
   setLocationImage(ownerId: string, eventId: string, locationId: string, assetId: string | null, alt: string): Promise<{ previousAssetId: string | null; revision: number } | undefined>;
@@ -96,7 +98,7 @@ export const prismaMediaRepository: MediaRepository = {
   async countReferences(assetId) {
     requireDatabase();
     const [covers, gallery, locations, published] = await Promise.all([
-      prisma.invitation.count({ where: { coverMediaId: assetId } }),
+      prisma.invitation.count({ where: { OR: [{ coverMediaId: assetId }, { dressCodeMediaId: assetId }] } }),
       prisma.galleryImage.count({ where: { mediaAssetId: assetId } }),
       prisma.location.count({ where: { mediaAssetId: assetId } }),
       // Un archivo que la publicación VIGENTE usa no se puede borrar aunque el borrador ya no lo referencie.
@@ -112,6 +114,16 @@ export const prismaMediaRepository: MediaRepository = {
       if (!invitation) return undefined;
       const updated = await tx.invitation.update({ where: { id: invitation.id }, data: { coverMediaId: assetId, coverAlt: assetId ? alt : "", draftRevision: { increment: 1 } }, select: { draftRevision: true } });
       return { previousAssetId: invitation.coverMediaId, revision: updated.draftRevision };
+    });
+  },
+
+  async setDressCodeImage(ownerId, eventId, assetId, alt) {
+    requireDatabase();
+    return prisma.$transaction(async (tx) => {
+      const invitation = await tx.invitation.findFirst({ where: { eventId, event: { ownerId } }, select: { id: true, dressCodeMediaId: true } });
+      if (!invitation) return undefined;
+      const updated = await tx.invitation.update({ where: { id: invitation.id }, data: { dressCodeMediaId: assetId, dressCodeAlt: assetId ? alt : "", draftRevision: { increment: 1 } }, select: { draftRevision: true } });
+      return { previousAssetId: invitation.dressCodeMediaId, revision: updated.draftRevision };
     });
   },
 

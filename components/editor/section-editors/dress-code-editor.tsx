@@ -10,7 +10,7 @@ import type { DressCode } from "@/types/invitation";
 
 /** Dress code: estilo, descripción, ilustración y paleta sugerida (los colores son decorativos y llevan nombre). */
 export function DressCodeEditor({ section }: SectionEditorProps) {
-  const { draft, api, errors } = useEditor();
+  const { draft, api, errors, media } = useEditor();
   const dressCode = draft.dressCode;
   if (!section) return null;
 
@@ -41,7 +41,16 @@ export function DressCodeEditor({ section }: SectionEditorProps) {
         </ul>
       </div>
 
-      <PhotoField id="dress-illustration" label="Ilustración" image={dressCode.illustration} defaultAlt="Ilustración del código de vestimenta" onChange={(illustration) => patch({ illustration })} />
+      <PhotoField
+        id="dress-illustration"
+        label="Ilustración"
+        image={dressCode.illustration}
+        defaultAlt="Ilustración del código de vestimenta"
+        managed={media.dressCode}
+        subject="del código de vestimenta"
+        altError={errors["dressCode.illustration.alt"]}
+        onChange={(illustration) => patch({ illustration })}
+      />
     </div>
   );
 }

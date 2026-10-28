@@ -100,6 +100,16 @@ describe("saveOwnedDraft (una transacción, propiedad y control de concurrencia)
     expect(ops().filter((name) => name === "section.updateMany")).toHaveLength(10);
   });
 
+  it("con ilustración propia del código de vestimenta, guarda su texto alternativo y no la copia al JSON", async () => {
+    const dressCodeMedia = { id: "ast_dress", storageKey: "users/u/events/e/d.png", status: "READY", width: 10, height: 10 };
+    log.row = baseRow({ dressCodeMediaId: "ast_dress", dressCodeAlt: "antes", dressCodeMedia });
+    const edited = { ...andreaFernandoInvitation, dressCode: { ...andreaFernandoInvitation.dressCode!, illustration: { alt: "Vestido largo", mediaAssetId: "ast_dress" } } };
+    expect(await saveOwnedDraft("usr_A", "evt_1", 5, buildFrom(parseFor(edited)))).toMatchObject({ ok: true });
+    expect(log.calls.find((call) => call.op === "inv.update")?.args.data).toMatchObject({ dressCodeAlt: "Vestido largo" });
+    const sections = log.calls.filter((call) => call.op === "section.updateMany").map((call) => JSON.stringify((call.args.data as Record<string, unknown>).content));
+    expect(sections.join("")).not.toContain("ast_dress");
+  });
+
   it("propiedad en la propia consulta: la invitación se busca por evento Y por propietario", async () => {
     await saveOwnedDraft("usr_A", "evt_1", 5, buildFrom(parseFor()));
     expect(where("inv.findFirst")).toEqual({ eventId: "evt_1", event: { ownerId: "usr_A" } });
@@ -195,6 +205,12 @@ describe("publishOwnedInvitation (una transacción)", () => {
     expect(log.calls.find((call) => call.op === "event.update")?.args.data).toEqual({ status: "ACTIVE" });
     // Publicar no cambia el slug.
     expect(JSON.stringify(update)).not.toContain("slug");
+  });
+
+  it("al publicar se cargan también los datos de la ilustración propia del código de vestimenta", async () => {
+    log.row = baseRow({ dressCodeMediaId: "ast_dress", dressCodeAlt: "", dressCodeMedia: { id: "ast_dress", storageKey: "users/u/events/e/d.png", status: "READY", width: 10, height: 10 } });
+    await publishOwnedInvitation("usr_A", "evt_1", 5, okBuild(["ast_dress"]));
+    expect((where("asset.findMany") as { id: { in: string[] } }).id.in).toContain("ast_dress");
   });
 
   it("(8/46) republicar incrementa la versión, conserva publishedAt y devuelve los archivos que ya no se usan", async () => {

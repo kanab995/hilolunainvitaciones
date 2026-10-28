@@ -6,10 +6,12 @@ import {
   discardImageAction,
   finalizeImageUploadAction,
   removeCoverImageAction,
+  removeDressCodeImageAction,
   removeGalleryImageAction,
   removeLocationImageAction,
   requestImageUploadAction,
   setCoverImageAction,
+  setDressCodeImageAction,
   setLocationImageAction,
 } from "@/app/(site)/dashboard/(editor)/events/[id]/edit/actions";
 import type { DraftApi } from "@/components/editor/use-invitation-draft";
@@ -36,7 +38,7 @@ export interface TargetStatus {
 
 const IDLE: TargetStatus = { phase: "idle" };
 
-/** Lo que necesita un campo de imagen gestionada (portada, sede…). */
+/** Lo que necesita un campo de imagen gestionada (portada, sede, código de vestimenta…). */
 export interface ManagedPhoto {
   status: TargetStatus;
   /** Se puede subir (almacenamiento + base de datos). Si no, el campo muestra `disabledReason`. */
@@ -48,6 +50,8 @@ export interface ManagedPhoto {
 
 export interface MediaController {
   cover: ManagedPhoto;
+  /** Ilustración del código de vestimenta: una por invitación, igual que la portada. */
+  dressCode: ManagedPhoto;
   /** Imagen de una sede. Si la sede es nueva, se guarda el borrador antes de subir. */
   location: (locationId: string) => ManagedPhoto;
   gallery: {
@@ -220,6 +224,21 @@ export function useMediaController({
     else removeLocally();
   }, [api, draft, eventId, persisted, remove]);
 
+  const uploadDressCode = useCallback(
+    async (file: File) => {
+      const alt = draft.dressCode?.illustration?.alt || "Ilustración del código de vestimenta";
+      const attached = await uploadAndAttach("dressCode", file, (assetId) => setDressCodeImageAction(eventId, assetId, alt));
+      if (attached) api.updateInvitation((d) => (d.dressCode ? { dressCode: { ...d.dressCode, illustration: attached.image } } : {}));
+    },
+    [api, draft, eventId, uploadAndAttach],
+  );
+
+  const removeDressCode = useCallback(() => {
+    const removeLocally = () => api.updateInvitation((d) => (d.dressCode ? { dressCode: { ...d.dressCode, illustration: undefined } } : {}));
+    if (draft.dressCode?.illustration?.mediaAssetId && persisted) void remove("dressCode", () => removeDressCodeImageAction(eventId), removeLocally);
+    else removeLocally();
+  }, [api, draft, eventId, persisted, remove]);
+
   const uploadLocation = useCallback(
     async (locationId: string, file: File) => {
       // Una sede NUEVA del borrador todavía no existe en la base de datos: primero se guarda.
@@ -280,6 +299,11 @@ export function useMediaController({
         (file) => void uploadCover(file),
         () => removeCover(),
       ),
+      dressCode: photo(
+        "dressCode",
+        (file) => void uploadDressCode(file),
+        () => removeDressCode(),
+      ),
       location: (locationId) =>
         photo(
           `location:${locationId}`,
@@ -295,5 +319,5 @@ export function useMediaController({
         removeStatus: (galleryId) => statuses[`gallery:${galleryId}`] ?? IDLE,
       },
     };
-  }, [addGallery, disabledReason, enabled, removeCover, removeGallery, removeLocation, statuses, uploadCover, uploadLocation]);
+  }, [addGallery, disabledReason, enabled, removeCover, removeDressCode, removeGallery, removeLocation, statuses, uploadCover, uploadDressCode, uploadLocation]);
 }

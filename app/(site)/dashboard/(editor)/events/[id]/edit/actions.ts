@@ -8,11 +8,13 @@ import type { PublishResult, SaveDraftResult } from "@/types/draft-sync";
 import {
   addGalleryImage,
   attachCoverImage,
+  attachDressCodeImage,
   attachLocationImage,
   createImageUpload,
   deleteMediaAsset,
   finalizeImageUpload,
   removeCoverImage,
+  removeDressCodeImage,
   removeGalleryImage,
   removeLocationImage,
   type MediaServiceOutcome,
@@ -50,6 +52,14 @@ export async function setCoverImageAction(eventId: string, mediaAssetId: string,
 
 export async function removeCoverImageAction(eventId: string) {
   return finish(await removeCoverImage(eventId));
+}
+
+export async function setDressCodeImageAction(eventId: string, mediaAssetId: string, alt: string) {
+  return finish(await attachDressCodeImage(eventId, mediaAssetId, alt));
+}
+
+export async function removeDressCodeImageAction(eventId: string) {
+  return finish(await removeDressCodeImage(eventId));
 }
 
 export async function setLocationImageAction(eventId: string, locationId: string, mediaAssetId: string, alt: string) {
