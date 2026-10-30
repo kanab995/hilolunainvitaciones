@@ -27,7 +27,6 @@ import { footerNav } from "@/lib/content/navigation";
 import { templates } from "@/lib/content/templates";
 import { routes } from "@/lib/routes";
 import { getFeaturedTemplates } from "@/lib/templates/featured";
-import { isTemplateReady } from "@/lib/templates/status";
 
 const encoded = (path: string) => encodeURIComponent(path);
 /** Sin `DATABASE_URL` (`vitest.config.mts`): `getTemplates` lee el catálogo de demostración, con todas publicadas. */
@@ -229,16 +228,12 @@ describe("homepage: categorías de evento no muestran como disponible lo que no 
     expect(html).toContain(encoded("/templates/baby-bloom/cover-bg.png"));
   });
 
-  it('Infantiles (sin ninguna plantilla cuyo eventType sea "kids") sigue mostrando "Próximamente"', () => {
-    // Spider Friends tiene secondaryStyles: ["kids"] pero su eventType es "birthday": las tarjetas
-    // de categoría de la home emparejan por eventType (no por estilo, a diferencia del filtro de
-    // /templates), así que "Infantiles" sigue sin una plantilla propia.
-    const kidsReady = templates.some((t) => isTemplateReady(t) && t.eventType === "kids");
-    expect(kidsReady, "si esto falla, hay que quitar el aviso de Infantiles").toBe(false);
-    const babyShowerReady = templates.some((t) => isTemplateReady(t) && t.eventType === "baby-shower");
-    expect(babyShowerReady, "Baby Bloom debería haber quitado el aviso de Baby Shower").toBe(true);
-    const matches = [...html.matchAll(/Próximamente/g)];
-    expect(matches.length).toBeGreaterThanOrEqual(1);
+  it('Infantiles usa el mismo filtro que su enlace: con plantillas de estilo infantil no muestra "Próximamente", y sin ninguna lista vuelve el aviso', async () => {
+    // Spider Friends y Bosque de Aventuras son `eventType: "birthday"` con estilo infantil: /templates?category=kids las muestra.
+    const comingSoon = (markup: string) => [...markup.matchAll(/Próximamente/g)].length;
+    expect(comingSoon(html)).toBe(0);
+    expect(comingSoon(await homeWithout("spider-friends"))).toBe(0);
+    expect(comingSoon(await homeWithout("spider-friends", "bosque-de-aventuras"))).toBe(1);
   });
 
   it("las 6 categorías siguen enlazando a /templates?category=… (ninguna se oculta, solo se avisa)", () => {

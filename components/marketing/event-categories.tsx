@@ -2,6 +2,7 @@ import { EventCategoryCard } from "@/components/marketing/event-category-card";
 import { MarketingSection } from "@/components/marketing/marketing-section";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { categoriesCopy, eventCategories } from "@/lib/content/home";
+import { filterTemplates } from "@/lib/templates/filter";
 import { getTemplateCoverImage, isTemplateReady } from "@/lib/templates/status";
 import type { Template } from "@/types/templates";
 
@@ -9,9 +10,9 @@ import type { Template } from "@/types/templates";
  * "Elige el momento que estás celebrando" (mockup 01). 6 columnas en escritorio (`xl`),
  * 3 en tablet, 2 en móvil (elegida sobre el scroll horizontal: mantiene visibles las seis
  * categorías y evita contenido oculto). La foto de cada categoría es la portada real de su primera publicada y
- * plantilla lista (`isTemplateReady`, misma regla que `/templates`); sin ninguna plantilla lista
- * todavía para ese tipo de evento (hoy Infantiles) queda con el placeholder de
- * siempre y un aviso "Próximamente" — nunca se presenta como disponible algo que no lo está.
+ * plantilla lista (`isTemplateReady`), con el MISMO filtro al que lleva su enlace (`filterTemplates`: Infantiles incluye
+ * las de estilo infantil aunque su tipo sea cumpleaños). Sin ninguna plantilla lista en esa categoría queda con el
+ * placeholder de siempre y un aviso "Próximamente" — nunca se presenta como disponible algo que no lo está.
  */
 export function EventCategories({ catalog }: { catalog: readonly Template[] }) {
   return (
@@ -24,7 +25,7 @@ export function EventCategories({ catalog }: { catalog: readonly Template[] }) {
       />
       <ul className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-5 xl:grid-cols-6">
         {eventCategories.map((category, index) => {
-          const readyTemplate = catalog.find((template) => isTemplateReady(template) && template.eventType === category.id);
+          const readyTemplate = filterTemplates(catalog, { category: category.id, style: null }).find(isTemplateReady);
           const cover = readyTemplate ? getTemplateCoverImage(readyTemplate.slug) : undefined;
           return (
             <li key={category.id}>
