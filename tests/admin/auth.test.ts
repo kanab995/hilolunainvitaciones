@@ -102,7 +102,7 @@ describe("(51.3) un usuario normal NO ejecuta las acciones de administración", 
     const state = await updateTemplateAction({ status: "idle" }, form({ templateId: "tpl_1", publicationStatus: "DRAFT" }));
     expect(state.status).toBe("saved");
     expect(updateTemplateSettings).toHaveBeenCalledWith("tpl_1", { publicationStatus: "DRAFT" }, "usr_1");
-    expect(revalidatePath).toHaveBeenCalledWith("/templates", "layout");
+    expect(revalidatePath).toHaveBeenCalledWith("/(site)/(marketing)/templates", "layout");
   });
 });
 
