@@ -4,18 +4,18 @@ import { CatalogTemplateCard } from "@/components/templates/catalog-template-car
 import { Button } from "@/components/ui/button";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { featuredTemplatesCopy } from "@/lib/content/home";
-import { templates } from "@/lib/content/templates";
 import { routes } from "@/lib/routes";
 import { getFeaturedTemplates } from "@/lib/templates/featured";
+import type { Template } from "@/types/templates";
 
 /**
  * "Plantillas que se sienten como tu evento" (mockup 01): titular a la izquierda, botón a la
  * derecha y las plantillas destacadas. La lista sale de `getFeaturedTemplates` (solo
- * `isTemplateReady`, con variedad por categoría) — agregar una plantilla nueva al catálogo y
+ * `isTemplateReady`, con variedad por categoría) sobre el catálogo publicado — agregar una plantilla nueva al catálogo y
  * marcarla `implemented` basta para que aparezca aquí, sin editar este componente.
  */
-export function FeaturedTemplates() {
-  const featured = getFeaturedTemplates(templates);
+export function FeaturedTemplates({ catalog }: { catalog: readonly Template[] }) {
+  const featured = getFeaturedTemplates(catalog);
 
   return (
     <MarketingSection labelledBy="featured-templates-title">

@@ -5,10 +5,10 @@ import { PhoneFrame } from "@/components/marketing/phone-frame";
 import { TemplateThumbCard } from "@/components/marketing/template-thumb-card";
 import { CoverScreen } from "@/components/templates/preview-screens";
 import { heroBadges, heroInvitationDemo } from "@/lib/content/home";
-import { templates } from "@/lib/content/templates";
 import { getFeaturedTemplates } from "@/lib/templates/featured";
 import { getTemplateCoverImage } from "@/lib/templates/status";
 import type { HeroBadgeData } from "@/types/marketing";
+import type { Template } from "@/types/templates";
 
 const badgeIcons: Record<HeroBadgeData["id"], ReactNode> = {
   countdown: <Calendar />,
@@ -49,8 +49,8 @@ const THUMB_SLOTS = [
  * SIGUE siendo Magnolia, para no superponerlo por error sobre la portada de otra plantilla con un
  * centro más ocupado. Decorativa (aria-hidden): el mensaje ya está en el texto del hero.
  */
-export function HeroVisual() {
-  const [main, ...rest] = getFeaturedTemplates(templates, 4);
+export function HeroVisual({ catalog }: { catalog: readonly Template[] }) {
+  const [main, ...rest] = getFeaturedTemplates(catalog, 4);
   const mainCover = main ? getTemplateCoverImage(main.slug) : undefined;
   const overlayText = main?.slug === "magnolia";
 

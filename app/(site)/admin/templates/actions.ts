@@ -30,6 +30,7 @@ export async function updateTemplateAction(_previous: TemplateActionState, formD
 
   revalidatePath(routes.templates, "layout");
   revalidatePath(routes.pricing);
+  revalidatePath(routes.home);
   revalidatePath(routes.adminTemplates);
   return { status: "saved", message: adminCopy.templates.saved(result.template.name) };
 }

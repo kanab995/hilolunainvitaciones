@@ -12,7 +12,7 @@ Convenciones: paths en **inglés**, minúsculas, con guiones. Los nombres de arc
 
 | Ruta | Layout (grupo) | Mockup | Render actual | Contenido |
 |---|---|---|---|---|
-| `/` | `(site)/(marketing)` | 01 | Estático | **Homepage implementada** (cabecera y pie compartidos en el layout de marketing) |
+| `/` | `(site)/(marketing)` | 01 | ISR (1 h) | **Homepage implementada** (cabecera y pie compartidos en el layout de marketing); plantillas del catálogo publicado (`getTemplates`), se invalida al publicar u ocultar una plantilla en `/admin/templates` |
 | `/templates` | `(site)/(marketing)` | 02 | Estático | **Galería implementada** con catálogo MOCK local (`lib/content/templates.ts`); filtros en el cliente sincronizados con `?category=` y `?style=` |
 | `/templates/[slug]` | `(site)/(marketing)` | 03 | Estático (SSG por plantilla; `slug` desconocido → 404) | **Detalle implementado**: recibe un `Template` del catálogo; **todas** las plantillas del catálogo tienen página (nunca 404) y el contenido depende de su `status` (§4.9 de ARCHITECTURE: `implemented` completo, `concept` vista básica, `comingSoon` "Próximamente" con CTA deshabilitado). "Ver invitación completa" → `/i/demo-[slug]` y "Usar esta plantilla" → `/dashboard/events/new?template=[slug]` son **rutas temporales** (`routes.templateDemo` / `routes.newEventFromTemplate`); ninguna tiene flujo real todavía |
 | `/dashboard` | — (redirect en `next.config.ts`) | — | Redirect **307** → `/dashboard/events` | Sin página propia (Q-21, resuelto) |
