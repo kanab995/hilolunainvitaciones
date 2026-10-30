@@ -16,7 +16,9 @@ const DEFAULT_LIMIT = 12;
  * curar la home de forma distinta al orden del catálogo (p. ej. "Baby Bloom primero aunque sea más
  * nueva"), la forma mínima de hacerlo es agregar ese campo entonces — no antes.
  *
- * Algoritmo: 1) filtra a `isTemplateReady` (nunca concept/comingSoon/sin publicar). 2) una primera
+ * `catalog` debe llegar ya filtrado por `publicationStatus` (`getTemplates`): aquí no se conoce la visibilidad.
+ *
+ * Algoritmo: 1) filtra a `isTemplateReady` (nunca concept/comingSoon). 2) una primera
  * pasada toma como máximo una plantilla por `eventType`, en orden de catálogo, para no repetir
  * categoría de más (Bodas, Cumpleaños, XV años, Bautizo, Infantil, Baby Shower si hay variedad
  * disponible); 3) completa los huecos restantes con el resto, también en orden de catálogo, hasta

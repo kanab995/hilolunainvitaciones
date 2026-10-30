@@ -5,6 +5,7 @@ import { MediaSlot } from "@/components/ui/media-slot";
 import { EmphasisText, Eyebrow, Heading, Text } from "@/components/ui/typography";
 import { heroCopy } from "@/lib/content/home";
 import { routes } from "@/lib/routes";
+import type { Template } from "@/types/templates";
 
 /**
  * Hero de la home (mockup 01). Dos columnas en escritorio; apilado en móvil. La sección se
@@ -12,7 +13,7 @@ import { routes } from "@/lib/routes";
  *
  * TODO(asset): replace with approved Hilo Luna asset — fotografía de fondo (telas y flores claras).
  */
-export function Hero() {
+export function Hero({ catalog }: { catalog: readonly Template[] }) {
   return (
     <section
       aria-labelledby="hero-title"
@@ -62,7 +63,7 @@ export function Hero() {
         </div>
 
         <div className="lu-enter">
-          <HeroVisual />
+          <HeroVisual catalog={catalog} />
         </div>
       </div>
     </section>

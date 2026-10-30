@@ -1,8 +1,26 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
-import HomePage from "@/app/(site)/(marketing)/page";
+import { getImplicitTags } from "next/dist/server/lib/implicit-tags";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const getTemplates = vi.hoisted(() => vi.fn());
+const revalidatePath = vi.hoisted(() => vi.fn());
+const requireAdmin = vi.hoisted(() => vi.fn());
+const updateAdminTemplate = vi.hoisted(() => vi.fn());
+
+vi.mock("@/server/repositories/templates", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/server/repositories/templates")>();
+  getTemplates.mockImplementation(original.getTemplates);
+  return { ...original, getTemplates };
+});
+vi.mock("next/cache", () => ({ revalidatePath }));
+vi.mock("@/server/auth/admin", () => ({ requireAdmin }));
+vi.mock("@/server/admin/templates", () => ({ updateAdminTemplate }));
+
+import { updateTemplateAction } from "@/app/(site)/admin/templates/actions";
+import HomePage, { revalidate } from "@/app/(site)/(marketing)/page";
+import { HeroVisual } from "@/components/marketing/hero-visual";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { featureDemo } from "@/lib/content/home";
 import { footerNav } from "@/lib/content/navigation";
@@ -12,7 +30,13 @@ import { getFeaturedTemplates } from "@/lib/templates/featured";
 import { isTemplateReady } from "@/lib/templates/status";
 
 const encoded = (path: string) => encodeURIComponent(path);
-const html = renderToStaticMarkup(<HomePage />);
+/** Sin `DATABASE_URL` (`vitest.config.mts`): `getTemplates` lee el catálogo de demostración, con todas publicadas. */
+const html = renderToStaticMarkup(await HomePage());
+/** La home tal como se ve si el catálogo publicado NO incluye estas plantillas (`publicationStatus` distinto de PUBLISHED). */
+async function homeWithout(...hidden: string[]) {
+  getTemplates.mockResolvedValueOnce(templates.filter((template) => !hidden.includes(template.slug)));
+  return renderToStaticMarkup(await HomePage());
+}
 const NOT_READY = ["ivory", "etoile", "tuscany", "noir", "riviera", "dream", "blossom", "safari"] as const;
 const READY = ["magnolia", "level-12", "aurora-xv", "celeste", "spider-friends", "baby-bloom", "luz-de-fe", "mar-de-amor", "nova-grad", "bosque-de-aventuras"] as const;
 /** Las 4 que caben en el abanico fijo del hero (ver `components/marketing/hero-visual.tsx`). */
@@ -106,6 +130,64 @@ describe("homepage: hero con collage de imágenes reales (abanico fijo de 4, ele
   it("Spider Friends y Baby Bloom NO entran en el abanico del hero: solo hay 4 huecos fijos y 4 categorías (boda/cumpleaños/XV años/bautizo) ya los ocupan antes de que les toque turno a Infantil/Baby Shower", () => {
     expect(getFeaturedTemplates(templates, 4).map((t) => t.slug)).not.toContain("spider-friends");
     expect(getFeaturedTemplates(templates, 4).map((t) => t.slug)).not.toContain("baby-bloom");
+  });
+});
+
+describe("homepage: respeta la visibilidad del catálogo (Template.publicationStatus)", () => {
+  it("una plantilla oculta o en borrador no se enlaza desde ninguna sección", async () => {
+    const hidden = await homeWithout("magnolia", "bosque-de-aventuras");
+    expect(hidden).not.toContain(`href="/templates/magnolia"`);
+    expect(hidden).not.toContain(`href="/templates/bosque-de-aventuras"`);
+    expect(hidden).toContain(`href="/templates/mar-de-amor"`);
+  });
+
+  it("el hero no muestra la portada de una plantilla oculta (Magnolia sigue siendo decorativa en otras secciones)", () => {
+    const cover = encoded("/templates/magnolia/cover-bg.png");
+    expect(renderToStaticMarkup(<HeroVisual catalog={templates} />)).toContain(cover);
+    expect(renderToStaticMarkup(<HeroVisual catalog={templates.filter((t) => t.slug !== "magnolia")} />)).not.toContain(cover);
+  });
+
+  it('una categoría cuya única plantilla se oculta pasa a "Próximamente"; ninguna se presenta como disponible sin plantillas', async () => {
+    const comingSoon = (markup: string) => [...markup.matchAll(/Próximamente/g)].length;
+    expect(comingSoon(await homeWithout("baby-bloom"))).toBe(comingSoon(html) + 1);
+  });
+
+  it("con un catálogo vacío renderiza sin lanzar y sin tarjetas de plantilla", async () => {
+    getTemplates.mockResolvedValueOnce([]);
+    const empty = renderToStaticMarkup(await HomePage());
+    expect(empty).toContain("Invitaciones digitales que se sienten tan");
+    expect(empty).not.toMatch(/href="\/templates\/[a-z]/);
+  });
+});
+
+describe("homepage: sigue en caché (ISR) y publicar u ocultar una plantilla la invalida", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("declara `revalidate` en vez de renderizarse en cada petición", () => {
+    expect(revalidate).toBeGreaterThan(0);
+    const source = readFileSync(join(process.cwd(), "app/(site)/(marketing)/page.tsx"), "utf8");
+    expect(source).not.toMatch(/force-dynamic/);
+  });
+
+  it("updateTemplateAction invalida una etiqueta que la home tiene (comprobado con `getImplicitTags` de Next)", async () => {
+    requireAdmin.mockResolvedValue({ id: "usr_1", email: "admin@example.com", name: "Admin", role: "ADMIN" });
+    updateAdminTemplate.mockResolvedValue({ ok: true, template: { name: "Magnolia" } });
+    const data = new FormData();
+    data.set("templateId", "tpl_1");
+    data.set("publicationStatus", "DRAFT");
+    expect((await updateTemplateAction({ status: "idle" }, data)).status).toBe("saved");
+
+    expect(existsSync(join(process.cwd(), "app/(site)/(marketing)/page.tsx"))).toBe(true);
+    const { tags } = await getImplicitTags("/(site)/(marketing)/page", "/", null);
+    const invalidated = (revalidatePath.mock.calls as [string, string?][]).map(([path, type]) => `_N_T_${path}${type ? `/${type}` : ""}`);
+    expect(invalidated.filter((tag) => tags.includes(tag))).toEqual(["_N_T_/"]);
+  });
+
+  it("si no se guarda, no invalida la home", async () => {
+    requireAdmin.mockResolvedValue({ id: "usr_1", email: "admin@example.com", name: "Admin", role: "ADMIN" });
+    updateAdminTemplate.mockResolvedValue({ ok: false, code: "invalid" });
+    expect((await updateTemplateAction({ status: "idle" }, new FormData())).status).toBe("error");
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 });
 

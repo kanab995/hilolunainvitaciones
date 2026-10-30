@@ -69,6 +69,11 @@ describe("getFeaturedTemplates: variedad por categoría (catálogo sintético, a
     expect(result).toHaveLength(4);
   });
 
+  it("solo elige entre lo que recibe: lo que `getTemplates` deja fuera por no estar publicado no vuelve a aparecer", () => {
+    const published = catalog.filter((t) => t.slug !== "w1");
+    expect(slugsOf(getFeaturedTemplates(published))).toEqual(["w2", "b1", "bs1"]);
+  });
+
   it("un catálogo vacío de listas da una lista vacía, sin lanzar", () => {
     const onlyNotReady = catalog.filter((t) => t.status !== "implemented");
     expect(getFeaturedTemplates(onlyNotReady)).toEqual([]);

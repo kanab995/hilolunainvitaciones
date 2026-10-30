@@ -6,6 +6,7 @@ import { FinalCta } from "@/components/marketing/final-cta";
 import { Hero } from "@/components/marketing/hero";
 import { HowItWorks } from "@/components/marketing/how-it-works";
 import { siteConfig } from "@/lib/site-config";
+import { getTemplates } from "@/server/repositories/templates";
 
 export const metadata: Metadata = {
   title: { absolute: `${siteConfig.name} | Invitaciones digitales elegantes para eventos` },
@@ -13,15 +14,19 @@ export const metadata: Metadata = {
     "Crea invitaciones digitales para bodas, XV años, bautizos y cumpleaños con RSVP, galería, ubicación, cuenta regresiva y enlace personalizado.",
 };
 
-/** Homepage de marketing (mockup 01). Solo presentación: sin datos de servidor. */
-export default function HomePage() {
+/** Igual que `/templates`: se regenera cada hora y, al publicar u ocultar una plantilla, lo invalida `updateTemplateAction`. */
+export const revalidate = 3600;
+
+/** Homepage de marketing (mockup 01). Las secciones de plantillas reciben el catálogo publicado (`getTemplates`). */
+export default async function HomePage() {
+  const catalog = await getTemplates();
   return (
     <>
-      <Hero />
-      <EventCategories />
+      <Hero catalog={catalog} />
+      <EventCategories catalog={catalog} />
       <HowItWorks />
       <FeatureShowcase />
-      <FeaturedTemplates />
+      <FeaturedTemplates catalog={catalog} />
       <FinalCta />
     </>
   );
