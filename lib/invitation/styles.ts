@@ -41,6 +41,9 @@ export function templateToCssVars(template: InvitationTemplate, overrides?: Styl
     "--inv-radius-image": RADIUS[componentStyles.image.radius],
     "--inv-radius-button": BUTTON_RADIUS[componentStyles.button.shape],
     "--inv-stagger": `${animations.staggerMs}ms`,
+    // Tarjetas de la cuenta regresiva (D-50): solo si la plantilla las colorea; si no, el CSS cae a surface/accent.
+    ...(isHexColor(colors.counterBg) ? { "--inv-counter-bg": colors.counterBg } : {}),
+    ...(isHexColor(colors.counterFg) ? { "--inv-counter-fg": colors.counterFg } : {}),
     // Fuentes elegidas por el usuario para la portada; sin elección, las secciones usan las del tema.
     ...(overrides?.fonts?.names ? { "--inv-font-names": fontStacks[overrides.fonts.names] } : {}),
     ...(overrides?.fonts?.tagline ? { "--inv-font-tagline": fontStacks[overrides.fonts.tagline] } : {}),
@@ -60,6 +63,12 @@ export interface ResolvedTemplateStyle {
   cardBorder: boolean;
   cardShadow: boolean;
   reveal: "rise" | "fade" | "none";
+  /** D-50: cómo se dibuja la cuenta regresiva. */
+  countdown: "divided" | "cards";
+  /** D-50: respuesta de los botones al tocarlos (`data-press` del contenedor). */
+  press: "none" | "pop";
+  /** D-50: movimiento de las decoraciones (`data-decor-motion` del contenedor). */
+  decorMotion: "static" | "sway";
 }
 
 export function resolveTemplateStyle(template: InvitationTemplate): ResolvedTemplateStyle {
@@ -76,5 +85,8 @@ export function resolveTemplateStyle(template: InvitationTemplate): ResolvedTemp
     cardBorder: componentStyles.card.border,
     cardShadow: componentStyles.card.shadow,
     reveal: animations.reveal,
+    countdown: componentStyles.countdown ?? "divided",
+    press: componentStyles.button.press ?? "none",
+    decorMotion: animations.decor ?? "static",
   };
 }

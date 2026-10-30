@@ -21,6 +21,12 @@ export interface TemplateColors {
   line: string;
   buttonBg: string;
   buttonFg: string;
+  /**
+   * Fondo y texto de las tarjetas de la cuenta regresiva cuando `componentStyles.countdown` es `cards` (D-50).
+   * Opcionales: sin ellos las tarjetas usan `surface` y `accent`.
+   */
+  counterBg?: string;
+  counterFg?: string;
 }
 
 /** Fuentes del tema. Solo familias registradas en docs/ASSET_LICENSES.md (variables de `next/font`). */
@@ -106,7 +112,17 @@ export interface TemplateComponentStyles {
     /** `solid` = relleno; `outline` = solo contorno. */
     variant: "solid" | "outline";
     shape: "pill" | "rounded" | "square";
+    /**
+     * Respuesta al tocar (D-50): `pop` = el botón se hunde levemente al pulsarlo y «Abrir invitación» late con
+     * suavidad cada pocos segundos. Sin el campo (o `none`), como siempre. Se apaga con `prefers-reduced-motion`.
+     */
+    press?: "none" | "pop";
   };
+  /**
+   * Presentación de la cuenta regresiva (D-50): `divided` = cifras separadas por líneas (la de siempre; valor
+   * por defecto); `cards` = cada unidad en su propia tarjeta (colores `counterBg`/`counterFg`).
+   */
+  countdown?: "divided" | "cards";
   card: {
     radius: "none" | "soft" | "rounded";
     border: boolean;
@@ -128,6 +144,11 @@ export interface TemplateAnimations {
   reveal: "rise" | "fade" | "none";
   /** Escalonado entre elementos (ms). */
   staggerMs: number;
+  /**
+   * Movimiento de las decoraciones de esquina (D-50): `sway` = vaivén lento y sutil, como flores con brisa;
+   * `static` (por defecto) = quietas. Solo con `prefers-reduced-motion: no-preference`.
+   */
+  decor?: "static" | "sway";
 }
 
 export interface InvitationTemplate {

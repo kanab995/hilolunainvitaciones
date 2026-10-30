@@ -3,6 +3,7 @@
 import { ArrowRight } from "lucide-react";
 import { useInvitationOpen } from "@/components/invitation/invitation-shell";
 import { invButtonClass } from "@/components/invitation/primitives/inv-button";
+import { cn } from "@/lib/utils";
 
 /**
  * Botón "Abrir invitación →" de la portada. Al pulsarlo: (1) marca `opened = true` (transición
@@ -25,7 +26,8 @@ export function OpenInvitationButton({
   return (
     <a
       href={targetId ? `#${targetId}` : undefined}
-      className={invButtonClass(variant, "lg")}
+      // `inv-open`: latido suave solo con `[data-press="pop"]` (D-50).
+      className={cn(invButtonClass(variant, "lg"), "inv-open")}
       onClick={(event) => {
         // Síncrono dentro del gesto: aquí (y solo aquí) puede arrancar la música (iOS exige `play()` dentro del gesto).
         open();

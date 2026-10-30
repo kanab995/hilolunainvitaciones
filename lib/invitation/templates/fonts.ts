@@ -26,3 +26,10 @@ export const bebasSpaceGrotesk: TemplateFonts = {
   body: 'var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif',
   italic: false,
 };
+
+/** Bosque de Aventuras: Fredoka (titulares redondeados; sin cursiva propia) + Nunito (cuerpo legible). */
+export const fredokaNunito: TemplateFonts = {
+  display: 'var(--font-fredoka), "Arial Rounded MT Bold", ui-rounded, system-ui, sans-serif',
+  body: 'var(--font-nunito), ui-rounded, ui-sans-serif, system-ui, sans-serif',
+  italic: false,
+};

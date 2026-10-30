@@ -619,6 +619,49 @@ Contexto: la invitación pública debe tener lenguaje visual propio (regla 7) y 
 
 **Sin cambios de base de datos** en esta etapa (nada que migrar). **Pendiente:** Etapa 3 (compra con Stripe: `EventPurchase` para complementos, checkout, webhook, desbloqueo, registro `PrintExport` para la consola), Etapa 4 (`/pricing` y panel), prueba física de color en imprenta (dorado y marfil), textos impresos para XV años, bautizo, cumpleaños y demás tipos (requieren aprobación), CMYK/PDF-X (hoy RGB, declarado). La vista previa es SOLO un PNG con la marca de agua quemada: sin rasterizador no hay vista previa (404), nunca el SVG vectorial.
 
+### D-50 · **Aprobada (propietario, 2026-10-29), con la condición de que las tres opciones sigan estrictamente opcionales** · Plantilla Bosque de Aventuras y tres opciones genéricas de plantilla
+
+→ Pedido del propietario: plantilla infantil premium **Bosque de Aventuras** (`bosque-de-aventuras`), cumpleaños en un bosque encantado, con imágenes que aporta él mismo (el asistente no genera ni sustituye ninguna).
+
+(1) **Tipo y catálogo.** `eventType = "birthday"` con estilo `kids` (+ `rustic`), igual que Spider Friends. El brief pedía `KIDS`, pero el alta de eventos no ofrece `kids` como tipo (`lib/events/event-types.ts`) y la compatibilidad plantilla ↔ evento es por igualdad de tipo (`lib/events/template-compat.ts`): con `kids` la plantilla no podría usarse en el onboarding. Aparece igualmente en el chip «Infantil» (filtra también por estilo). Rótulo de la tarjeta: «Cumpleaños infantil» (`templateEventLabelOverrides`, solo presentación).
+
+(2) **Estado.** `concept` mientras falten sus 10 assets (`public/templates/bosque-de-aventuras/`): no se lista ni se puede elegir, y su demo `/i/demo-bosque-de-aventuras` (contenido propio: Lucía, 5 años, `STANDALONE_DEMO_BASES`) existe sin enlazarse. Pasa a `implemented` solo tras validar los assets (medidas, transparencia, revisión visual y de propiedad intelectual). La fila de `Template` se agregará entonces con una migración solo de datos, igual que D-42/D-43, con `publicationStatus = DRAFT`: invisible hasta que un administrador la publique en `/admin/templates`. No hay tablas ni columnas nuevas.
+
+(3) **Tipografías** (OFL, `next/font`, `preload: false`): Fredoka para titulares redondeados, sin cursiva propia (`italic: false`), y Nunito para el cuerpo. Registradas en ASSET_LICENSES §3.
+
+(4) **Tres opciones de plantilla GENÉRICAS** (opcionales; sin ellas ninguna plantilla cambia; ninguna rama por nombre de plantilla):
+- `componentStyles.countdown: "divided" | "cards"` + `colors.counterBg`/`counterFg` → `--inv-counter-*`. Bosque las usa para las tarjetas de madera de la cuenta regresiva; las tarjetas aparecen escalonadas al entrar en pantalla.
+- `componentStyles.button.press: "none" | "pop"` → `[data-press]`. El botón se hunde levemente al tocarlo y «Abrir invitación» late con suavidad hasta que se abre la invitación.
+- `animations.decor: "static" | "sway"` → `[data-decor-motion]`. Las esquinas decorativas se mecen despacio (±1.2°).
+
+Todo el movimiento continuo está dentro de `prefers-reduced-motion: no-preference`, y es CSS puro, sin JavaScript nuevo.
+
+(5) **Accesibilidad de la paleta.** La frambuesa sugerida (#B95360) da 3.9:1 sobre el fondo verde claro. Para textos pequeños y botones se usa #A4434F (5.0–5.6:1). Cuerpo en café madera (6.1:1); cifras crema sobre madera (6.1:1).
+
+**Estado (2026-10-29, segunda revisión):**
+- **Assets recibidos y validados técnicamente:** 10 PNG generados con ChatGPT por el propietario; medidas reales en el código; transparencia real de `decor-corners.png`; huellas de versión al día; revisión visual en móvil, tableta y escritorio.
+- **BLOQUEADA para comercializar:** 9 de las 10 imágenes repiten una pareja niña con vestido folclórico (y pañoleta en 3) + oso pardo grande, que reproduce la identidad visual de una franquicia infantil conocida (ASSET_LICENSES §5.10). Sigue en `concept` hasta que el propietario sustituya los personajes.
+- **Decisión del propietario:** conservar toda la implementación y rediseñar solo los recursos con similitudes (niña exploradora original con overol verde salvia, botas color miel y mochila; zorrito, cervatillo, conejo y, opcional, un osezno pequeño secundario; sin pañoletas, sin vestimenta folclórica roja y sin la escala niña diminuta–oso gigante). Él genera y sustituye los 9 assets con los mismos nombres y corrige el listón de `decor-corners.png`.
+- **Segundo juego de assets (2026-10-30):** recibido y validado técnicamente. Sin similitudes reconocibles con personajes protegidos (ASSET_LICENSES §5.10).
+- **Decisiones del propietario (2026-10-30):** acuarela 2D como identidad definitiva, animales del bosque como protagonistas (sin la niña exploradora), personajes actuales aprobados y procedencia confirmada (ChatGPT).
+- **Juego final validado (2026-10-30):** `decor-corners.png` corregido; `location-venue.png` armonizado con la acuarela 2D y `gallery-3.png` con su letrero en español. Medidas, transparencia y revisión visual correctas.
+- **Herramientas:** `.claude/worktrees/` (copias temporales de la app de escritorio, excluidas de git) queda fuera de ESLint y de TypeScript; antes su `.next/` generado rompía `npm run lint`.
+- **Catálogo:** pasa a `implemented`.
+- **Migración** `20261030120000_seed_bosque_de_aventuras_template`: inserta la fila con `designStatus = IMPLEMENTED` y `publicationStatus = DRAFT`. No está aplicada; una prueba la compara campo por campo con el catálogo.
+- **Publicación comercial:** la autoriza el propietario y la activa un administrador en `/admin/templates`.
+
+**Registro de versiones de imágenes (D-45) verificado para esta plantilla:**
+- En un clon limpio, `prebuild` regenera `lib/images/asset-versions.json` y el build publica la carpeta nueva en `images.localPatterns` con su huella exacta.
+- La huella es la misma en el clon y en la copia de trabajo (contenido idéntico).
+- **Limitación conocida, solo en desarrollo:** `next dev` fija `localPatterns` al arrancar. Si se reemplazan imágenes con el servidor en marcha, el registro se regenera y la página responde 500 («does not match `images.localPatterns`») hasta reiniciar `npm run dev`, que vuelve a ejecutar `predev`.
+- **Por qué no se relaja la regla:** permitir cualquier `?v=` relajaría la protección del optimizador frente a URLs arbitrarias, que Next desaconseja.
+- **Al hacer commit:** las imágenes y el JSON regenerado van juntos, o `tests/images/asset-versions.test.ts` falla.
+
+**Justificación de las opciones genéricas:**
+- **Por qué no hay alternativa sin ellas:** sin esas tres opciones la plantilla no podía tener tarjetas de cuenta regresiva, vaivén de las decoraciones ni respuesta al tocar. La alternativa habría sido código por nombre de plantilla, prohibido por CLAUDE.md, regla 15.
+- **Opcionales, con el valor anterior por defecto:** `divided`, `none` y `static`. Las reglas CSS solo actúan bajo `[data-press="pop"]`, `[data-decor-motion="sway"]` y `.inv-counter-card`. Una prueba comprueba que Magnolia (y, por extensión, toda plantilla sin los campos) resuelve exactamente los valores anteriores y no publica variables nuevas; el resto de la suite, incluidas las pruebas de cada plantilla, pasa sin cambios.
+- **Sin cambios de datos:** no tocan datos, esquema ni migraciones. La propuesta de enmienda de la biblioteca musical que se preparó fuera del repositorio usará el siguiente número libre (D-51).
+
 ### D-49 · **Aprobada (propietario)** · Destino del QR de la versión impresa: invitación, mesa de regalos o sin QR
 
 → El anfitrión elige en «Versión para imprimir» a dónde lleva el QR del reverso: **invitación digital** (por defecto y comportamiento anterior), **mesa de regalos** o **sin QR**; y, si la mesa PUBLICADA tiene una sola tienda con enlace seguro, **enlace directo a la tienda** (opción adicional que el propietario pidió evaluar).

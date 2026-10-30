@@ -1,4 +1,4 @@
-import { Bebas_Neue, Cinzel, Cormorant_Garamond, Inter, Jost, Lora, Playfair_Display, Space_Grotesk } from "next/font/google";
+import { Bebas_Neue, Cinzel, Cormorant_Garamond, Fredoka, Inter, Jost, Lora, Nunito, Playfair_Display, Space_Grotesk } from "next/font/google";
 
 /**
  * Tipografía (política del propietario, docs/ASSET_LICENSES.md §1.1):
@@ -23,7 +23,7 @@ export const fontSans = Inter({
 
 /*
  * Familias de PLANTILLAS de invitación (docs/ASSET_LICENSES.md §3, D-45). Solo las usan las plantillas
- * Luz de Fe, Mar de Amor y Nova Grad: no son opciones del selector del editor ni del producto.
+ * Luz de Fe, Mar de Amor, Nova Grad y Bosque de Aventuras: no son opciones del selector del editor ni del producto.
  * `preload: false`: el navegador solo descarga el archivo cuando una invitación las usa de verdad, así
  * que el resto del sitio no paga por ellas.
  */
@@ -39,6 +39,10 @@ export const fontJost = Jost({ subsets: ["latin"], weight: ["300", "400", "500"]
 export const fontBebas = Bebas_Neue({ subsets: ["latin"], weight: "400", display: "swap", preload: false, variable: "--font-bebas" });
 /** Nova Grad — texto de cuerpo moderno. */
 export const fontSpaceGrotesk = Space_Grotesk({ subsets: ["latin"], weight: ["400", "500", "600"], display: "swap", preload: false, variable: "--font-space-grotesk" });
+/** Bosque de Aventuras — titulares redondeados y amables, con personalidad infantil (sin cursiva propia). */
+export const fontFredoka = Fredoka({ subsets: ["latin"], weight: ["400", "500", "600"], display: "swap", preload: false, variable: "--font-fredoka" });
+/** Bosque de Aventuras — texto de cuerpo redondeado y muy legible para la información importante. */
+export const fontNunito = Nunito({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap", preload: false, variable: "--font-nunito" });
 
 /** Clases que exponen las variables CSS de fuente; se aplican en <html>. */
 export const fontVariables = [
@@ -50,6 +54,8 @@ export const fontVariables = [
   fontJost,
   fontBebas,
   fontSpaceGrotesk,
+  fontFredoka,
+  fontNunito,
 ]
   .map((font) => font.variable)
   .join(" ");

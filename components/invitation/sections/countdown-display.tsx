@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { invitationCopy } from "@/lib/invitation/copy";
 import { getCountdown } from "@/lib/invitation/countdown";
 
@@ -15,7 +15,16 @@ const pad = (value: number) => String(value).padStart(2, "0");
  * Accesible: el conjunto es un `timer` con una etiqueta hablada completa que solo cambia cada
  * minuto (no se anuncia cada segundo); las cifras visibles son decorativas para lectores.
  */
-export function CountdownDisplay({ targetIso, serverNowMs }: { targetIso: string; serverNowMs: number }) {
+export function CountdownDisplay({
+  targetIso,
+  serverNowMs,
+  variant = "divided",
+}: {
+  targetIso: string;
+  serverNowMs: number;
+  /** D-50: `divided` = cifras separadas por líneas; `cards` = una tarjeta por unidad (colores `--inv-counter-*`). */
+  variant?: "divided" | "cards";
+}) {
   const [now, setNow] = useState(serverNowMs);
 
   useEffect(() => {
@@ -37,6 +46,25 @@ export function CountdownDisplay({ targetIso, serverNowMs }: { targetIso: string
     { value: pad(parts.seconds), label: invitationCopy.countdown.seconds },
   ];
   const spoken = `${parts.days} días, ${parts.hours} horas y ${parts.minutes} minutos`;
+
+  if (variant === "cards") {
+    // Cuatro tarjetas que aparecen una tras otra al entrar en pantalla (`--inv-i`, invitation.css); en móvil caben en una fila.
+    return (
+      <div role="timer" aria-label={spoken} aria-live="off" data-countdown="cards" className="grid grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+        {units.map((unit, i) => (
+          <div
+            key={unit.label}
+            aria-hidden="true"
+            style={{ "--inv-i": i } as CSSProperties}
+            className="inv-counter-card flex min-w-0 flex-col items-center gap-1.5 rounded-(--inv-radius-card) px-1 py-3.5 sm:py-4 md:gap-2 md:py-5"
+          >
+            <span className="font-inv-display text-[2rem] leading-none [font-variant-numeric:lining-nums_tabular-nums] sm:text-[2.375rem] md:text-[3rem]">{unit.value}</span>
+            <span className="block text-center font-inv-body text-[0.625rem] font-semibold tracking-[0.12em] whitespace-nowrap uppercase opacity-90 md:text-xs">{unit.label}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div role="timer" aria-label={spoken} aria-live="off" className="grid grid-cols-4 divide-x divide-inv-line/70 md:grid-cols-[repeat(4,minmax(6.875rem,1fr))]">

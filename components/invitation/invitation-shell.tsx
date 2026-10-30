@@ -32,6 +32,10 @@ type InvitationShellProps = {
   style?: CSSProperties;
   "data-template": string;
   "data-reveal": string;
+  /** D-50: respuesta de los botones al tocarlos (`none` | `pop`). */
+  "data-press"?: string;
+  /** D-50: movimiento de las decoraciones (`static` | `sway`). */
+  "data-decor-motion"?: string;
   /** Música ya resuelta por el servidor (D-46): sin ella no se monta ningún reproductor. */
   music?: ResolvedMusic | undefined;
 };

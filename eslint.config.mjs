@@ -14,6 +14,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Copias de trabajo temporales que crea la app de escritorio de Claude Code (excluidas de git en .git/info/exclude):
+    // traen su propio `.next/` generado y no son código de este proyecto.
+    ".claude/worktrees/**",
   ]),
 ]);
 

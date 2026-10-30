@@ -12,8 +12,8 @@ describe("filtro de categoría de /templates (lib/templates/filter.ts)", () => {
     expect(filterTemplates(templates, { category: null, style: null })).toHaveLength(templates.length);
   });
 
-  it('Cumpleaños (eventType "birthday"): Level 12 y Spider Friends', () => {
-    expect(slugsOf(filterTemplates(templates, { category: "birthday", style: null }))).toEqual(["level-12", "spider-friends"]);
+  it('Cumpleaños (eventType "birthday"): Level 12, Spider Friends y Bosque de Aventuras (concept: el filtro no mira el estado)', () => {
+    expect(slugsOf(filterTemplates(templates, { category: "birthday", style: null }))).toEqual(["bosque-de-aventuras", "level-12", "spider-friends"]);
   });
 
   it('XV años (eventType "quinceanera"): Étoile, Aurora XV y Dream — Aurora XV está incluida', () => {

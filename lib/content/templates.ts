@@ -69,6 +69,7 @@ export const templateDetailCopy = {
  */
 const templateEventLabelOverrides: Readonly<Record<string, string>> = {
   "luz-de-fe": "Primera Comunión",
+  "bosque-de-aventuras": "Cumpleaños infantil",
 };
 
 /** Etiqueta de evento que se muestra en tarjetas y detalle de una plantilla ("Boda", "Primera Comunión"…). */
@@ -552,6 +553,36 @@ export const templates: readonly Template[] = [
         names: ["Camila"],
         date: "17 de julio de 2027",
         venue: ["Terraza Skyline", "Guadalajara"],
+        button: "Abrir invitación",
+      },
+      screens: standardScreens,
+    },
+  },
+  {
+    // `implemented` (diseño aprobado tras validar el juego final de assets, docs/ASSET_LICENSES.md §5.10). Su
+    // publicación comercial la decide aparte un administrador: su fila de `Template` entra como DRAFT (migración
+    // `seed_bosque_de_aventuras_template`).
+    // `birthday` + estilo infantil (como Spider Friends): aparece en «Cumpleaños» e «Infantil» y es compatible con
+    // el alta de eventos (el onboarding no ofrece `kids` como tipo de evento, ver lib/events/event-types.ts).
+    id: "tpl_bosque_de_aventuras",
+    slug: "bosque-de-aventuras",
+    name: "Bosque de Aventuras",
+    status: "implemented",
+    eventType: "birthday",
+    style: "kids",
+    secondaryStyles: ["rustic"],
+    thumbnail: { alt: "Plantilla Bosque de Aventuras", tone: "sage" },
+    description:
+      "Una celebración mágica entre flores, animalitos y aventuras en un bosque encantado. Ideal para cumpleaños llenos de ternura y diversión.",
+    premium: false,
+    minimumPlan: "FREE",
+    features: standardFeatures,
+    preview: {
+      sample: {
+        eyebrow: "¡Lucía cumple 5!",
+        names: ["Lucía"],
+        date: "12 de junio de 2027",
+        venue: ["Jardín El Bosque Encantado", "Valle de Bravo"],
         button: "Abrir invitación",
       },
       screens: standardScreens,

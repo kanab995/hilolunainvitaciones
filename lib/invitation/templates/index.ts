@@ -1,5 +1,6 @@
 import { auroraXvTemplate } from "@/lib/invitation/templates/aurora-xv";
 import { babyBloomTemplate } from "@/lib/invitation/templates/baby-bloom";
+import { bosqueDeAventurasTemplate } from "@/lib/invitation/templates/bosque-de-aventuras";
 import { celesteTemplate } from "@/lib/invitation/templates/celeste";
 import { etoileTemplate } from "@/lib/invitation/templates/etoile";
 import { ivoryTemplate } from "@/lib/invitation/templates/ivory";
@@ -15,7 +16,7 @@ import type { InvitationTemplate } from "@/types/invitation-template";
  * Registro de plantillas de invitación. Único lugar que conoce las plantillas por nombre: el
  * renderizador y las secciones reciben un `InvitationTemplate` y nunca preguntan cuál es.
  */
-export const invitationTemplates: readonly InvitationTemplate[] = [magnoliaTemplate, ivoryTemplate, etoileTemplate, level12Template, auroraXvTemplate, celesteTemplate, spiderFriendsTemplate, babyBloomTemplate, luzDeFeTemplate, marDeAmorTemplate, novaGradTemplate];
+export const invitationTemplates: readonly InvitationTemplate[] = [magnoliaTemplate, ivoryTemplate, etoileTemplate, level12Template, auroraXvTemplate, celesteTemplate, spiderFriendsTemplate, babyBloomTemplate, luzDeFeTemplate, marDeAmorTemplate, novaGradTemplate, bosqueDeAventurasTemplate];
 
 /** Plantilla usada cuando el slug no está registrado (nunca rompe una invitación). */
 export const defaultInvitationTemplate: InvitationTemplate = magnoliaTemplate;

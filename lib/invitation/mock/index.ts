@@ -1,6 +1,7 @@
 import { andreaFernandoInvitation } from "@/lib/invitation/mock/andrea-fernando";
 import { babyMateoBabyBloomInvitation } from "@/lib/invitation/mock/baby-mateo-baby-bloom";
 import { camilaNovaGradInvitation } from "@/lib/invitation/mock/camila-nova-grad";
+import { luciaBosqueDeAventurasInvitation } from "@/lib/invitation/mock/lucia-bosque-de-aventuras";
 import { mateoCelesteInvitation } from "@/lib/invitation/mock/mateo-celeste";
 import { nicoSpiderFriendsInvitation } from "@/lib/invitation/mock/nico-spider-friends";
 import { santiagoLevel12Invitation } from "@/lib/invitation/mock/santiago-level-12";
@@ -30,6 +31,7 @@ export const STANDALONE_DEMO_BASES: Readonly<Record<string, Invitation>> = {
   "luz-de-fe": sofiaLuzDeFeInvitation,
   "mar-de-amor": valeriaMateoMarDeAmorInvitation,
   "nova-grad": camilaNovaGradInvitation,
+  "bosque-de-aventuras": luciaBosqueDeAventurasInvitation,
 };
 
 /**
@@ -54,6 +56,7 @@ export function getMockInvitation(slug: string): Invitation | undefined {
   if (slug === sofiaLuzDeFeInvitation.slug) return sofiaLuzDeFeInvitation;
   if (slug === valeriaMateoMarDeAmorInvitation.slug) return valeriaMateoMarDeAmorInvitation;
   if (slug === camilaNovaGradInvitation.slug) return camilaNovaGradInvitation;
+  if (slug === luciaBosqueDeAventurasInvitation.slug) return luciaBosqueDeAventurasInvitation;
 
   const match = /^demo-(.+)$/.exec(slug);
   const templateSlug = match?.[1];

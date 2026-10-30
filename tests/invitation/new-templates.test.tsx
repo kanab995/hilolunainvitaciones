@@ -209,7 +209,10 @@ describe.each(CASES)("$slug (plantilla terminada)", ({ slug, template, invitatio
 describe("las plantillas nuevas se distinguen de verdad (no solo por color)", () => {
   const NEW = [luzDeFeTemplate, marDeAmorTemplate, novaGradTemplate];
   const readySlugs = new Set(templates.filter(isTemplateReady).map((t) => t.slug));
-  const OLD = invitationTemplates.filter((t) => !NEW.includes(t) && readySlugs.has(t.slug));
+  // «Anteriores» = las que ya existían cuando se crearon estas tres (D-45). Las posteriores (D-50: Bosque de Aventuras)
+  // no cuentan: eligen sus variantes con las de D-45 ya disponibles.
+  const LATER = new Set(["bosque-de-aventuras"]);
+  const OLD = invitationTemplates.filter((t) => !NEW.includes(t) && readySlugs.has(t.slug) && !LATER.has(t.slug));
 
   it("ninguna usa la pareja de fuentes Cormorant + Inter de las demás, y las tres tienen pareja propia", () => {
     for (const template of NEW) expect(template.fonts.display).not.toBe(cormorantInter.display);

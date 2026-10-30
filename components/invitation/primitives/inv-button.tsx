@@ -10,8 +10,9 @@ type InvButtonProps = ComponentProps<"a"> & {
   arrow?: boolean;
 };
 
+// `inv-press`: respuesta al tocar, solo si la plantilla la pide (`[data-press="pop"]`, D-50; ver invitation.css).
 const base =
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-(--inv-radius-button) border font-inv-body text-sm font-medium outline-none " +
+  "inv-press inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-(--inv-radius-button) border font-inv-body text-sm font-medium outline-none " +
   "transition-[background-color,color,border-color] duration-200 " +
   "focus-visible:ring-2 focus-visible:ring-inv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-inv-bg";
 

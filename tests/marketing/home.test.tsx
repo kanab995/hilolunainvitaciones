@@ -14,7 +14,7 @@ import { isTemplateReady } from "@/lib/templates/status";
 const encoded = (path: string) => encodeURIComponent(path);
 const html = renderToStaticMarkup(<HomePage />);
 const NOT_READY = ["ivory", "etoile", "tuscany", "noir", "riviera", "dream", "blossom", "safari"] as const;
-const READY = ["magnolia", "level-12", "aurora-xv", "celeste", "spider-friends", "baby-bloom", "luz-de-fe", "mar-de-amor", "nova-grad"] as const;
+const READY = ["magnolia", "level-12", "aurora-xv", "celeste", "spider-friends", "baby-bloom", "luz-de-fe", "mar-de-amor", "nova-grad", "bosque-de-aventuras"] as const;
 /** Las 4 que caben en el abanico fijo del hero (ver `components/marketing/hero-visual.tsx`). */
 const HERO_SLOTS = ["magnolia", "level-12", "aurora-xv", "celeste"] as const;
 
@@ -68,11 +68,11 @@ describe("homepage: copy honesto, sin claims falsos (sección 10)", () => {
 });
 
 describe("homepage: plantillas destacadas calculadas dinámicamente (getFeaturedTemplates, sin lista fija)", () => {
-  it("getFeaturedTemplates(templates) son exactamente las 9 plantillas implemented, en orden de variedad por categoría", () => {
+  it("getFeaturedTemplates(templates) son exactamente las 10 plantillas implemented, en orden de variedad por categoría", () => {
     // magnolia/level-12/aurora-xv/celeste/baby-bloom/nova-grad: primera aparición de su categoría, en
-    // orden de catálogo. spider-friends (birthday), luz-de-fe (baptism) y mar-de-amor (wedding)
-    // repiten categoría → van al final, también en orden de catálogo.
-    expect(getFeaturedTemplates(templates).map((t) => t.slug)).toEqual(["magnolia", "level-12", "aurora-xv", "celeste", "baby-bloom", "nova-grad", "spider-friends", "luz-de-fe", "mar-de-amor"]);
+    // orden de catálogo. spider-friends (birthday), luz-de-fe (baptism), mar-de-amor (wedding) y
+    // bosque-de-aventuras (birthday) repiten categoría → van al final, también en orden de catálogo.
+    expect(getFeaturedTemplates(templates).map((t) => t.slug)).toEqual(["magnolia", "level-12", "aurora-xv", "celeste", "baby-bloom", "nova-grad", "spider-friends", "luz-de-fe", "mar-de-amor", "bosque-de-aventuras"]);
   });
 
   it("un límite menor recorta por el mismo orden (variedad primero)", () => {

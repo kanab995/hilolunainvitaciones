@@ -136,6 +136,19 @@ const NOVA_GRAD: TemplateAssetSet = {
   date: "2026-10-11",
 };
 
+/**
+ * Bosque de Aventuras (D-50): los 10 archivos los aportó el propietario (generados con ChatGPT). Si falta alguno,
+ * «todo asset referenciado existe» falla con su nombre.
+ */
+const BOSQUE_DE_AVENTURAS: TemplateAssetSet = {
+  template: "bosque-de-aventuras",
+  folder: "public/templates/bosque-de-aventuras",
+  files: NEW_SET_FILES(["location-venue.png"]),
+  section: "### 5.10 Imágenes de la plantilla Bosque de Aventuras",
+  // Procedencia declarada (IA con ChatGPT, aportada por el propietario) SIN afirmar exclusividad ni ausencia de derechos de terceros.
+  rowMustContain: ["Imagen generada con IA (ChatGPT), aportada por el propietario", "Hilo Luna — generada con ChatGPT por el propietario", "sin exclusividad ni garantía de ausencia de derechos de terceros"],
+  date: "2026-10-30",
+};
 /** Texto del documento desde el encabezado de ESTA plantilla hasta el siguiente encabezado `##`/`###`. */
 function sectionOf(heading: string): string {
   const start = licenses.indexOf(heading);
@@ -145,7 +158,7 @@ function sectionOf(heading: string): string {
   return rest.slice(0, next >= 0 ? next : undefined);
 }
 
-describe.each([MAGNOLIA, LEVEL_12, AURORA_XV, CELESTE, SPIDER_FRIENDS, BABY_BLOOM, LUZ_DE_FE, MAR_DE_AMOR, NOVA_GRAD])("registro de assets de $template (docs/ASSET_LICENSES.md)", ({ template, folder, files, section, rowMustContain, date }) => {
+describe.each([MAGNOLIA, LEVEL_12, AURORA_XV, CELESTE, SPIDER_FRIENDS, BABY_BLOOM, LUZ_DE_FE, MAR_DE_AMOR, NOVA_GRAD, BOSQUE_DE_AVENTURAS])("registro de assets de $template (docs/ASSET_LICENSES.md)", ({ template, folder, files, section, rowMustContain, date }) => {
   const publicFiles = readdirSync(join(ROOT, folder)).filter((file) => file.endsWith(".png"));
   const referenced = referencedIn(template);
   const scoped = sectionOf(section);

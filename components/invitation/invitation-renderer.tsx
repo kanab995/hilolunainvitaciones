@@ -41,6 +41,8 @@ export function InvitationRenderer({ invitation, template, now, personalization,
     <InvitationShell
       data-template={template.slug}
       data-reveal={style.reveal}
+      data-press={style.press}
+      data-decor-motion={style.decorMotion}
       style={cssVars}
       className="min-h-svh bg-inv-bg font-inv-body text-inv-ink-muted"
       music={music}

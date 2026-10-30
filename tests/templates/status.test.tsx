@@ -23,6 +23,7 @@ const expectedStatus: Record<string, TemplateStatus> = {
   "nova-grad": "implemented",
   ivory: "concept",
   etoile: "concept",
+  "bosque-de-aventuras": "implemented",
   tuscany: "comingSoon",
   noir: "comingSoon",
   blossom: "comingSoon",
@@ -43,8 +44,8 @@ describe("estado de las plantillas", () => {
     for (const template of templates) expect(template.status, template.slug).toBe(expectedStatus[template.slug]);
   });
 
-  it("hay exactamente nueve plantillas implementadas: Magnolia, Level 12, Aurora XV, Celeste, Spider Friends, Baby Bloom, Luz de Fe, Mar de Amor y Nova Grad", () => {
-    expect(templates.filter((t) => t.status === "implemented").map((t) => t.slug).sort()).toEqual(["aurora-xv", "baby-bloom", "celeste", "level-12", "luz-de-fe", "magnolia", "mar-de-amor", "nova-grad", "spider-friends"]);
+  it("hay exactamente diez plantillas implementadas: Magnolia, Level 12, Aurora XV, Celeste, Spider Friends, Baby Bloom, Luz de Fe, Mar de Amor, Nova Grad y Bosque de Aventuras", () => {
+    expect(templates.filter((t) => t.status === "implemented").map((t) => t.slug).sort()).toEqual(["aurora-xv", "baby-bloom", "bosque-de-aventuras", "celeste", "level-12", "luz-de-fe", "magnolia", "mar-de-amor", "nova-grad", "spider-friends"]);
   });
 });
 
@@ -141,7 +142,7 @@ describe("/templates/[slug]: toda plantilla del catálogo tiene página válida"
     }
   });
 
-  it.each(["magnolia", "level-12", "aurora-xv", "celeste", "spider-friends", "baby-bloom", "luz-de-fe", "mar-de-amor", "nova-grad"])("implemented: preview completo, funciones, CTA activo y demo (%s)", (slug) => {
+  it.each(["magnolia", "level-12", "aurora-xv", "celeste", "spider-friends", "baby-bloom", "luz-de-fe", "mar-de-amor", "nova-grad", "bosque-de-aventuras"])("implemented: preview completo, funciones, CTA activo y demo (%s)", (slug) => {
     const template = getTemplateBySlug(slug)!;
     const hero = heroOf(renderDetail(template));
     expect(hero).toContain("Secciones de la invitación");
@@ -162,7 +163,7 @@ describe("las demos no se enlazan desde la interfaz", () => {
     });
 
   it("ningún detalle de plantilla enlaza a demo-ivory ni demo-etoile (ni a ninguna demo salvo la de su propia plantilla implementada)", () => {
-    const linked = new Set(["magnolia", "level-12", "aurora-xv", "celeste", "spider-friends", "baby-bloom", "luz-de-fe", "mar-de-amor", "nova-grad"]);
+    const linked = new Set(["magnolia", "level-12", "aurora-xv", "celeste", "spider-friends", "baby-bloom", "luz-de-fe", "mar-de-amor", "nova-grad", "bosque-de-aventuras"]);
     for (const template of templates) {
       const html = renderDetail(template);
       const demos = [...html.matchAll(/href="(\/i\/[^"]*)"/g)].map((m) => m[1]);

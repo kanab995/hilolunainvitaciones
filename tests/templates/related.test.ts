@@ -36,11 +36,11 @@ describe("getRelatedTemplates: solo sugiere plantillas listas (isTemplateReady)"
     expect(slugsOf(getRelatedTemplates(magnolia, templates))).toEqual(["mar-de-amor", "aurora-xv", "celeste"]);
   });
 
-  it("solo quedan 8 plantillas listas en total (sin contarse a sí misma): un límite mayor no rellena con plantillas no listas", () => {
+  it("solo quedan 9 plantillas listas en total (sin contarse a sí misma): un límite mayor no rellena con plantillas no listas", () => {
     const level12 = templates.find((t) => t.slug === "level-12")!;
     const related = getRelatedTemplates(level12, templates, 12);
-    expect(related).toHaveLength(8);
-    expect(slugsOf(related).sort()).toEqual(["aurora-xv", "baby-bloom", "celeste", "luz-de-fe", "magnolia", "mar-de-amor", "nova-grad", "spider-friends"]);
+    expect(related).toHaveLength(9);
+    expect(slugsOf(related).sort()).toEqual(["aurora-xv", "baby-bloom", "bosque-de-aventuras", "celeste", "luz-de-fe", "magnolia", "mar-de-amor", "nova-grad", "spider-friends"]);
   });
 
   it("si la propia plantilla es de las 6 listas, el límite por defecto (3) sigue aplicando", () => {

@@ -204,6 +204,81 @@
   transform: translateY(-0.25rem);
 }
 
+/*
+ * D-50 — opciones de plantilla (todas opcionales y genéricas; sin ellas nada cambia):
+ *  - Cuenta regresiva en tarjetas (`componentStyles.countdown = "cards"`): colores --inv-counter-* (o surface/accent).
+ *  - Respuesta al tocar (`[data-press="pop"]`): el botón se hunde levemente; «Abrir invitación» late cada pocos segundos.
+ *  - Vaivén de decoraciones (`[data-decor-motion="sway"]`): las esquinas se mecen despacio, como flores con brisa.
+ * Todo el movimiento continuo vive dentro de `prefers-reduced-motion: no-preference`.
+ */
+.inv-counter-card {
+  background-color: var(--inv-counter-bg, var(--inv-surface));
+  color: var(--inv-counter-fg, var(--inv-accent));
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, currentColor 22%, transparent),
+    0 12px 26px -16px rgb(60 40 20 / 0.5);
+}
+
+@supports (animation-timeline: view()) {
+  [data-reveal="rise"] .inv-counter-card,
+  [data-reveal="fade"] .inv-counter-card {
+    animation: inv-rise var(--inv-dur-reveal) var(--inv-ease) both;
+    animation-timeline: view();
+    animation-range: entry calc(var(--inv-i, 0) * 6%) entry calc(35% + var(--inv-i, 0) * 6%);
+  }
+}
+
+@keyframes inv-sway {
+  from {
+    transform: rotate(-1.2deg) translateY(0);
+  }
+  to {
+    transform: rotate(1.2deg) translateY(-3px);
+  }
+}
+
+@keyframes inv-nudge {
+  0%,
+  72%,
+  100% {
+    transform: none;
+  }
+  82% {
+    transform: translateY(-3px) scale(1.03);
+  }
+  91% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-decor-motion="sway"] .inv-decor > img {
+    animation: inv-sway 6.5s ease-in-out infinite alternate;
+  }
+
+  [data-decor-motion="sway"] .inv-decor[data-decor$="Right"] > img {
+    animation-duration: 7.5s;
+    animation-delay: -3s;
+  }
+
+  [data-press="pop"] .inv-press {
+    transition-property: background-color, color, border-color, opacity, transform;
+  }
+
+  [data-press="pop"] .inv-press:active {
+    transform: scale(0.96);
+  }
+
+  [data-press="pop"] .inv-open {
+    animation: inv-nudge 3.4s var(--inv-ease) 1.6s infinite;
+  }
+
+  [data-press="pop"][data-opened="true"] .inv-open,
+  [data-press="pop"] .inv-open:active {
+    animation: none;
+  }
+}
+
 /* Composiciones anchas: fotografías, sedes y galería; el texto sigue en --inv-column-max. */
 @utility inv-wide {
   width: 100%;

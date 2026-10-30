@@ -23,7 +23,7 @@ export function CountdownSection({ invitation, template, section, index, now, ed
           <SectionHeading section={section} template={template} fallbackTitle={invitationCopy.sections.countdown} />
         </div>
         <div className="w-full max-w-[30rem] md:max-w-[45rem]">
-          <CountdownDisplay targetIso={invitation.event.startsAt} serverNowMs={now} />
+          <CountdownDisplay targetIso={invitation.event.startsAt} serverNowMs={now} variant={template.componentStyles.countdown ?? "divided"} />
         </div>
         {showCalendar ? (
           // Descarga el `.ics` de la versión PUBLICADA (sin sesión y sin datos del invitado). En la vista previa del editor no es un enlace.
