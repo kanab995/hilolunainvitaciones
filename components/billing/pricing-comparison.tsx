@@ -17,7 +17,8 @@ import { cn } from "@/lib/utils";
  * curaduría COMERCIAL, igual que en `cardHighlights`. La música SÍ coincide con una capacidad real desde D-46:
  * la biblioteca musical (`musicLibrary`) es exclusiva de Esencial y Premium
  * (`lib/billing/plan-summary.ts`) — una promesa de qué se promueve por plan, no una limitación
- * técnica real. Documentado ahí con el mismo criterio para que ambos componentes no se contradigan.
+ * técnica real. Documentado ahí con el mismo criterio para que ambos componentes no se contradigan. Mientras la biblioteca no tenga
+ * pistas activas, los planes de pago dicen «Muy pronto» en lugar de marcarla como incluida (ver `cardHighlights`).
  */
 const MARKETED_ONLY_IN_PAID: Record<PlanId, boolean> = { FREE: false, ESSENTIAL: true, PREMIUM: true };
 
@@ -79,13 +80,22 @@ export function PricingComparison() {
                 );
               })}
             </Row>
-            {(["giftRegistry", "music"] as const).map((rowId) => (
-              <Row key={rowId} label={copy.rowLabels[rowId]}>
-                {PLAN_IDS.map((id) =>
-                  MARKETED_ONLY_IN_PAID[id] ? <IncludedCell key={id} highlight={id === "ESSENTIAL"} /> : <NotIncludedCell key={id} />,
-                )}
-              </Row>
-            ))}
+            <Row label={copy.rowLabels.giftRegistry}>
+              {PLAN_IDS.map((id) =>
+                MARKETED_ONLY_IN_PAID[id] ? <IncludedCell key={id} highlight={id === "ESSENTIAL"} /> : <NotIncludedCell key={id} />,
+              )}
+            </Row>
+            <Row label={copy.rowLabels.music}>
+              {PLAN_IDS.map((id) =>
+                MARKETED_ONLY_IN_PAID[id] ? (
+                  <Cell key={id} highlight={id === "ESSENTIAL"}>
+                    {copy.comingSoon}
+                  </Cell>
+                ) : (
+                  <NotIncludedCell key={id} />
+                ),
+              )}
+            </Row>
             <Row label={copy.rowLabels.idealFor} last>
               {PLAN_IDS.map((id) => (
                 <Cell key={id} highlight={id === "ESSENTIAL"} className="text-lu-text-secondary">

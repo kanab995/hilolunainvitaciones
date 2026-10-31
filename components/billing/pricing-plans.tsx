@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { Check, Clock } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -79,7 +79,11 @@ export function PricingPlans({ signedIn }: { signedIn: boolean }) {
                 <ul aria-label={`Incluye ${plan.name}`} className="flex flex-1 flex-col gap-3">
                   {cardHighlights(id).map((row) => (
                     <li key={row.id} className="flex items-start gap-3 text-lu-base text-lu-text-secondary">
-                      <Check aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-lu-success" strokeWidth={2} />
+                      {row.comingSoon ? (
+                        <Clock aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-lu-text-subtle" strokeWidth={2} />
+                      ) : (
+                        <Check aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-lu-success" strokeWidth={2} />
+                      )}
                       <span>{row.label}</span>
                     </li>
                   ))}

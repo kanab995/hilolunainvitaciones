@@ -121,6 +121,7 @@ export const billingCopy = {
       },
       paymentTypeFree: "Sin costo",
       paymentTypePaid: "Pago único",
+      comingSoon: "Muy pronto",
     },
     faq: [
       {

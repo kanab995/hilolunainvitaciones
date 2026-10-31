@@ -45,6 +45,8 @@ export const templatesAllowedFor = (plan: PlanId, templates: readonly { minimumP
 export interface PlanHighlight {
   id: string;
   label: string;
+  /** Prometido pero todavía sin entregar: se dibuja sin la palomita de «incluido». */
+  comingSoon?: boolean;
 }
 
 /**
@@ -60,6 +62,9 @@ export interface PlanHighlight {
  * (ni las afirma ni las niega: omisión, no una `✗` falsa) para sentirse más ligero frente a los
  * planes de pago, que sí las destacan. Si algún día se gatean de verdad por plan, esta curaduría
  * deja de ser aspiracional y puede derivarse de `features`/`limits` directamente.
+ *
+ * La música se anuncia como «muy pronto» porque la biblioteca aún no tiene pistas activas (D-46): no se presenta como incluida hasta
+ * que un cliente pueda elegir una canción. Al activar las primeras pistas se quita `comingSoon` aquí y la celda de `PricingComparison`.
  */
 export function cardHighlights(plan: PlanId): PlanHighlight[] {
   const { limits } = getPlanConfig(plan);
@@ -89,7 +94,7 @@ export function cardHighlights(plan: PlanId): PlanHighlight[] {
   return [
     ...always,
     { id: "giftRegistry", label: "Mesa de regalos" },
-    { id: "music", label: "Música" },
+    { id: "music", label: "Música (muy pronto)", comingSoon: true },
     { id: "qr", label: "Código QR" },
     { id: "calendar", label: "Agregar al calendario" },
     { id: "personalizedLink", label: "Enlace personalizado" },

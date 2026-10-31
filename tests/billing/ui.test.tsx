@@ -32,6 +32,13 @@ const pricing = (signedIn: boolean) => renderToStaticMarkup(<PricingPlans signed
 const card = (html: string, plan: string) => (html.split("<article").find((chunk) => chunk.includes(`data-plan="${plan}"`)) ?? "").split("</article>")[0] ?? "";
 
 describe("/pricing: un pago único por evento (36–38, 81)", () => {
+  it("la música se anuncia como «muy pronto», nunca como incluida, mientras la biblioteca no tenga pistas", () => {
+    expect(visibleText(pricing(false))).toContain("Música (muy pronto)");
+    const row = renderToStaticMarkup(<PricingComparison />).split("<tr").find((cells) => cells.includes(">Música<")) ?? "";
+    expect(row.match(/Muy pronto/g)).toHaveLength(2);
+    expect(row).not.toContain("Incluido");
+  });
+
   it("(36/38) tarjetas Gratis, Esencial y Premium con su precio: $0 MXN, $499 MXN y $799 MXN, y «Pago único por evento» en los de pago", () => {
     const html = pricing(false);
     expect([...html.matchAll(/<h2[^>]*id="plan-(\w+)"[^>]*>([^<]+)<\/h2>/g)].map((match) => match[2])).toEqual(["Gratis", "Esencial", "Premium"]);
